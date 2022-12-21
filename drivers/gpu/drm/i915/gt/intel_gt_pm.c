@@ -44,10 +44,10 @@ static void runtime_begin(struct intel_gt *gt)
 #ifdef __linux__
 	local_irq_disable();
 #endif
-	write_seqcount_begin(&gt->stats.lock);
+	write_seqcount_begin(&gt->stats.lock.seqc);
 	gt->stats.start = ktime_get();
 	gt->stats.active = true;
-	write_seqcount_end(&gt->stats.lock);
+	write_seqcount_end(&gt->stats.lock.seqc);
 #ifdef __linux__
 	local_irq_enable();
 #endif
@@ -58,12 +58,12 @@ static void runtime_end(struct intel_gt *gt)
 #ifdef __linux__
 	local_irq_disable();
 #endif
-	write_seqcount_begin(&gt->stats.lock);
+	write_seqcount_begin(&gt->stats.lock.seqc);
 	gt->stats.active = false;
 	gt->stats.total =
 		ktime_add(gt->stats.total,
 			  ktime_sub(ktime_get(), gt->stats.start));
-	write_seqcount_end(&gt->stats.lock);
+	write_seqcount_end(&gt->stats.lock.seqc);
 #ifdef __linux__
 	local_irq_enable();
 #endif
@@ -395,9 +395,9 @@ ktime_t intel_gt_get_awake_time(const struct intel_gt *gt)
 	ktime_t total;
 
 	do {
-		seq = read_seqcount_begin(&gt->stats.lock);
+		seq = read_seqcount_begin(&gt->stats.lock.seqc);
 		total = __intel_gt_get_awake_time(gt);
-	} while (read_seqcount_retry(&gt->stats.lock, seq));
+	} while (read_seqcount_retry(&gt->stats.lock.seqc, seq));
 
 	return total;
 }

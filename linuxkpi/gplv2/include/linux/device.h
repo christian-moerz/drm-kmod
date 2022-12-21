@@ -3,6 +3,10 @@
 
 #include_next <linux/device.h>
 
+#define dev_warn_once(dev, fmt, arg...)				\
+	printf("drm:pid%d:%s *WARNING* " fmt, curproc->p_pid,	\
+	    __func__ , ## arg)
+
 /* allows to add/remove a custom action to devres stack */
 int devm_add_action(struct device *dev, void (*action)(void *), void *data);
 

@@ -2,6 +2,7 @@
 *.ko.debug
 *.ko.full
 *.ko
+**/*~
 TAGS
 amd/amdgpu/*.h
 amd/amdgpu/i386
