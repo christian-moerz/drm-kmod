@@ -4283,7 +4283,6 @@
 #define   CURSOR_HEIGHT(h)		REG_FIELD_PREP(CURSOR_HEIGHT_MASK, (h))
 #define   CURSOR_WIDTH_MASK		REG_GENMASK(9, 0)
 #define   CURSOR_WIDTH(w)		REG_FIELD_PREP(CURSOR_WIDTH_MASK, (w))
-#define CURSIZE			_MMIO(0x700a0) /* 845/865 */
 #define _CUR_FBC_CTL_A		0x700a0 /* ivb+ */
 #define   CUR_FBC_CTL_EN	(1 << 31)
 #define   CUR_FBC_EN			REG_BIT(31)
@@ -5944,8 +5943,6 @@
 #define  GLK_CL0_PWR_DOWN	(1 << 10)
 
 #define CHICKEN_MISC_4		_MMIO(0x4208c)
-#define   FBC_STRIDE_OVERRIDE	(1 << 13)
-#define   FBC_STRIDE_MASK	0x1FFF
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
