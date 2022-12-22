@@ -2378,7 +2378,9 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
+#ifdef __linux__
 	static_assert(PLANE_CTL_TILED_YF == PLANE_CTL_TILED_4);
+#endif	
 
 	if (!plane->get_hw_state(plane, &pipe))
 		return;

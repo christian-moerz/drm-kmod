@@ -5,6 +5,7 @@ TODOS
 * ensure no local_irq_restore
 * ensure no local_irq_enable
 * ensure no local_irq_disable
+* ensure no static_assert
 
 possible candidates:
 * spin_lock_irqsave
