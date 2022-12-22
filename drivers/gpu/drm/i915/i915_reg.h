@@ -6061,7 +6061,6 @@
 #define   MASK_WAKEMEM				REG_BIT(13)
 #define   DDI_CLOCK_REG_ACCESS			REG_BIT(7)
 #define   CNL_DELAY_PMRSP		(1 << 22)
-#define   MASK_WAKEMEM			(1 << 13)
 #define   CNL_DDI_CLOCK_REG_ACCESS_ON	(1 << 7)
 
 #define GEN11_CHICKEN_DCPR_2			_MMIO(0x46434)
