@@ -136,6 +136,18 @@ static inline unsigned int i915_sg_segment_size(void)
 	return size;
 }
 
+/**
+ * i915_refct_sgt_get - Get a refcounted sg-table
+ * @rsgt the struct i915_refct_sgt to get.
+ */
+static inline struct i915_refct_sgt *
+i915_refct_sgt_get(struct i915_refct_sgt *rsgt)
+{
+	kref_get(&rsgt->kref);
+	return rsgt;
+}
+
+
 bool i915_sg_trim(struct sg_table *orig_st);
 
 #endif
