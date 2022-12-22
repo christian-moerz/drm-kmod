@@ -2,7 +2,8 @@
 
 SRCDIR=	${.CURDIR:H}/drivers/gpu/drm/i915
 
-.PATH:	${SRCDIR} ${SRCDIR}/gt ${SRCDIR}/gt/uc ${SRCDIR}/gem ${SRCDIR}/display ${SRCDIR}/oa
+.PATH:	${SRCDIR} ${SRCDIR}/gt ${SRCDIR}/gt/uc ${SRCDIR}/gem ${SRCDIR}/display \
+		${SRCDIR}/gvt ${SRCDIR}/pxp ${SRCDIR}/oa
 
 .include "../kconfig.mk"
 
@@ -216,26 +217,6 @@ gen2_engine_cs.c \
 	intel_workarounds.c \
 	ivb_clear_kernel.c \
 	mock_engine.c \
-	selftest_context.c \
-	selftest_engine.c \
-	selftest_engine_cs.c \
-	selftest_engine_heartbeat.c \
-	selftest_engine_pm.c \
-	selftest_execlists.c \
-	selftest_gt_pm.c \
-	selftest_hangcheck.c \
-	selftest_llc.c \
-	selftest_lrc.c \
-	selftest_migrate.c \
-	selftest_mocs.c \
-	selftest_rc6.c \
-	selftest_reset.c \
-	selftest_ring.c \
-	selftest_ring_submission.c \
-	selftest_rps.c \
-	selftest_slpc.c \
-	selftest_timeline.c \
-	selftest_workarounds.c \
 	shmem_utils.c \
 	st_shmem_utils.c \
 	sysfs_engines.c
