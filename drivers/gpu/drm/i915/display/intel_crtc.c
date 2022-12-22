@@ -521,7 +521,9 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	 */
 	intel_psr_wait_for_idle_locked(new_crtc_state);
 
+#ifdef __linux__
 	local_irq_disable();
+#endif
 
 	crtc->debug.min_vbl = min;
 	crtc->debug.max_vbl = max;
@@ -546,11 +548,15 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 			break;
 		}
 
+#ifdef __linux__
 		local_irq_enable();
+#endif
 
 		timeout = schedule_timeout(timeout);
 
+#ifdef __linux__
 		local_irq_disable();
+#endif
 	}
 
 	finish_wait(wq, &wait);
@@ -583,7 +589,11 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	return;
 
 irq_disable:
+#ifdef __linux__
 	local_irq_disable();
+#elif defined(__FreeBSD__)
+	return;
+#endif
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
@@ -684,7 +694,9 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 */
 	intel_vrr_send_push(new_crtc_state);
 
+#ifdef __linux__
 	local_irq_enable();
+#endif
 
 	if (intel_vgpu_active(dev_priv))
 		return;

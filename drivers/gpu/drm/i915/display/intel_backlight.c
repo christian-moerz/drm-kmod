@@ -470,8 +470,10 @@ void intel_backlight_disable(const struct drm_connector_state *old_conn_state)
 
 	mutex_lock(&dev_priv->display.backlight.lock);
 
+#ifdef __linux__
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_POWERDOWN;
+#endif
 	panel->backlight.enabled = false;
 	panel->backlight.funcs->disable(old_conn_state, 0);
 
@@ -801,8 +803,10 @@ static void __intel_backlight_enable(const struct intel_crtc_state *crtc_state,
 
 	panel->backlight.funcs->enable(crtc_state, conn_state, panel->backlight.level);
 	panel->backlight.enabled = true;
+#ifdef __linux__
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_UNBLANK;
+#endif
 }
 
 void intel_backlight_enable(const struct intel_crtc_state *crtc_state,

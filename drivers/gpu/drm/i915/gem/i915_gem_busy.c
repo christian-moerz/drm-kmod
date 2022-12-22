@@ -159,7 +159,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 
 	/* FIXME BSD: need to check whether this works */
 	/*
-	 * not to myself: see original - was rusing an rwlock?
+	 * note to myself: see original - was using an rwlock?
 
 	 	*
 		 * On FreeBSD, thread holding reservation object seqcount lock

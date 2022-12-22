@@ -93,6 +93,7 @@ static int intel_fbdev_set_par(struct fb_info *info)
 	return ret;
 }
 
+#ifdef __linux__
 static int intel_fbdev_blank(int blank, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
@@ -121,16 +122,19 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 
 	return ret;
 }
+#endif
 
 static const struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_set_par = intel_fbdev_set_par,
+#ifdef __linux__
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_pan_display = intel_fbdev_pan_display,
 	.fb_blank = intel_fbdev_blank,
+#endif
 };
 
 static int intelfb_alloc(struct drm_fb_helper *helper,
@@ -544,6 +548,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	return 0;
 }
 
+#ifdef __linux__
 static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 {
 	struct intel_fbdev *ifbdev = data;
@@ -553,6 +558,7 @@ static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 					 ifbdev->preferred_bpp))
 		intel_fbdev_unregister(to_i915(ifbdev->helper.dev));
 }
+#endif
 
 void intel_fbdev_initial_config_async(struct drm_device *dev)
 {

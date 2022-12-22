@@ -430,19 +430,25 @@ void i915_gem_driver_register__shrinker(struct drm_i915_private *i915)
 						  "drm-i915_gem"));
 
 	i915->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
+#ifdef __linux__
 	drm_WARN_ON(&i915->drm, register_oom_notifier(&i915->mm.oom_notifier));
+#endif
 
 	i915->mm.vmap_notifier.notifier_call = i915_gem_shrinker_vmap;
+#ifdef __linux__
 	drm_WARN_ON(&i915->drm,
 		    register_vmap_purge_notifier(&i915->mm.vmap_notifier));
+#endif
 }
 
 void i915_gem_driver_unregister__shrinker(struct drm_i915_private *i915)
 {
+#ifdef __linux__
 	drm_WARN_ON(&i915->drm,
 		    unregister_vmap_purge_notifier(&i915->mm.vmap_notifier));
 	drm_WARN_ON(&i915->drm,
 		    unregister_oom_notifier(&i915->mm.oom_notifier));
+#endif
 	unregister_shrinker(&i915->mm.shrinker);
 }
 

@@ -36,6 +36,7 @@
 #include <vm/vm_param.h>
 #endif
 
+#ifdef __linux__ /* Mute unused function warning */
 static inline bool
 __vma_matches(struct vm_area_struct *vma, struct file *filp,
 	      unsigned long addr, unsigned long size)
@@ -46,6 +47,7 @@ __vma_matches(struct vm_area_struct *vma, struct file *filp,
 	return vma->vm_start == addr &&
 	       (vma->vm_end - vma->vm_start) == PAGE_ALIGN(size);
 }
+#endif
 
 /**
  * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address
@@ -994,7 +996,9 @@ static struct file *mmap_singleton(struct drm_i915_private *i915)
 		return file;
 
 	/* Everyone shares a single global address space */
+#ifdef __linux__
 	file->f_mapping = i915->drm.anon_inode->i_mapping;
+#endif
 
 	smp_store_mb(i915->gem.mmap_singleton, file);
 	drm_dev_get(&i915->drm);

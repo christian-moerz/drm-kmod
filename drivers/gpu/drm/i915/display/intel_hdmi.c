@@ -2447,7 +2447,9 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 		connected = true;
 	}
 
+#ifdef __linux__
 	cec_notifier_set_phys_addr_from_edid(intel_hdmi->cec_notifier, edid);
+#endif
 
 	return connected;
 }
@@ -2481,8 +2483,10 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 out:
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
+#ifdef __linux__
 	if (status != connector_status_connected)
 		cec_notifier_phys_addr_invalidate(intel_hdmi->cec_notifier);
+#endif
 
 	/*
 	 * Make sure the refs for power wells enabled during detect are
@@ -2520,6 +2524,7 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 	return intel_connector_update_modes(connector, edid);
 }
 
+#ifdef __linux__
 static struct i2c_adapter *
 intel_hdmi_get_i2c_adapter(struct drm_connector *connector)
 {
@@ -2528,9 +2533,11 @@ intel_hdmi_get_i2c_adapter(struct drm_connector *connector)
 
 	return intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 }
+#endif
 
 static void intel_hdmi_create_i2c_symlink(struct drm_connector *connector)
 {
+#ifdef __linux__
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct i2c_adapter *adapter = intel_hdmi_get_i2c_adapter(connector);
 	struct kobject *i2c_kobj = &adapter->dev.kobj;
@@ -2540,15 +2547,18 @@ static void intel_hdmi_create_i2c_symlink(struct drm_connector *connector)
 	ret = sysfs_create_link(connector_kobj, i2c_kobj, i2c_kobj->name);
 	if (ret)
 		drm_err(&i915->drm, "Failed to create i2c symlink (%d)\n", ret);
+#endif
 }
 
 static void intel_hdmi_remove_i2c_symlink(struct drm_connector *connector)
 {
+#ifdef __linux__
 	struct i2c_adapter *adapter = intel_hdmi_get_i2c_adapter(connector);
 	struct kobject *i2c_kobj = &adapter->dev.kobj;
 	struct kobject *connector_kobj = &connector->kdev->kobj;
 
 	sysfs_remove_link(connector_kobj, i2c_kobj->name);
+#endif
 }
 
 static int
@@ -2567,9 +2577,11 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 
 static void intel_hdmi_connector_unregister(struct drm_connector *connector)
 {
+#ifdef __linux__
 	struct cec_notifier *n = intel_attached_hdmi(to_intel_connector(connector))->cec_notifier;
 
 	cec_notifier_conn_unregister(n);
+#endif
 
 	intel_hdmi_remove_i2c_symlink(connector);
 	intel_connector_unregister(connector);
@@ -2932,7 +2944,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i2c_adapter *ddc;
 	enum port port = intel_encoder->port;
+#ifdef __linux__	
 	struct cec_connector_info conn_info;
+#endif
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "Adding HDMI connector on [ENCODER:%d:%s]\n",
@@ -2993,6 +3007,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		               (temp & ~0xf) | 0xd);
 	}
 
+#ifdef __linux__
 	cec_fill_conn_info_from_drm(&conn_info, connector);
 
 	intel_hdmi->cec_notifier =
@@ -3000,6 +3015,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 					   &conn_info);
 	if (!intel_hdmi->cec_notifier)
 		drm_dbg_kms(&dev_priv->drm, "CEC notifier get failed\n");
+#endif
 }
 
 /*

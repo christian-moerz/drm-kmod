@@ -45,7 +45,9 @@ void shmem_sg_free_table(struct sg_table *st,
 	struct pagevec pvec;
 	struct page *page;
 
+#ifdef __linux__
 	mapping_clear_unevictable(mapping);
+#endif
 
 	pagevec_init(&pvec);
 	for_each_sgt_page(page, sgt_iter, st) {
@@ -139,7 +141,9 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			 */
 			if (!*s) {
 				/* reclaim and warn, but no oom */
+#ifdef __linux__
 				gfp = mapping_gfp_mask(mapping);
+#endif
 
 				/*
 				 * Our bo are always dirty and so we require
@@ -187,6 +191,8 @@ err_sg:
 	if (sg != st->sgl) {
 		shmem_sg_free_table(st, mapping, false, false);
 	} else {
+		/* FIXME BSD */
+		/* this might need to be __linux__ */
 		mapping_clear_unevictable(mapping);
 		sg_free_table(st);
 	}
@@ -617,8 +623,8 @@ static int shmem_object_init(struct intel_memory_region *mem,
 	struct drm_i915_private *i915 = mem->i915;
 #ifdef __linux__
 	struct address_space *mapping;
-#elif defined(__FreeBSD__)
-	vm_object_t mapping;
+/* #elif defined(__FreeBSD__)
+	vm_object_t mapping; */
 #endif
 	unsigned int cache_level;
 	gfp_t mask;
@@ -635,9 +641,11 @@ static int shmem_object_init(struct intel_memory_region *mem,
 		mask |= __GFP_DMA32;
 	}
 
+#ifdef __linux__
 	mapping = obj->base.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, mask);
 	GEM_BUG_ON(!(mapping_gfp_mask(mapping) & __GFP_RECLAIM));
+#endif
 
 	i915_gem_object_init(obj, &i915_gem_shmem_ops, &lock_class, 0);
 	obj->mem_flags |= I915_BO_FLAG_STRUCT_PAGE;
@@ -733,9 +741,11 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 
 	return obj;
 
+#ifdef __linux__
 fail:
 	i915_gem_object_put(obj);
 	return ERR_PTR(err);
+#endif
 }
 
 static int init_shmem(struct intel_memory_region *mem)

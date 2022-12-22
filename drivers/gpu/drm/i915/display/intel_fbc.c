@@ -1008,6 +1008,8 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 static bool intel_fbc_is_fence_ok(const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
 	/* The use of a CPU fence is one of two ways to detect writes by the
 	 * CPU to the scanout and trigger updates to the FBC.
@@ -1026,9 +1028,13 @@ static bool intel_fbc_is_fence_ok(const struct intel_plane_state *plane_state)
 	 * For now this will effectively disable FBC with 90/270 degree
 	 * rotation.
 	 */
+#ifdef __linux__
 	return DISPLAY_VER(i915) >= 9 ||
 		(plane_state->flags & PLANE_HAS_FENCE &&
 		 plane_state->ggtt_vma->fence);
+#elif defined(__FreeBSD__)
+	return (cache->fence_id < 0);
+#endif
 }
 
 static bool intel_fbc_is_cfb_ok(const struct intel_plane_state *plane_state)

@@ -2143,6 +2143,7 @@ static void intel_hdcp_check_work(struct work_struct *work)
 				      DRM_HDCP_CHECK_PERIOD_MS);
 }
 
+#ifdef __linux__
 static int i915_hdcp_component_bind(struct device *i915_kdev,
 				    struct device *mei_kdev, void *data)
 {
@@ -2172,6 +2173,7 @@ static const struct component_ops i915_hdcp_component_ops = {
 	.bind   = i915_hdcp_component_bind,
 	.unbind = i915_hdcp_component_unbind,
 };
+#endif
 
 static enum mei_fw_ddi intel_get_mei_fw_ddi_index(enum port port)
 {
@@ -2251,7 +2253,9 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 
 void intel_hdcp_component_init(struct drm_i915_private *dev_priv)
 {
+#ifdef __linux__
 	int ret;
+#endif
 
 	if (!is_hdcp2_supported(dev_priv))
 		return;
@@ -2261,6 +2265,7 @@ void intel_hdcp_component_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->display.hdcp.comp_added = true;
 	mutex_unlock(&dev_priv->display.hdcp.comp_mutex);
+#ifdef __linux__
 	ret = component_add_typed(dev_priv->drm.dev, &i915_hdcp_component_ops,
 				  I915_COMPONENT_HDCP);
 	if (ret < 0) {
@@ -2271,6 +2276,7 @@ void intel_hdcp_component_init(struct drm_i915_private *dev_priv)
 		mutex_unlock(&dev_priv->display.hdcp.comp_mutex);
 		return;
 	}
+#endif
 }
 
 static void intel_hdcp2_init(struct intel_connector *connector,
@@ -2490,7 +2496,9 @@ void intel_hdcp_component_fini(struct drm_i915_private *dev_priv)
 	dev_priv->display.hdcp.comp_added = false;
 	mutex_unlock(&dev_priv->display.hdcp.comp_mutex);
 
+#ifdef __linux__
 	component_del(dev_priv->drm.dev, &i915_hdcp_component_ops);
+#endif
 }
 
 void intel_hdcp_cleanup(struct intel_connector *connector)
