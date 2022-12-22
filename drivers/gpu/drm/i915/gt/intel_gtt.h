@@ -85,6 +85,12 @@ typedef u64 gen8_pte_t;
 #define BYT_PTE_SNOOPED_BY_CPU_CACHES	REG_BIT(2)
 #define BYT_PTE_WRITEABLE		REG_BIT(1)
 
+#define GEN12_PPGTT_PTE_LM	BIT_ULL(11)
+
+#define GEN12_GGTT_PTE_LM	BIT_ULL(1)
+
+#define GEN12_PDE_64K BIT(6)
+
 /*
  * Cacheability Control is a 4-bit value. The low three bits are stored in bits
  * 3:1 of the PTE, while the fourth bit is stored in bit 11 of the PTE.
@@ -131,12 +137,17 @@ typedef u64 gen8_pte_t;
 #define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
 #define GEN8_PPAT(i, x)			((u64)(x) << ((i) * 8))
 
+#define GEN8_PAGE_PRESENT		BIT_ULL(0)
+#define GEN8_PAGE_RW			BIT_ULL(1)
+
 #define GEN8_PDE_IPS_64K BIT(11)
 #define GEN8_PDE_PS_2M   BIT(7)
 
 enum i915_cache_level;
 
+/* BEGIN DEPRECATE */
 struct drm_i915_file_private;
+/* END DEPRECATE */
 struct drm_i915_gem_object;
 struct i915_fence_reg;
 struct i915_vma;
@@ -151,6 +162,7 @@ struct i915_page_table {
 		atomic_t used;
 		struct i915_page_table *stash;
 	};
+	bool is_compact;
 };
 
 struct i915_page_directory {
@@ -185,6 +197,14 @@ dma_addr_t __px_dma(struct drm_i915_gem_object *p);
 struct i915_vm_pt_stash {
 	/* preallocated chains of page tables/directories */
 	struct i915_page_table *pt[2];
+	/*
+	 * Optionally override the alignment/size of the physical page that
+	 * contains each PT. If not set defaults back to the usual
+	 * I915_GTT_PAGE_SIZE_4K. This does not influence the other paging
+	 * structures. MUST be a power-of-two. ONLY applicable on discrete
+	 * platforms.
+	 */
+	int pt_sz;
 };
 
 struct i915_vma_ops {
@@ -240,6 +260,7 @@ struct i915_address_space {
 	struct mutex mutex; /* protects vma and our lists */
 #define VM_CLASS_GGTT 0
 #define VM_CLASS_PPGTT 1
+#define VM_CLASS_DPT 2
 
 	struct drm_i915_gem_object *scratch[4];
 	/**
@@ -330,8 +351,10 @@ struct i915_ggtt {
 	 */
 	struct list_head userfault_list;
 
+	/* BEGIN DEPRECATE */
 	/* Manual runtime pm autosuspend delay for user GGTT mmaps */
 	struct intel_wakeref_auto userfault_wakeref;
+	/* END DEPRECATE */
 
 	struct mutex error_mutex;
 	struct drm_mm_node error_capture;
@@ -345,6 +368,9 @@ struct i915_ppgtt {
 };
 
 #define i915_is_ggtt(vm) ((vm)->is_ggtt)
+#define i915_is_dpt(vm) ((vm)->is_dpt)
+#define i915_is_ggtt_or_dpt(vm) (i915_is_ggtt(vm) || i915_is_dpt(vm))
+
 
 static inline bool
 i915_vm_is_4lvl(const struct i915_address_space *vm)
