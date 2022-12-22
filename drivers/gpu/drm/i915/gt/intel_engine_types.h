@@ -543,8 +543,10 @@ struct intel_engine_cs {
 	struct intel_timeline *retire;
 	struct work_struct retire_work;
 
+#ifdef CONFIG_DRM_I915_GVT
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
+#endif
 
 #define I915_ENGINE_USING_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
