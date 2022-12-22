@@ -31,49 +31,10 @@
 #define _I915_DRV_H_
 
 #include <uapi/drm/i915_drm.h>
-#include <uapi/drm/drm_fourcc.h>
 
-#include <asm/hypervisor.h>
-
-#include <linux/io-mapping.h>
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
-#include <linux/backlight.h>
-#include <linux/hash.h>
-#include <linux/intel-iommu.h>
-#include <linux/kref.h>
-#include <linux/mm_types.h>
-#include <linux/perf_event.h>
 #include <linux/pm_qos.h>
-#include <linux/dma-resv.h>
-#include <linux/shmem_fs.h>
-#include <linux/stackdepot.h>
-#include <linux/xarray.h>
-
-#include <drm/intel-gtt.h>
-#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
-#include <drm/drm_gem.h>
-#include <drm/drm_auth.h>
-#include <drm/drm_cache.h>
-#include <drm/drm_util.h>
-#include <drm/drm_dsc.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_connector.h>
-#include <drm/i915_mei_hdcp_interface.h>
-
-#include "i915_params.h"
-#include "i915_reg.h"
-#include "i915_utils.h"
-
-#include "display/intel_bios.h"
 #include "display/intel_display.h"
 #include "display/intel_display_power.h"
-#include "display/intel_dpll_mgr.h"
-#include "display/intel_dsb.h"
-#include "display/intel_frontbuffer.h"
-#include "display/intel_global_state.h"
-#include "display/intel_gmbus.h"
-#include "display/intel_opregion.h"
 
 #include "gem/i915_gem_context_types.h"
 #include "gem/i915_gem_shrinker.h"
@@ -98,11 +59,6 @@
 #include "i915_gpu_error.h"
 #include "i915_perf_types.h"
 #include "i915_request.h"
-#include "i915_scheduler.h"
-#include "gt/intel_timeline.h"
-#include "i915_vma.h"
-#include "i915_irq.h"
-
 
 #ifdef __FreeBSD__
 /* BSD: Make sure we get out[bwl] redefines */
@@ -110,15 +66,22 @@
 #include <linux/shrinker.h>
 #endif
 
-/* General customization:
- */
-
-#define DRIVER_NAME		"i915"
-#define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20201103"
-#define DRIVER_TIMESTAMP	1604406085
-
 struct drm_i915_gem_object;
+struct drm_i915_private;
+struct intel_connector;
+struct intel_encoder;
+struct intel_atomic_state;
+struct intel_cdclk_config;
+struct intel_cdclk_state;
+struct intel_cdclk_vals;
+struct intel_initial_plane_config;
+struct intel_crtc;
+struct intel_limit;
+struct dpll;
+struct i915_mm_struct;
+struct i915_mmu_object;
+struct intel_overlay;
+struct intel_overlay_error_state;
 
 enum hpd_pin {
 	HPD_NONE = 0,
@@ -193,9 +156,6 @@ struct i915_hotplug {
 	 I915_GEM_DOMAIN_INSTRUCTION | \
 	 I915_GEM_DOMAIN_VERTEX)
 
-struct drm_i915_private;
-struct i915_mm_struct;
-struct i915_mmu_object;
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
@@ -241,8 +201,6 @@ struct drm_i915_file_private {
 #define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
 
-struct intel_overlay;
-struct intel_overlay_error_state;
 
 struct sdvo_device_mapping {
 	u8 initialized;
@@ -253,16 +211,6 @@ struct sdvo_device_mapping {
 	u8 ddc_pin;
 };
 
-struct intel_connector;
-struct intel_encoder;
-struct intel_atomic_state;
-struct intel_cdclk_config;
-struct intel_cdclk_state;
-struct intel_cdclk_vals;
-struct intel_initial_plane_config;
-struct intel_crtc;
-struct intel_limit;
-struct dpll;
 
 struct drm_i915_display_funcs {
 	void (*get_cdclk)(struct drm_i915_private *dev_priv,
@@ -1289,6 +1237,24 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define INTEL_GEN(dev_priv)	(INTEL_INFO(dev_priv)->gen)
 #define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
 
+#define IP_VER(ver, rel)		((ver) << 8 | (rel))
+
+#define GRAPHICS_VER(i915)		(RUNTIME_INFO(i915)->graphics.ip.ver)
+#define GRAPHICS_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->graphics.ip.ver, \
+					       RUNTIME_INFO(i915)->graphics.ip.rel)
+#define IS_GRAPHICS_VER(i915, from, until) \
+	(GRAPHICS_VER(i915) >= (from) && GRAPHICS_VER(i915) <= (until))
+
+#define MEDIA_VER(i915)			(RUNTIME_INFO(i915)->media.ip.ver)
+#define MEDIA_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->media.ip.ver, \
+					       RUNTIME_INFO(i915)->media.ip.rel)
+#define IS_MEDIA_VER(i915, from, until) \
+	(MEDIA_VER(i915) >= (from) && MEDIA_VER(i915) <= (until))
+
+#define DISPLAY_VER(i915)	(RUNTIME_INFO(i915)->display.ip.ver)
+#define IS_DISPLAY_VER(i915, from, until) \
+	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
+
 #define REVID_FOREVER		0xff
 #define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)
 
@@ -1306,6 +1272,27 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 	 INTEL_INFO(dev_priv)->gen == (n))
 
 #define HAS_DSB(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dsb)
+
+#define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
+#define INTEL_GRAPHICS_STEP(__i915) (RUNTIME_INFO(__i915)->step.graphics_step)
+#define INTEL_MEDIA_STEP(__i915) (RUNTIME_INFO(__i915)->step.media_step)
+#define INTEL_BASEDIE_STEP(__i915) (RUNTIME_INFO(__i915)->step.basedie_step)
+
+#define IS_DISPLAY_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
+	 INTEL_DISPLAY_STEP(__i915) >= (since) && INTEL_DISPLAY_STEP(__i915) < (until))
+
+#define IS_GRAPHICS_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_GRAPHICS_STEP(__i915) == STEP_NONE), \
+	 INTEL_GRAPHICS_STEP(__i915) >= (since) && INTEL_GRAPHICS_STEP(__i915) < (until))
+
+#define IS_MEDIA_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_NONE), \
+	 INTEL_MEDIA_STEP(__i915) >= (since) && INTEL_MEDIA_STEP(__i915) < (until))
+
+#define IS_BASEDIE_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_BASEDIE_STEP(__i915) == STEP_NONE), \
+	 INTEL_BASEDIE_STEP(__i915) >= (since) && INTEL_BASEDIE_STEP(__i915) < (until))
 
 /*
  * Return true if revision is in range [since,until] inclusive.
@@ -1404,6 +1391,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_IRONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IRONLAKE)
 #define IS_IRONLAKE_M(dev_priv) \
 	(IS_PLATFORM(dev_priv, INTEL_IRONLAKE) && IS_MOBILE(dev_priv))
+#define IS_SANDYBRIDGE(dev_priv) IS_PLATFORM(dev_priv, INTEL_SANDYBRIDGE)
 #define IS_IVYBRIDGE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IVYBRIDGE)
 #define IS_IVB_GT1(dev_priv)	(IS_IVYBRIDGE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 1)
@@ -1424,6 +1412,29 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_TIGERLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_TIGERLAKE)
 #define IS_ROCKETLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ROCKETLAKE)
 #define IS_DG1(dev_priv)        IS_PLATFORM(dev_priv, INTEL_DG1)
+#define IS_ALDERLAKE_S(dev_priv) IS_PLATFORM(dev_priv, INTEL_ALDERLAKE_S)
+#define IS_ALDERLAKE_P(dev_priv) IS_PLATFORM(dev_priv, INTEL_ALDERLAKE_P)
+#define IS_XEHPSDV(dev_priv) IS_PLATFORM(dev_priv, INTEL_XEHPSDV)
+#define IS_DG2(dev_priv)	IS_PLATFORM(dev_priv, INTEL_DG2)
+#define IS_PONTEVECCHIO(dev_priv) IS_PLATFORM(dev_priv, INTEL_PONTEVECCHIO)
+#define IS_METEORLAKE(dev_priv) IS_PLATFORM(dev_priv, INTEL_METEORLAKE)
+
+#define IS_METEORLAKE_M(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_METEORLAKE, INTEL_SUBPLATFORM_M)
+#define IS_METEORLAKE_P(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_METEORLAKE, INTEL_SUBPLATFORM_P)
+#define IS_DG2_G10(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G10)
+#define IS_DG2_G11(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G11)
+#define IS_DG2_G12(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G12)
+#define IS_ADLS_RPLS(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_S, INTEL_SUBPLATFORM_RPL)
+#define IS_ADLP_N(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_P, INTEL_SUBPLATFORM_N)
+#define IS_ADLP_RPLP(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_P, INTEL_SUBPLATFORM_RPL)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev_priv) \
@@ -1631,6 +1642,60 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 #define IS_LP(dev_priv)	(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))
 #define IS_GEN9_BC(dev_priv)	(IS_GEN(dev_priv, 9) && !IS_LP(dev_priv))
+
+#define IS_TGL_UY(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_TIGERLAKE, INTEL_SUBPLATFORM_UY)
+
+#define IS_SKL_GRAPHICS_STEP(p, since, until) (IS_SKYLAKE(p) && IS_GRAPHICS_STEP(p, since, until))
+
+#define IS_KBL_GRAPHICS_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_GRAPHICS_STEP(dev_priv, since, until))
+#define IS_KBL_DISPLAY_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_DISPLAY_STEP(dev_priv, since, until))
+
+#define IS_JSL_EHL_GRAPHICS_STEP(p, since, until) \
+	(IS_JSL_EHL(p) && IS_GRAPHICS_STEP(p, since, until))
+#define IS_JSL_EHL_DISPLAY_STEP(p, since, until) \
+	(IS_JSL_EHL(p) && IS_DISPLAY_STEP(p, since, until))
+
+#define IS_TGL_DISPLAY_STEP(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
+
+#define IS_TGL_UY_GRAPHICS_STEP(__i915, since, until) \
+	(IS_TGL_UY(__i915) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
+#define IS_TGL_GRAPHICS_STEP(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && !IS_TGL_UY(__i915)) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
+#define IS_RKL_DISPLAY_STEP(p, since, until) \
+	(IS_ROCKETLAKE(p) && IS_DISPLAY_STEP(p, since, until))
+
+#define IS_DG1_GRAPHICS_STEP(p, since, until) \
+	(IS_DG1(p) && IS_GRAPHICS_STEP(p, since, until))
+#define IS_DG1_DISPLAY_STEP(p, since, until) \
+	(IS_DG1(p) && IS_DISPLAY_STEP(p, since, until))
+
+#define IS_ADLS_DISPLAY_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
+
+#define IS_ADLS_GRAPHICS_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
+#define IS_ADLP_DISPLAY_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_P(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
+
+#define IS_ADLP_GRAPHICS_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_P(__i915) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
+#define IS_XEHPSDV_GRAPHICS_STEP(__i915, since, until) \
+	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
 
 #define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
 #define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
