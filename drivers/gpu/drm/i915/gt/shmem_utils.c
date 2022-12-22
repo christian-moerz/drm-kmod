@@ -59,6 +59,7 @@ struct file *shmem_create_from_object(struct drm_i915_gem_object *obj)
 	return file;
 }
 
+#ifdef __linux__
 void *shmem_pin_map(struct file *file)
 {
 	struct page **pages;
@@ -94,6 +95,7 @@ void shmem_unpin_map(struct file *file, void *ptr)
 	mapping_clear_unevictable(file->f_mapping);
 	vfree(ptr);
 }
+#endif
 
 static int __shmem_rw(struct file *file, loff_t off,
 		      void *ptr, size_t len,

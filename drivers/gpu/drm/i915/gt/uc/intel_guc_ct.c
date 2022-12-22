@@ -934,7 +934,9 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 	const u32 *data = &hxg[GUC_HXG_MSG_MIN_LEN];
 	u32 datalen = len - GUC_HXG_MSG_MIN_LEN;
 	struct ct_request *req;
+#ifdef __linux__
 	unsigned long flags;
+#endif
 	bool found = false;
 	int err = 0;
 
@@ -946,7 +948,12 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 
 	CT_DEBUG(ct, "response fence %u status %#x\n", fence, hxg[0]);
 
+	/* FIXME BSD */
+	/* original 5.12 method had a bunch of other exclusions */
+	/* not sure, if this is required */
+#ifdef __linux__
 	spin_lock_irqsave(&ct->requests.lock, flags);
+#endif
 	list_for_each_entry(req, &ct->requests.pending, link) {
 		if (unlikely(fence != req->fence)) {
 			CT_DEBUG(ct, "request %u awaits response\n",
@@ -975,7 +982,9 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 				 req->fence);
 		err = -ENOKEY;
 	}
+#ifdef __linux__
 	spin_unlock_irqrestore(&ct->requests.lock, flags);
+#endif
 
 	if (unlikely(err))
 		return err;

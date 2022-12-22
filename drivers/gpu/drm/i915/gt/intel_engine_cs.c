@@ -1819,10 +1819,12 @@ static void linux_hexdump(struct drm_printer *m, const void *buf, size_t len)
 			continue;
 		}
 
+#ifdef __linux__
 		WARN_ON_ONCE(hex_dump_to_buffer(buf + pos, len - pos,
 						rowsize, sizeof(u32),
 						line, sizeof(line),
 						false) >= sizeof(line));
+#endif
 		drm_printf(m, "[%04zx] %s\n", pos, line);
 
 		prev = buf + pos;
@@ -1830,6 +1832,7 @@ static void linux_hexdump(struct drm_printer *m, const void *buf, size_t len)
 	}
 }
 
+#ifdef __linux__
 static const char *repr_timer(const struct timer_list *t)
 {
 	if (!READ_ONCE(t->expires))
@@ -1840,6 +1843,7 @@ static const char *repr_timer(const struct timer_list *t)
 
 	return "expired";
 }
+#endif
 
 static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					 struct drm_printer *m)
@@ -1914,11 +1918,15 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		unsigned int idx;
 		u8 read, write;
 
+#ifdef __linux__
+		/* BSDFIXME: We don't have a tasklet.state or tasklet.count */
+		/* FIXME BSD */
 		drm_printf(m, "\tExeclist tasklet queued? %s (%s), preempt? %s, timeslice? %s\n",
 			   str_yes_no(test_bit(TASKLET_STATE_SCHED, &engine->sched_engine->tasklet.state)),
 			   str_enabled_disabled(!atomic_read(&engine->sched_engine->tasklet.count)),
 			   repr_timer(&engine->execlists.preempt),
 			   repr_timer(&engine->execlists.timer));
+#endif
 
 		read = execlists->csb_head;
 		write = READ_ONCE(*execlists->csb_write);

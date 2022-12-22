@@ -220,6 +220,7 @@ static int guc_action_control_log(struct intel_guc *guc, bool enable,
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
+#ifdef __linux__
 /*
  * Sub buffer switch callback. Called whenever relay has to switch to a new
  * sub buffer, relay stays on the same sub buffer if 0 is returned.
@@ -291,6 +292,8 @@ static const struct rchan_callbacks relay_callbacks = {
 	.remove_buf_file = remove_buf_file_callback,
 };
 
+#endif /* __linux__ */
+
 static void guc_move_to_next_buf(struct intel_guc_log *log)
 {
 	/*
@@ -299,12 +302,14 @@ static void guc_move_to_next_buf(struct intel_guc_log *log)
 	 */
 	smp_wmb();
 
+#ifdef __linux__
 	/* All data has been written, so now move the offset of sub buffer. */
 	relay_reserve(log->relay.channel, log->vma->obj->base.size -
 					  intel_guc_log_section_size_capture(log));
 
 	/* Switch to the next sub buffer */
 	relay_flush(log->relay.channel);
+#endif
 }
 
 static void *guc_get_write_buffer(struct intel_guc_log *log)
@@ -587,9 +592,10 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 static void guc_log_relay_destroy(struct intel_guc_log *log)
 {
 	lockdep_assert_held(&log->relay.lock);
-
+#ifdef __linux__
 	relay_close(log->relay.channel);
 	log->relay.channel = NULL;
+#endif
 }
 
 static void guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)

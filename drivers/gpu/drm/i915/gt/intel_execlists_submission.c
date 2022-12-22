@@ -1618,9 +1618,13 @@ done:
 
 static void execlists_dequeue_irq(struct intel_engine_cs *engine)
 {
+#ifdef __linux__
 	local_irq_disable(); /* Suspend interrupts across request submission */
+#endif
 	execlists_dequeue(engine);
+#ifdef __linux__
 	local_irq_enable(); /* flush irq_work (e.g. breadcrumb enabling) */
+#endif
 }
 
 static void clear_ports(struct i915_request **ports, int count)

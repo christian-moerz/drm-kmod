@@ -43,24 +43,32 @@ static void user_forcewake(struct intel_gt *gt, bool suspend)
 
 static void runtime_begin(struct intel_gt *gt)
 {
+#ifdef __linux__
 	local_irq_disable();
+#endif
 	write_seqcount_begin(&gt->stats.lock);
 	gt->stats.start = ktime_get();
 	gt->stats.active = true;
 	write_seqcount_end(&gt->stats.lock);
+#ifdef __linux__
 	local_irq_enable();
+#endif
 }
 
 static void runtime_end(struct intel_gt *gt)
 {
+#ifdef __linux__
 	local_irq_disable();
+#endif
 	write_seqcount_begin(&gt->stats.lock);
 	gt->stats.active = false;
 	gt->stats.total =
 		ktime_add(gt->stats.total,
 			  ktime_sub(ktime_get(), gt->stats.start));
 	write_seqcount_end(&gt->stats.lock);
+#ifdef __linux__
 	local_irq_enable();
+#endif
 }
 
 static int __gt_unpark(struct intel_wakeref *wf)
@@ -315,6 +323,7 @@ void intel_gt_suspend_prepare(struct intel_gt *gt)
 	intel_pxp_suspend_prepare(&gt->pxp);
 }
 
+#ifdef __linux__
 static suspend_state_t pm_suspend_target(void)
 {
 #if IS_ENABLED(CONFIG_SUSPEND) && IS_ENABLED(CONFIG_PM_SLEEP)
@@ -323,10 +332,13 @@ static suspend_state_t pm_suspend_target(void)
 	return PM_SUSPEND_TO_IDLE;
 #endif
 }
+#endif /* __linux__ */
 
 void intel_gt_suspend_late(struct intel_gt *gt)
 {
+#ifdef __linux__
 	intel_wakeref_t wakeref;
+#endif
 
 	/* We expect to be idle already; but also want to be independent */
 	wait_for_suspend(gt);
@@ -349,6 +361,7 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 	 * powermanagement enabled, but we also retain system state and so
 	 * it remains safe to keep on using our allocated memory.
 	 */
+#ifdef __linux__
 	if (pm_suspend_target() == PM_SUSPEND_TO_IDLE)
 		return;
 
@@ -361,6 +374,7 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 	gt_sanitize(gt, false);
 
 	GT_TRACE(gt, "\n");
+#endif
 }
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)
