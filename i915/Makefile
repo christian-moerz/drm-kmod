@@ -8,25 +8,29 @@ SRCDIR=	${.CURDIR:H}/drivers/gpu/drm/i915
 
 KMOD=	i915kms
 SRCS=	\
-	dma_resv_utils.c \
 	i915_active.c \
-	i915_buddy.c \
 	i915_cmd_parser.c \
 	i915_config.c \
+	i915_deps.c \
 	i915_driver.c \
-	i915_getparam.c \
+	i915_drm_client.c \
 	i915_gem.c \
-	i915_gem_client_blt.c \
 	i915_gem_evict.c \
 	i915_gem_gtt.c \
-	i915_gem_object_blt.c \
-	i915_globals.c \
+	i915_gem_ww.c \
+	i915_getparam.c \
+	i915_gpu_error.c \
+	i915_ioc32.c \
+	i915_ioctl.c \
 	i915_irq.c \
 	i915_memcpy.c \
 	i915_mitigations.c \
 	i915_mm.c \
+	i915_module.c \
 	i915_params.c \
 	i915_pci.c \
+	i915_perf.c \
+	i915_pmu.c \
 	i915_query.c \
 	i915_request.c \
 	i915_scatterlist.c \
@@ -37,92 +41,129 @@ SRCS=	\
 	i915_switcheroo.c \
 	i915_syncmap.c \
 	i915_sysfs.c \
+	i915_trace_points.c \
+	i915_ttm_buddy_manager.c \
 	i915_user_extensions.c \
+	i915_utils.c \
 	i915_vgpu.c \
 	i915_vma.c \
 	i915_vma_resource.c \
-	intel_atomic.c \
-	intel_atomic_plane.c \
-	intel_audio.c \
-	intel_bw.c \
-	intel_bios.c \
-	intel_cdclk.c \
-	intel_color.c \
-	intel_combo_phy.c \
-	intel_connector.c \
-	intel_crtc.c \
-	intel_csr.c \
-	intel_cursor.c \
 	intel_device_info.c \
-	intel_display.c \
-	intel_display_power.c \
-	intel_dpio_phy.c \
-	intel_dpll.c \
-	intel_dpll_mgr.c \
 	intel_dram.c \
-	intel_fbc.c \
-	intel_fdi.c \
-	intel_fifo_underrun.c \
-	intel_freebsd.c \
-	intel_frontbuffer.c \
-	intel_hdcp.c \
-	intel_hotplug.c \
+	intel_gvt.c \
+	intel_gvt_mmio_table.c \
 	intel_memory_region.c \
-	intel_opregion.c \
-	intel_overlay.c \
 	intel_pch.c \
+	intel_pcode.c \
 	intel_pm.c \
-	intel_psr.c \
-	intel_quirks.c \
+	intel_region_ttm.c \
 	intel_runtime_pm.c \
-	intel_sideband.c \
-	intel_sprite.c \
+	intel_sbi.c \
+	intel_step.c \
 	intel_uncore.c \
-	i915_utils.c \
 	intel_wakeref.c \
 	intel_wopcm.c \
+	vlv_sideband.c \
 	vlv_suspend.c
 
 # display/*
-SRCS+=	dvo_ch7017.c \
+SRCS+=	\
+	dvo_ch7017.c \
 	dvo_ch7xxx.c \
 	dvo_ivch.c \
 	dvo_ns2501.c \
 	dvo_sil164.c \
 	dvo_tfp410.c \
+	g4x_dp.c \
+	g4x_hdmi.c \
+	hsw_ips.c \
+	i9xx_plane.c \
 	icl_dsi.c \
+	intel_acpi.c \
+	intel_atomic.c \
+	intel_atomic_plane.c \
+	intel_audio.c \
+	intel_backlight.c \
+	intel_bios.c \
+	intel_bw.c \
+	intel_cdclk.c \
+	intel_color.c \
+	intel_combo_phy.c \
+	intel_connector.c \
 	intel_crt.c \
+	intel_crtc.c \
+	intel_crtc_state_dump.c \
+	intel_cursor.c \
 	intel_ddi.c \
+	intel_ddi_buf_trans.c \
+	intel_display.c \
+	intel_display_power.c \
+	intel_display_power_map.c \
+	intel_display_power_well.c \
+	intel_display_trace.c \
+	intel_dkl_phy.c \
+	intel_dmc.c \
 	intel_dp.c \
 	intel_dp_aux.c \
 	intel_dp_aux_backlight.c \
 	intel_dp_hdcp.c \
 	intel_dp_link_training.c \
 	intel_dp_mst.c \
+	intel_dpio_phy.c \
+	intel_dpll.c \
+	intel_dpll_mgr.c \
+	intel_dpt.c \
+	intel_drrs.c \
+	intel_dsb.c \
 	intel_dsi.c \
 	intel_dsi_dcs_backlight.c \
 	intel_dsi_vbt.c \
-	intel_dsb.c \
 	intel_dvo.c \
+	intel_fb.c \
+	intel_fb_pin.c \
+	intel_fbc.c \
+	intel_fbdev.c \
+	intel_fdi.c \
+	intel_fifo_underrun.c \
+	intel_frontbuffer.c \
 	intel_global_state.c \
 	intel_gmbus.c \
+	intel_hdcp.c \
 	intel_hdmi.c \
+	intel_hotplug.c \
+	intel_lpe_audio.c \
 	intel_lspcon.c \
 	intel_lvds.c \
+	intel_modeset_setup.c \
+	intel_modeset_verify.c \
+	intel_opregion.c \
+	intel_overlay.c \
 	intel_panel.c \
+	intel_pch_display.c \
+	intel_pch_refclk.c \
+	intel_pipe_crc.c \
+	intel_plane_initial.c \
 	intel_pps.c \
+	intel_psr.c \
+	intel_qp_tables.c \
+	intel_quirks.c \
 	intel_sdvo.c \
+	intel_snps_phy.c \
+	intel_sprite.c \
 	intel_tc.c \
 	intel_tv.c \
 	intel_vdsc.c \
-	intel_vrr.c \
 	intel_vga.c \
-	i9xx_plane.c \
+	intel_vrr.c \
+	skl_scaler.c \
+	skl_universal_plane.c \
+	skl_watermark.c \
 	vlv_dsi.c \
 	vlv_dsi_pll.c
 
 # gt/*
-SRCS+=	gen2_engine_cs.c \
+SRCS+=	\
+gen2_engine_cs.c \
 	gen6_engine_cs.c \
 	gen6_ppgtt.c \
 	gen6_renderstate.c \
@@ -132,9 +173,9 @@ SRCS+=	gen2_engine_cs.c \
 	gen8_ppgtt.c \
 	gen8_renderstate.c \
 	gen9_renderstate.c \
+	hsw_clear_kernel.c \
 	intel_breadcrumbs.c \
 	intel_context.c \
-	intel_context_param.c \
 	intel_context_sseu.c \
 	intel_engine_cs.c \
 	intel_engine_heartbeat.c \
@@ -143,16 +184,22 @@ SRCS+=	gen2_engine_cs.c \
 	intel_execlists_submission.c \
 	intel_ggtt.c \
 	intel_ggtt_fencing.c \
+	intel_ggtt_gmch.c \
+	intel_gsc.c \
 	intel_gt.c \
 	intel_gt_buffer_pool.c \
 	intel_gt_clock_utils.c \
 	intel_gt_irq.c \
+	intel_gt_mcr.c \
 	intel_gt_pm.c \
 	intel_gt_pm_irq.c \
 	intel_gt_requests.c \
+	intel_gt_sysfs.c \
+	intel_gt_sysfs_pm.c \
 	intel_gtt.c \
 	intel_llc.c \
 	intel_lrc.c \
+	intel_migrate.c \
 	intel_mocs.c \
 	intel_ppgtt.c \
 	intel_rc6.c \
@@ -162,10 +209,34 @@ SRCS+=	gen2_engine_cs.c \
 	intel_ring.c \
 	intel_ring_submission.c \
 	intel_rps.c \
+	intel_sa_media.c \
 	intel_sseu.c \
 	intel_timeline.c \
 	intel_workarounds.c \
+	ivb_clear_kernel.c \
+	mock_engine.c \
+	selftest_context.c \
+	selftest_engine.c \
+	selftest_engine_cs.c \
+	selftest_engine_heartbeat.c \
+	selftest_engine_pm.c \
+	selftest_execlists.c \
+	selftest_gt_pm.c \
+	selftest_hangcheck.c \
+	selftest_llc.c \
+	selftest_lrc.c \
+	selftest_migrate.c \
+	selftest_mocs.c \
+	selftest_rc6.c \
+	selftest_reset.c \
+	selftest_ring.c \
+	selftest_ring_submission.c \
+	selftest_rps.c \
+	selftest_slpc.c \
+	selftest_timeline.c \
+	selftest_workarounds.c \
 	shmem_utils.c \
+	st_shmem_utils.c \
 	sysfs_engines.c
 
 # gt/uc*
@@ -181,14 +252,14 @@ SRCS+=	intel_guc.c \
 	intel_uc_fw.c
 
 # gem/*
-SRCS+=	i915_gem_busy.c \
+SRCS+= \
+	i915_gem_busy.c \
 	i915_gem_clflush.c \
 	i915_gem_context.c \
 	i915_gem_create.c \
-	i915_gem_domain.c \
 	i915_gem_dmabuf.c \
+	i915_gem_domain.c \
 	i915_gem_execbuffer.c \
-	i915_gem_fence.c \
 	i915_gem_internal.c \
 	i915_gem_lmem.c \
 	i915_gem_mman.c \
@@ -202,8 +273,45 @@ SRCS+=	i915_gem_busy.c \
 	i915_gem_stolen.c \
 	i915_gem_throttle.c \
 	i915_gem_tiling.c \
+	i915_gem_ttm.c \
+	i915_gem_ttm_move.c \
+	i915_gem_ttm_pm.c \
 	i915_gem_userptr.c \
-	i915_gem_wait.c
+	i915_gem_wait.c \
+	i915_gemfs.c
+
+# gvt/*
+SRCS+=	\
+	aperture_gm.c \
+	cfg_space.c \
+	cmd_parser.c \
+	display.c \
+	dmabuf.c \
+	edid.c \
+	execlist.c \
+	fb_decoder.c \
+	firmware.c \
+	gtt.c \
+	handlers.c \
+	interrupt.c \
+	kvmgt.c \
+	mmio.c \
+	mmio_context.c \
+	opregion.c \
+	page_track.c \
+	sched_policy.c \
+	scheduler.c \
+	trace_points.c \
+	vgpu.c
+
+# pxp/*
+SRCS+=	\
+	intel_pxp.c \
+	intel_pxp_cmd.c \
+	intel_pxp_irq.c \
+	intel_pxp_pm.c \
+	intel_pxp_session.c \
+	intel_pxp_tee.c
 
 .if !empty(KCONFIG:MCOMPAT)
 SRCS+=	i915_ioc32.c
@@ -211,11 +319,17 @@ SRCS+=	i915_ioc32.c
 
 .if !empty(KCONFIG:MDEBUG_FS)
 SRCS+=	debugfs_engines.c \
+	intel_sseu_debugfs.c \
+	debugfs.c \
+	intel_pxp_debugfs.c \
 	debugfs_gt.c \
 	debugfs_gt_pm.c \
 	i915_debugfs.c \
 	i915_debugfs_params.c \
 	intel_display_debugfs.c \
+	intel_gt_debugfs.c \
+	intel_gt_engines_debugfs.c \
+	intel_gt_pm_debugfs.c \
 	intel_guc_debugfs.c \
 	intel_guc_log_debugfs.c \
 	intel_huc_debugfs.c \
@@ -295,3 +409,14 @@ CWARNFLAGS.i915_active.c=	-Wno-unused-function
 CWARNFLAGS.i915_sw_fence.c=	-Wno-unused-function
 CWARNFLAGS.i915_vma.c=		-Wno-unused-function -Wno-unused-but-set-variable
 CWARNFLAGS.vlv_dsi.c=		-Wno-unused-but-set-variable
+i915
+display
+
+gem
+
+gt
+	
+gvt
+ \
+pxp
+
