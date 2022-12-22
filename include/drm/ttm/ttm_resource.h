@@ -28,7 +28,9 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#ifdef __linux__
 #include <linux/iosys-map.h>
+#endif
 #include <linux/dma-fence.h>
 
 #include <drm/drm_print.h>
