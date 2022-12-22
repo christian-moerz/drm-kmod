@@ -33,6 +33,11 @@
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
 
+#ifdef __FreeBSD__
+/* CEM: Make sure we got the Linux version */
+CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
+#endif
+
 struct eb_vma {
 	struct i915_vma *vma;
 	unsigned int flags;
@@ -1599,11 +1604,20 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	end = addr + size;
 	for (; addr < end; addr += PAGE_SIZE) {
+#ifdef __linux__
 		int err = __get_user(c, addr);
+#elif defined(__FreeBSD__)
+		// XXX: Move deconst to lkpi?
+		int err = __get_user(c, __DECONST(char *, addr));
+#endif
 		if (err)
 			return err;
 	}
+#ifdef __linux__
 	return __get_user(c, end - 1);
+#elif defined(__FreeBSD__)
+	return __get_user(c, __DECONST(char *, end - 1));
+#endif
 }
 
 static int eb_copy_relocations(const struct i915_execbuffer *eb)

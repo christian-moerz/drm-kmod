@@ -26,6 +26,16 @@
 #include "i915_gem_ttm.h"
 #include "i915_vma.h"
 
+#ifdef __FreeBSD__
+#include <sys/proc.h>
+#include <sys/resourcevar.h>	/* for lim_cur_proc */
+#include <vm/vm.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#endif
+
 static inline bool
 __vma_matches(struct vm_area_struct *vma, struct file *filp,
 	      unsigned long addr, unsigned long size)
@@ -64,7 +74,16 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_mmap *args = data;
 	struct drm_i915_gem_object *obj;
+#ifdef __FreeBSD__
+	vm_offset_t addr;
+	vm_object_t vmobj;
+	struct proc *p;
+	vm_map_t map;
+	vm_size_t size;
+	int error, rv;
+#else
 	unsigned long addr;
+#endif
 
 	/*
 	 * mmap ioctl is disallowed for all discrete platforms,
@@ -96,6 +115,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		goto err;
 	}
 
+#ifdef __linux__
 	addr = vm_mmap(obj->base.filp, 0, args->size,
 		       PROT_READ | PROT_WRITE, MAP_SHARED,
 		       args->offset);
@@ -120,6 +140,48 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		if (IS_ERR_VALUE(addr))
 			goto err;
 	}
+#elif defined(__FreeBSD__)
+error = 0;
+	addr = 0;
+	if (args->size == 0)
+		goto out;
+	p = curproc;
+	map = &p->p_vmspace->vm_map;
+	size = round_page(args->size);
+	PROC_LOCK(p);
+	if (map->size + size > lim_cur_proc(p, RLIMIT_VMEM)) {
+		PROC_UNLOCK(p);
+		error = -ENOMEM;
+		goto out;
+	}
+	PROC_UNLOCK(p);
+
+	vmobj = obj->base.filp->f_shmem;
+	vm_object_reference(vmobj);
+	rv = vm_map_find(map, vmobj, args->offset, &addr, args->size, 0,
+	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
+
+	/* currently disabled as it causes artifacts on FreeBSD */
+	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC)) {
+		VM_OBJECT_WLOCK(vmobj);
+		if (vm_object_set_memattr(vmobj, VM_MEMATTR_WRITE_COMBINING) != KERN_SUCCESS) {
+			for (vm_page_t page = vm_page_find_least(vmobj, 0); page != NULL; page = vm_page_next(page)) {
+				pmap_page_set_memattr(page, VM_MEMATTR_WRITE_COMBINING);
+			}
+		}
+		VM_OBJECT_WUNLOCK(vmobj);
+	}
+
+	if (rv != KERN_SUCCESS) {
+		vm_object_deallocate(vmobj);
+		error = -vm_mmap_to_errno(rv);
+	} else {
+		args->addr_ptr = (uint64_t)addr;
+	}
+
+out:
+#endif
 	i915_gem_object_put(obj);
 
 	args->addr_ptr = (u64)addr;
@@ -191,7 +253,11 @@ static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
  */
 int i915_gem_mmap_gtt_version(void)
 {
+#ifdef __FreeBSD__not_yet
 	return 4;
+#else
+	return 3;
+#endif
 }
 
 static inline struct i915_gtt_view
@@ -583,7 +649,11 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 
 		spin_unlock(&obj->mmo.lock);
 		drm_vma_node_unmap(&mmo->vma_node,
+#ifdef __linux__
 				   obj->base.dev->anon_inode->i_mapping);
+#elif defined(__FreeBSD__)
+				   mmo);
+#endif
 		spin_lock(&obj->mmo.lock);
 	}
 	spin_unlock(&obj->mmo.lock);
