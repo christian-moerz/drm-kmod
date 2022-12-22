@@ -112,8 +112,12 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 {
 	int reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
-	u64 mchbar_addr;
+	u64 mchbar_addr = 0;
 	int ret;
+
+	if(mchbar_addr==0) {
+		mchbar_addr = 0;
+	}
 
 	if (INTEL_GEN(dev_priv) >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
