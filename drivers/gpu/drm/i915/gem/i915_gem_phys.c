@@ -19,7 +19,11 @@
 
 static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {
+#ifdef __FreeBSD__
+	vm_object_t mapping = obj->base.filp->f_shmem;
+#else
 	struct address_space *mapping = obj->base.filp->f_mapping;
+#endif
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct scatterlist *sg;
 	struct sg_table *st;
@@ -102,7 +106,11 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 	__i915_gem_object_release_shmem(obj, pages, false);
 
 	if (obj->mm.dirty) {
+#ifdef __FreeBSD__
+		vm_object_t mapping = obj->base.filp->f_shmem;
+#else
 		struct address_space *mapping = obj->base.filp->f_mapping;
+#endif
 		void *src = vaddr;
 		int i;
 

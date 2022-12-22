@@ -18,6 +18,10 @@
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 
+#ifdef __FreeBSD__
+static inline unsigned long totalram_pages(void) { return physmem; }
+#endif
+
 /*
  * Move pages to appropriate lru and release the pagevec, decrementing the
  * ref count of those pages.
@@ -57,7 +61,11 @@ void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
 
 int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			 size_t size, struct intel_memory_region *mr,
+#ifdef __FreeBSD__
+			 vm_object_t *mapping;
+#else
 			 struct address_space *mapping,
+#endif
 			 unsigned int max_segment)
 {
 	const unsigned long page_count = size / PAGE_SIZE;
@@ -84,8 +92,13 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 	 *
 	 * Fail silently without starting the shrinker
 	 */
+#ifdef __FreeBSD__
+	mapping = obj->base.filp->f_shmem;
+	noreclaim = 0;
+#else
 	mapping_set_unevictable(mapping);
 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
+#endif
 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
 	sg = st->sgl;
@@ -192,7 +205,11 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct intel_memory_region *mem = obj->mm.region;
+#ifdef __FreeBSD__
+	vm_object_t mapping = obj->base.filp->f_shmem;
+#else
 	struct address_space *mapping = obj->base.filp->f_mapping;
+#endif
 	const unsigned long page_count = obj->base.size / PAGE_SIZE;
 	unsigned int max_segment = i915_sg_segment_size(i915->drm.dev);
 	struct sg_table *st;
@@ -280,15 +297,26 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 	 * To do this we must instruct the shmfs to drop all of its
 	 * backing pages, *now*.
 	 */
+#ifdef __FreeBSD__
+	shmem_truncate_range(obj->base.filp->f_shmem, 0, (loff_t)-1);
+#else
 	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
+#endif
 	obj->mm.madv = __I915_MADV_PURGED;
 	obj->mm.pages = ERR_PTR(-EFAULT);
 
 	return 0;
 }
 
-void __shmem_writeback(size_t size, struct address_space *mapping)
+void __shmem_writeback(size_t size, 
+#if defined(__FreeBSD__)
+	vm_object_t mapping;
+#else
+	struct address_space *mapping
+#endif
+)
 {
+#ifdef __linux__
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_NONE,
 		.nr_to_write = SWAP_CLUSTER_MAX,
@@ -297,6 +325,7 @@ void __shmem_writeback(size_t size, struct address_space *mapping)
 		.for_reclaim = 1,
 	};
 	unsigned long i;
+#endif
 
 	/*
 	 * Leave mmapings intact (GTT will have been revoked on unbinding,
@@ -305,8 +334,9 @@ void __shmem_writeback(size_t size, struct address_space *mapping)
 	 * as normal.
 	 */
 
+#ifdef __linux__
 	/* Begin writeback on each dirty page */
-	for (i = 0; i < size >> PAGE_SHIFT; i++) {
+	for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
 		struct page *page;
 
 		page = find_lock_page(mapping, i);
@@ -327,6 +357,7 @@ void __shmem_writeback(size_t size, struct address_space *mapping)
 put:
 		put_page(page);
 	}
+#endif
 }
 
 static void
@@ -408,7 +439,11 @@ static int
 shmem_pwrite(struct drm_i915_gem_object *obj,
 	     const struct drm_i915_gem_pwrite *arg)
 {
+#ifdef __FreeBSD__
+	vm_object_t mapping = obj->base.filp->f_shmem;
+#else
 	struct address_space *mapping = obj->base.filp->f_mapping;
+#endif
 	const struct address_space_operations *aops = mapping->a_ops;
 	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
 	u64 remain, offset;
@@ -452,12 +487,19 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 		struct page *page;
 		void *data, *vaddr;
 		int err;
+#ifdef __linux__
 		char c;
+#endif
 
 		len = PAGE_SIZE - pg;
 		if (len > remain)
 			len = remain;
 
+#ifdef __FreeBSD__
+		(void)data;
+		(void)err;
+		page = shmem_read_mapping_page(mapping, OFF_TO_IDX(offset));
+#else
 		/* Prefault the user page to reduce potential recursion */
 		err = __get_user(c, user_data);
 		if (err)
@@ -471,6 +513,7 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 					&page, &data);
 		if (err < 0)
 			return err;
+#endif
 
 		vaddr = kmap_atomic(page);
 		unwritten = __copy_from_user_inatomic(vaddr + pg,
@@ -478,10 +521,14 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 						      len);
 		kunmap_atomic(vaddr);
 
+#ifdef __linux__
 		err = aops->write_end(obj->base.filp, mapping, offset, len,
 				      len - unwritten, page, data);
 		if (err < 0)
 			return err;
+#elif defined(__FreeBSD__)
+		put_page(page);
+#endif
 
 		/* We don't handle -EFAULT, leave it to the caller to check */
 		if (unwritten)
@@ -539,8 +586,12 @@ static int __create_shmem(struct drm_i915_private *i915,
 	drm_gem_private_object_init(&i915->drm, obj, size);
 
 	if (i915->mm.gemfs)
+#ifdef __linux__
 		filp = shmem_file_setup_with_mnt(i915->mm.gemfs, "i915", size,
 						 flags);
+#elif defined(__FreeBSD__)
+		panic("i915_gem.c: gemfs not supported\n");
+#endif
 	else
 		filp = shmem_file_setup("i915", size, flags);
 	if (IS_ERR(filp))
@@ -642,19 +693,29 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 		struct page *page;
 		void *pgdata, *vaddr;
 
+#ifdef __linux__
 		err = aops->write_begin(file, file->f_mapping, offset, len,
 					&page, &pgdata);
 		if (err < 0)
 			goto fail;
+#elif defined(__FreeBSD__)
+		(void)err;
+		(void)pgdata;
+		page = shmem_read_mapping_page(obj->base.filp->f_shmem, OFF_TO_IDX(offset));
+#endif
 
 		vaddr = kmap(page);
 		memcpy(vaddr, data, len);
 		kunmap(page);
 
+#ifdef __linux__
 		err = aops->write_end(file, file->f_mapping, offset, len, len,
 				      page, pgdata);
 		if (err < 0)
 			goto fail;
+#elif defined(__FreeBSD__)
+		put_page(page);
+#endif
 
 		size -= len;
 		data += len;

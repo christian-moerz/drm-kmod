@@ -15,6 +15,11 @@
 #include "i915_gem_lmem.h"
 #include "i915_gem_mman.h"
 
+#ifdef __FreeBSD__
+#include <linux/xarray.h>
+#include <linux/vmalloc.h>
+#endif
+
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
 				 unsigned int sg_page_sizes)
@@ -325,6 +330,12 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 				     enum i915_map_type type)
 {
+#ifdef __FreeBSD__
+	/* BSDFIXME: Need vmap_pfn() implementation. */
+	/* FIXME BSD */
+	UNIMPLEMENTED();
+	return NULL;
+#else	
 	resource_size_t iomap = obj->mm.region->iomap.base -
 		obj->mm.region->region.start;
 	unsigned long n_pfn = obj->base.size >> PAGE_SHIFT;
@@ -350,6 +361,7 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 		kvfree(pfns);
 
 	return vaddr ?: ERR_PTR(-ENOMEM);
+#endif
 }
 
 /* get, pin, and map the pages of the object into kernel space */
