@@ -1241,7 +1241,9 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_MTL_IDS(&mtl_info),
 	{0, 0, 0}
 };
+#ifdef __linux__
 MODULE_DEVICE_TABLE(pci, pciidlist);
+#endif
 
 static void i915_pci_remove(struct pci_dev *pdev)
 {

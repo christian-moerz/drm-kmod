@@ -2010,8 +2010,10 @@ static void __exit kvmgt_exit(void)
 	intel_gvt_clear_ops(&intel_gvt_vgpu_ops);
 }
 
+#ifdef __linux__
 module_init(kvmgt_init);
 module_exit(kvmgt_exit);
+#endif
 
 MODULE_LICENSE("GPL and additional rights");
 MODULE_AUTHOR("Intel Corporation");

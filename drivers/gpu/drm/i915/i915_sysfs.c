@@ -50,6 +50,7 @@ struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 	return to_i915(minor->dev);
 }
 
+#ifdef __linux__
 static int l3_access_valid(struct drm_i915_private *i915, loff_t offset)
 {
 	if (!HAS_L3_DPF(i915))
@@ -160,9 +161,11 @@ static const struct bin_attribute dpf_attrs_1 = {
 	.mmap = NULL,
 	.private = (void *)1
 };
+#endif /* __linux__ */
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
+#ifdef __linux__
 static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
@@ -234,12 +237,14 @@ static void i915_teardown_error_capture(struct device *kdev)
 static void i915_setup_error_capture(struct device *kdev) {}
 static void i915_teardown_error_capture(struct device *kdev) {}
 #endif
+#endif /* __linux__ */
 
 void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 {
 	struct device *kdev = dev_priv->drm.primary->kdev;
 	int ret;
 
+#ifdef __linux__
 	if (HAS_L3_DPF(dev_priv)) {
 		ret = device_create_bin_file(kdev, &dpf_attrs);
 		if (ret)
@@ -254,25 +259,31 @@ void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 					"l3 parity slice 1 setup failed\n");
 		}
 	}
+#endif
 
 	dev_priv->sysfs_gt = kobject_create_and_add("gt", &kdev->kobj);
 	if (!dev_priv->sysfs_gt)
 		drm_warn(&dev_priv->drm,
 			 "failed to register GT sysfs directory\n");
 
+#ifdef __linux__
 	i915_setup_error_capture(kdev);
+#endif
 
 	intel_engines_add_sysfs(dev_priv);
 }
 
 void i915_teardown_sysfs(struct drm_i915_private *dev_priv)
 {
+#ifdef __linux__
 	struct device *kdev = dev_priv->drm.primary->kdev;
 
+	/* BSD: no sysfs bin files support */
 	i915_teardown_error_capture(kdev);
 
 	device_remove_bin_file(kdev,  &dpf_attrs_1);
 	device_remove_bin_file(kdev,  &dpf_attrs);
+#endif
 
 	kobject_put(dev_priv->sysfs_gt);
 }

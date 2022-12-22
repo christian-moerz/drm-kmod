@@ -9010,7 +9010,9 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 	/* poll work can call into fbdev, hence clean that up afterwards */
 	intel_fbdev_fini(i915);
 
+#ifdef __linux__
 	intel_unregister_dsm_handler();
+#endif
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();

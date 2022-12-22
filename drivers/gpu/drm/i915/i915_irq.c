@@ -1704,10 +1704,12 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
+#ifdef __linux__
+		// Not yet supported in BSD
 		if (iir & (I915_LPE_PIPE_A_INTERRUPT |
 			   I915_LPE_PIPE_B_INTERRUPT))
 			intel_lpe_audio_irq_handler(dev_priv);
-
+#endif
 		/*
 		 * VLV_IIR is single buffered, and reflects the level
 		 * from PIPESTAT/PORT_HOTPLUG_STAT, hence clear it last.
@@ -1787,10 +1789,14 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
+#ifdef __linux__
+		/* FIXME BSD */
+		/* not supported on BSD yet */
 		if (iir & (I915_LPE_PIPE_A_INTERRUPT |
 			   I915_LPE_PIPE_B_INTERRUPT |
 			   I915_LPE_PIPE_C_INTERRUPT))
 			intel_lpe_audio_irq_handler(dev_priv);
+#endif
 
 		/*
 		 * VLV_IIR is single buffered, and reflects the level
