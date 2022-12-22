@@ -21,6 +21,7 @@ static inline bool tasklet_is_locked(const struct tasklet_struct *t)
 #elif defined(__FreeBSD__)
 	return t->tasklet_state == 2;	/* BSDFIXME: Check if it's correct to use TASKLET_ST_EXEC */
 #endif
+}
 
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
