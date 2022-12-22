@@ -10,7 +10,9 @@
 #include <linux/pfn.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#ifdef __linux__
 #include <xen/xen.h>
+#endif
 
 #include "i915_gem.h"
 
@@ -145,8 +147,10 @@ static inline unsigned int i915_sg_segment_size(struct device *dev)
 	 * reasons, like confidential computing hypervisors or PCIe root ports
 	 * with addressing limitations.
 	 */
+#ifdef __linux__
 	if (xen_pv_domain())
 		max = PAGE_SIZE;
+#endif
 	return round_down(max, PAGE_SIZE);
 }
 

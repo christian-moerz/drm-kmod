@@ -26,7 +26,11 @@ static inline bool tasklet_is_locked(const struct tasklet_struct *t)
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
 	if (!atomic_fetch_inc(&t->count))
+#ifdef __linux__
 		tasklet_unlock_spin_wait(t);
+#elif defined(__FreeBSD__)
+		tasklet_unlock_wait(t);
+#endif
 }
 
 static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
