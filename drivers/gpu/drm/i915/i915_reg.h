@@ -7120,9 +7120,22 @@
 #define   ICL_PCODE_MEM_SUBSYSYSTEM_INFO	0xd
 #define     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO	(0x0 << 8)
 #define     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point)	(((point) << 16) | (0x1 << 8))
+#define     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO	((0) | (0x2 << 8))
 #define   ICL_PCODE_SAGV_DE_MEM_SS_CONFIG	0xe
 #define     ICL_PCODE_POINTS_RESTRICTED		0x0
 #define     ICL_PCODE_POINTS_RESTRICTED_MASK	0x1
+#define     ICL_PCODE_REP_QGV_MASK		REG_GENMASK(1, 0)
+#define     ICL_PCODE_REP_QGV_SAFE		REG_FIELD_PREP(ICL_PCODE_REP_QGV_MASK, 0)
+#define     ICL_PCODE_REP_QGV_POLL		REG_FIELD_PREP(ICL_PCODE_REP_QGV_MASK, 1)
+#define     ICL_PCODE_REP_QGV_REJECTED		REG_FIELD_PREP(ICL_PCODE_REP_QGV_MASK, 2)
+#define     ADLS_PCODE_REP_PSF_MASK		REG_GENMASK(3, 2)
+#define     ADLS_PCODE_REP_PSF_SAFE		REG_FIELD_PREP(ADLS_PCODE_REP_PSF_MASK, 0)
+#define     ADLS_PCODE_REP_PSF_POLL		REG_FIELD_PREP(ADLS_PCODE_REP_PSF_MASK, 1)
+#define     ADLS_PCODE_REP_PSF_REJECTED		REG_FIELD_PREP(ADLS_PCODE_REP_PSF_MASK, 2)
+#define     ICL_PCODE_REQ_QGV_PT_MASK		REG_GENMASK(7, 0)
+#define     ICL_PCODE_REQ_QGV_PT(x)		REG_FIELD_PREP(ICL_PCODE_REQ_QGV_PT_MASK, (x))
+#define     ADLS_PCODE_REQ_PSF_PT_MASK		REG_GENMASK(10, 8)
+#define     ADLS_PCODE_REQ_PSF_PT(x)		REG_FIELD_PREP(ADLS_PCODE_REQ_PSF_PT_MASK, (x))
 #define   GEN6_PCODE_READ_D_COMP		0x10
 #define   GEN6_PCODE_WRITE_D_COMP		0x11
 #define   ICL_PCODE_EXIT_TCCOLD			0x12
@@ -7143,86 +7156,18 @@
 #define     DG1_UNCORE_GET_INIT_STATUS		0x0
 #define     DG1_UNCORE_INIT_STATUS_COMPLETE	0x1
 #define GEN12_PCODE_READ_SAGV_BLOCK_TIME_US	0x23
+#define   XEHP_PCODE_FREQUENCY_CONFIG		0x6e	/* xehpsdv, pvc */
+/* XEHP_PCODE_FREQUENCY_CONFIG sub-commands (param1) */
+#define     PCODE_MBOX_FC_SC_READ_FUSED_P0	0x0
+#define     PCODE_MBOX_FC_SC_READ_FUSED_PN	0x1
+/* PCODE_MBOX_DOMAIN_* - mailbox domain IDs */
+/*   XEHP_PCODE_FREQUENCY_CONFIG param2 */
+#define     PCODE_MBOX_DOMAIN_NONE		0x0
+#define     PCODE_MBOX_DOMAIN_MEDIAFF		0x3
 #define GEN6_PCODE_DATA				_MMIO(0x138128)
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 #define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
 #define GEN6_PCODE_DATA1			_MMIO(0x13812C)
-
-#define GEN6_GT_CORE_STATUS		_MMIO(0x138060)
-#define   GEN6_CORE_CPD_STATE_MASK	(7 << 4)
-#define   GEN6_RCn_MASK			7
-#define   GEN6_RC0			0
-#define   GEN6_RC3			2
-#define   GEN6_RC6			3
-#define   GEN6_RC7			4
-
-#define GEN8_GT_SLICE_INFO		_MMIO(0x138064)
-#define   GEN8_LSLICESTAT_MASK		0x7
-
-#define CHV_POWER_SS0_SIG1		_MMIO(0xa720)
-#define CHV_POWER_SS1_SIG1		_MMIO(0xa728)
-#define   CHV_SS_PG_ENABLE		(1 << 1)
-#define   CHV_EU08_PG_ENABLE		(1 << 9)
-#define   CHV_EU19_PG_ENABLE		(1 << 17)
-#define   CHV_EU210_PG_ENABLE		(1 << 25)
-
-#define CHV_POWER_SS0_SIG2		_MMIO(0xa724)
-#define CHV_POWER_SS1_SIG2		_MMIO(0xa72c)
-#define   CHV_EU311_PG_ENABLE		(1 << 1)
-
-#define GEN9_SLICE_PGCTL_ACK(slice)	_MMIO(0x804c + (slice) * 0x4)
-#define GEN10_SLICE_PGCTL_ACK(slice)	_MMIO(0x804c + ((slice) / 3) * 0x34 + \
-					      ((slice) % 3) * 0x4)
-#define   GEN9_PGCTL_SLICE_ACK		(1 << 0)
-#define   GEN9_PGCTL_SS_ACK(subslice)	(1 << (2 + (subslice) * 2))
-#define   GEN10_PGCTL_VALID_SS_MASK(slice) ((slice) == 0 ? 0x7F : 0x1F)
-
-#define GEN9_SS01_EU_PGCTL_ACK(slice)	_MMIO(0x805c + (slice) * 0x8)
-#define GEN10_SS01_EU_PGCTL_ACK(slice)	_MMIO(0x805c + ((slice) / 3) * 0x30 + \
-					      ((slice) % 3) * 0x8)
-#define GEN9_SS23_EU_PGCTL_ACK(slice)	_MMIO(0x8060 + (slice) * 0x8)
-#define GEN10_SS23_EU_PGCTL_ACK(slice)	_MMIO(0x8060 + ((slice) / 3) * 0x30 + \
-					      ((slice) % 3) * 0x8)
-#define   GEN9_PGCTL_SSA_EU08_ACK	(1 << 0)
-#define   GEN9_PGCTL_SSA_EU19_ACK	(1 << 2)
-#define   GEN9_PGCTL_SSA_EU210_ACK	(1 << 4)
-#define   GEN9_PGCTL_SSA_EU311_ACK	(1 << 6)
-#define   GEN9_PGCTL_SSB_EU08_ACK	(1 << 8)
-#define   GEN9_PGCTL_SSB_EU19_ACK	(1 << 10)
-#define   GEN9_PGCTL_SSB_EU210_ACK	(1 << 12)
-#define   GEN9_PGCTL_SSB_EU311_ACK	(1 << 14)
-
-#define GEN7_MISCCPCTL				_MMIO(0x9424)
-#define   GEN7_DOP_CLOCK_GATE_ENABLE		(1 << 0)
-#define   GEN8_DOP_CLOCK_GATE_CFCLK_ENABLE	(1 << 2)
-#define   GEN8_DOP_CLOCK_GATE_GUC_ENABLE	(1 << 4)
-#define   GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE     (1 << 6)
-
-#define GEN8_GARBCNTL				_MMIO(0xB004)
-#define   GEN9_GAPS_TSV_CREDIT_DISABLE		(1 << 7)
-#define   GEN11_ARBITRATION_PRIO_ORDER_MASK	(0x3f << 22)
-#define   GEN11_HASH_CTRL_EXCL_MASK		(0x7f << 0)
-#define   GEN11_HASH_CTRL_EXCL_BIT0		(1 << 0)
-
-#define GEN11_GLBLINVL				_MMIO(0xB404)
-#define   GEN11_BANK_HASH_ADDR_EXCL_MASK	(0x7f << 5)
-#define   GEN11_BANK_HASH_ADDR_EXCL_BIT0	(1 << 5)
-
-#define GEN10_DFR_RATIO_EN_AND_CHICKEN	_MMIO(0x9550)
-#define   DFR_DISABLE			(1 << 9)
-
-#define GEN11_GACB_PERF_CTRL			_MMIO(0x4B80)
-#define   GEN11_HASH_CTRL_MASK			(0x3 << 12 | 0xf << 0)
-#define   GEN11_HASH_CTRL_BIT0			(1 << 0)
-#define   GEN11_HASH_CTRL_BIT4			(1 << 12)
-
-#define GEN11_LSN_UNSLCVC				_MMIO(0xB43C)
-#define   GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC	(1 << 9)
-#define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
-
-#define GEN10_SAMPLER_MODE		_MMIO(0xE18C)
-#define   ENABLE_SMALLPL			REG_BIT(15)
-#define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
 
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1(slice)		_MMIO(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */
@@ -7238,205 +7183,11 @@
 		(((reg) & GEN7_L3CDERRST1_SUBBANK_MASK) >> 8)
 #define   GEN7_L3CDERRST1_ENABLE	(1 << 7)
 
-#define GEN7_L3LOG(slice, i)		_MMIO(0xB070 + (slice) * 0x200 + (i) * 4)
-#define GEN7_L3LOG_SIZE			0x80
-
-#define GEN7_HALF_SLICE_CHICKEN1	_MMIO(0xe100) /* IVB GT1 + VLV */
-#define GEN7_HALF_SLICE_CHICKEN1_GT2	_MMIO(0xf100)
-#define   GEN7_MAX_PS_THREAD_DEP		(8 << 12)
-#define   GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE	(1 << 10)
-#define   GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE	(1 << 4)
-#define   GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE	(1 << 3)
-
-#define GEN9_HALF_SLICE_CHICKEN5	_MMIO(0xe188)
-#define   GEN9_DG_MIRROR_FIX_ENABLE	(1 << 5)
-#define   GEN9_CCS_TLB_PREFETCH_ENABLE	(1 << 3)
-
-#define GEN8_ROW_CHICKEN		_MMIO(0xe4f0)
-#define   FLOW_CONTROL_ENABLE		(1 << 15)
-#define   PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE	(1 << 8)
-#define   STALL_DOP_GATING_DISABLE		(1 << 5)
-#define   THROTTLE_12_5				(7 << 2)
-#define   DISABLE_EARLY_EOT			(1 << 1)
-
-#define GEN7_ROW_CHICKEN2			_MMIO(0xe4f4)
-#define   GEN12_DISABLE_EARLY_READ		REG_BIT(14)
-#define   GEN12_PUSH_CONST_DEREF_HOLD_DIS	REG_BIT(8)
-
-#define GEN7_ROW_CHICKEN2_GT2		_MMIO(0xf4f4)
-#define   DOP_CLOCK_GATING_DISABLE	(1 << 0)
-#define   PUSH_CONSTANT_DEREF_DISABLE	(1 << 8)
-#define   GEN11_TDL_CLOCK_GATING_FIX_DISABLE	(1 << 1)
-
-#define GEN9_ROW_CHICKEN4		_MMIO(0xe48c)
-#define   GEN12_DISABLE_TDL_PUSH	REG_BIT(9)
-#define   GEN11_DIS_PICK_2ND_EU		REG_BIT(7)
-
-#define HSW_ROW_CHICKEN3		_MMIO(0xe49c)
-#define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
-
-#define HALF_SLICE_CHICKEN2		_MMIO(0xe180)
-#define   GEN8_ST_PO_DISABLE		(1 << 13)
-
-#define HALF_SLICE_CHICKEN3		_MMIO(0xe184)
-#define   HSW_SAMPLE_C_PERFORMANCE	(1 << 9)
-#define   GEN8_CENTROID_PIXEL_OPT_DIS	(1 << 8)
-#define   GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC	(1 << 5)
-#define   CNL_FAST_ANISO_L1_BANKING_FIX	(1 << 4)
-#define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1 << 1)
-
-#define GEN9_HALF_SLICE_CHICKEN7	_MMIO(0xe194)
-#define   GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR	(1 << 8)
-#define   GEN9_ENABLE_YV12_BUGFIX	(1 << 4)
-#define   GEN9_ENABLE_GPGPU_PREEMPTION	(1 << 2)
-
-/* Audio */
-#define G4X_AUD_VID_DID			_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x62020)
-#define   INTEL_AUDIO_DEVCL		0x808629FB
-#define   INTEL_AUDIO_DEVBLC		0x80862801
-#define   INTEL_AUDIO_DEVCTG		0x80862802
-
-#define G4X_AUD_CNTL_ST			_MMIO(0x620B4)
-#define   G4X_ELDV_DEVCL_DEVBLC		(1 << 13)
-#define   G4X_ELDV_DEVCTG		(1 << 14)
-#define   G4X_ELD_ADDR_MASK		(0xf << 5)
-#define   G4X_ELD_ACK			(1 << 4)
-#define G4X_HDMIW_HDMIEDID		_MMIO(0x6210C)
-
-#define _IBX_HDMIW_HDMIEDID_A		0xE2050
-#define _IBX_HDMIW_HDMIEDID_B		0xE2150
-#define IBX_HDMIW_HDMIEDID(pipe)	_MMIO_PIPE(pipe, _IBX_HDMIW_HDMIEDID_A, \
-						  _IBX_HDMIW_HDMIEDID_B)
-#define _IBX_AUD_CNTL_ST_A		0xE20B4
-#define _IBX_AUD_CNTL_ST_B		0xE21B4
-#define IBX_AUD_CNTL_ST(pipe)		_MMIO_PIPE(pipe, _IBX_AUD_CNTL_ST_A, \
-						  _IBX_AUD_CNTL_ST_B)
-#define   IBX_ELD_BUFFER_SIZE_MASK	(0x1f << 10)
-#define   IBX_ELD_ADDRESS_MASK		(0x1f << 5)
-#define   IBX_ELD_ACK			(1 << 4)
-#define IBX_AUD_CNTL_ST2		_MMIO(0xE20C0)
-#define   IBX_CP_READY(port)		((1 << 1) << (((port) - 1) * 4))
-#define   IBX_ELD_VALID(port)		((1 << 0) << (((port) - 1) * 4))
-
-#define _CPT_HDMIW_HDMIEDID_A		0xE5050
-#define _CPT_HDMIW_HDMIEDID_B		0xE5150
-#define CPT_HDMIW_HDMIEDID(pipe)	_MMIO_PIPE(pipe, _CPT_HDMIW_HDMIEDID_A, _CPT_HDMIW_HDMIEDID_B)
-#define _CPT_AUD_CNTL_ST_A		0xE50B4
-#define _CPT_AUD_CNTL_ST_B		0xE51B4
-#define CPT_AUD_CNTL_ST(pipe)		_MMIO_PIPE(pipe, _CPT_AUD_CNTL_ST_A, _CPT_AUD_CNTL_ST_B)
-#define CPT_AUD_CNTRL_ST2		_MMIO(0xE50C0)
-
-#define _VLV_HDMIW_HDMIEDID_A		(VLV_DISPLAY_BASE + 0x62050)
-#define _VLV_HDMIW_HDMIEDID_B		(VLV_DISPLAY_BASE + 0x62150)
-#define VLV_HDMIW_HDMIEDID(pipe)	_MMIO_PIPE(pipe, _VLV_HDMIW_HDMIEDID_A, _VLV_HDMIW_HDMIEDID_B)
-#define _VLV_AUD_CNTL_ST_A		(VLV_DISPLAY_BASE + 0x620B4)
-#define _VLV_AUD_CNTL_ST_B		(VLV_DISPLAY_BASE + 0x621B4)
-#define VLV_AUD_CNTL_ST(pipe)		_MMIO_PIPE(pipe, _VLV_AUD_CNTL_ST_A, _VLV_AUD_CNTL_ST_B)
-#define VLV_AUD_CNTL_ST2		_MMIO(VLV_DISPLAY_BASE + 0x620C0)
-
 /* These are the 4 32-bit write offset registers for each stream
  * output buffer.  It determines the offset from the
  * 3DSTATE_SO_BUFFERs that the next streamed vertex output goes to.
  */
 #define GEN7_SO_WRITE_OFFSET(n)		_MMIO(0x5280 + (n) * 4)
-
-#define _IBX_AUD_CONFIG_A		0xe2000
-#define _IBX_AUD_CONFIG_B		0xe2100
-#define IBX_AUD_CFG(pipe)		_MMIO_PIPE(pipe, _IBX_AUD_CONFIG_A, _IBX_AUD_CONFIG_B)
-#define _CPT_AUD_CONFIG_A		0xe5000
-#define _CPT_AUD_CONFIG_B		0xe5100
-#define CPT_AUD_CFG(pipe)		_MMIO_PIPE(pipe, _CPT_AUD_CONFIG_A, _CPT_AUD_CONFIG_B)
-#define _VLV_AUD_CONFIG_A		(VLV_DISPLAY_BASE + 0x62000)
-#define _VLV_AUD_CONFIG_B		(VLV_DISPLAY_BASE + 0x62100)
-#define VLV_AUD_CFG(pipe)		_MMIO_PIPE(pipe, _VLV_AUD_CONFIG_A, _VLV_AUD_CONFIG_B)
-
-#define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
-#define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
-#define   AUD_CONFIG_UPPER_N_SHIFT		20
-#define   AUD_CONFIG_UPPER_N_MASK		(0xff << 20)
-#define   AUD_CONFIG_LOWER_N_SHIFT		4
-#define   AUD_CONFIG_LOWER_N_MASK		(0xfff << 4)
-#define   AUD_CONFIG_N_MASK			(AUD_CONFIG_UPPER_N_MASK | AUD_CONFIG_LOWER_N_MASK)
-#define   AUD_CONFIG_N(n) \
-	(((((n) >> 12) & 0xff) << AUD_CONFIG_UPPER_N_SHIFT) |	\
-	 (((n) & 0xfff) << AUD_CONFIG_LOWER_N_SHIFT))
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_SHIFT	16
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK	(0xf << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_25175	(0 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_25200	(1 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_27000	(2 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_27027	(3 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_54000	(4 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_54054	(5 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_74176	(6 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_74250	(7 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_148352	(8 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_148500	(9 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_296703	(10 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_297000	(11 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_593407	(12 << 16)
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_594000	(13 << 16)
-#define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
-
-/* HSW Audio */
-#define _HSW_AUD_CONFIG_A		0x65000
-#define _HSW_AUD_CONFIG_B		0x65100
-#define HSW_AUD_CFG(trans)		_MMIO_TRANS(trans, _HSW_AUD_CONFIG_A, _HSW_AUD_CONFIG_B)
-
-#define _HSW_AUD_MISC_CTRL_A		0x65010
-#define _HSW_AUD_MISC_CTRL_B		0x65110
-#define HSW_AUD_MISC_CTRL(trans)	_MMIO_TRANS(trans, _HSW_AUD_MISC_CTRL_A, _HSW_AUD_MISC_CTRL_B)
-
-#define _HSW_AUD_M_CTS_ENABLE_A		0x65028
-#define _HSW_AUD_M_CTS_ENABLE_B		0x65128
-#define HSW_AUD_M_CTS_ENABLE(trans)	_MMIO_TRANS(trans, _HSW_AUD_M_CTS_ENABLE_A, _HSW_AUD_M_CTS_ENABLE_B)
-#define   AUD_M_CTS_M_VALUE_INDEX	(1 << 21)
-#define   AUD_M_CTS_M_PROG_ENABLE	(1 << 20)
-#define   AUD_CONFIG_M_MASK		0xfffff
-
-#define _HSW_AUD_DIP_ELD_CTRL_ST_A	0x650b4
-#define _HSW_AUD_DIP_ELD_CTRL_ST_B	0x651b4
-#define HSW_AUD_DIP_ELD_CTRL(trans)	_MMIO_TRANS(trans, _HSW_AUD_DIP_ELD_CTRL_ST_A, _HSW_AUD_DIP_ELD_CTRL_ST_B)
-
-/* Audio Digital Converter */
-#define _HSW_AUD_DIG_CNVT_1		0x65080
-#define _HSW_AUD_DIG_CNVT_2		0x65180
-#define AUD_DIG_CNVT(trans)		_MMIO_TRANS(trans, _HSW_AUD_DIG_CNVT_1, _HSW_AUD_DIG_CNVT_2)
-#define DIP_PORT_SEL_MASK		0x3
-
-#define _HSW_AUD_EDID_DATA_A		0x65050
-#define _HSW_AUD_EDID_DATA_B		0x65150
-#define HSW_AUD_EDID_DATA(trans)	_MMIO_TRANS(trans, _HSW_AUD_EDID_DATA_A, _HSW_AUD_EDID_DATA_B)
-
-#define HSW_AUD_PIPE_CONV_CFG		_MMIO(0x6507c)
-#define HSW_AUD_PIN_ELD_CP_VLD		_MMIO(0x650c0)
-#define   AUDIO_INACTIVE(trans)		((1 << 3) << ((trans) * 4))
-#define   AUDIO_OUTPUT_ENABLE(trans)	((1 << 2) << ((trans) * 4))
-#define   AUDIO_CP_READY(trans)		((1 << 1) << ((trans) * 4))
-#define   AUDIO_ELD_VALID(trans)	((1 << 0) << ((trans) * 4))
-
-#define HSW_AUD_CHICKENBIT			_MMIO(0x65f10)
-#define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
-
-#define AUD_FREQ_CNTRL			_MMIO(0x65900)
-#define AUD_PIN_BUF_CTL		_MMIO(0x48414)
-#define   AUD_PIN_BUF_ENABLE		REG_BIT(31)
-
-/* Display Audio Config Reg */
-#define AUD_CONFIG_BE			_MMIO(0x65ef0)
-#define HBLANK_EARLY_ENABLE_ICL(pipe)		(0x1 << (20 - (pipe)))
-#define HBLANK_EARLY_ENABLE_TGL(pipe)		(0x1 << (24 + (pipe)))
-#define HBLANK_START_COUNT_MASK(pipe)		(0x7 << (3 + ((pipe) * 6)))
-#define HBLANK_START_COUNT(pipe, val)		(((val) & 0x7) << (3 + ((pipe)) * 6))
-#define NUMBER_SAMPLES_PER_LINE_MASK(pipe)	(0x3 << ((pipe) * 6))
-#define NUMBER_SAMPLES_PER_LINE(pipe, val)	(((val) & 0x3) << ((pipe) * 6))
-
-#define HBLANK_START_COUNT_8	0
-#define HBLANK_START_COUNT_16	1
-#define HBLANK_START_COUNT_32	2
-#define HBLANK_START_COUNT_64	3
-#define HBLANK_START_COUNT_96	4
-#define HBLANK_START_COUNT_128	5
 
 /*
  * HSW - ICL power wells
@@ -7486,6 +7237,12 @@
 #define   ICL_PW_CTL_IDX_PW_2			1
 #define   ICL_PW_CTL_IDX_PW_1			0
 
+/* XE_LPD - power wells */
+#define   XELPD_PW_CTL_IDX_PW_D			8
+#define   XELPD_PW_CTL_IDX_PW_C			7
+#define   XELPD_PW_CTL_IDX_PW_B			6
+#define   XELPD_PW_CTL_IDX_PW_A			5
+
 #define ICL_PWR_WELL_CTL_AUX1			_MMIO(0x45440)
 #define ICL_PWR_WELL_CTL_AUX2			_MMIO(0x45444)
 #define ICL_PWR_WELL_CTL_AUX4			_MMIO(0x4544C)
@@ -7500,7 +7257,9 @@
 #define   TGL_PW_CTL_IDX_AUX_TBT1		9
 #define   ICL_PW_CTL_IDX_AUX_TBT1		8
 #define   TGL_PW_CTL_IDX_AUX_TC6		8
+#define   XELPD_PW_CTL_IDX_AUX_E			8
 #define   TGL_PW_CTL_IDX_AUX_TC5		7
+#define   XELPD_PW_CTL_IDX_AUX_D			7
 #define   TGL_PW_CTL_IDX_AUX_TC4		6
 #define   ICL_PW_CTL_IDX_AUX_F			5
 #define   TGL_PW_CTL_IDX_AUX_TC3		5
@@ -7515,7 +7274,9 @@
 #define ICL_PWR_WELL_CTL_DDI1			_MMIO(0x45450)
 #define ICL_PWR_WELL_CTL_DDI2			_MMIO(0x45454)
 #define ICL_PWR_WELL_CTL_DDI4			_MMIO(0x4545C)
+#define   XELPD_PW_CTL_IDX_DDI_E			8
 #define   TGL_PW_CTL_IDX_DDI_TC6		8
+#define   XELPD_PW_CTL_IDX_DDI_D			7
 #define   TGL_PW_CTL_IDX_DDI_TC5		7
 #define   TGL_PW_CTL_IDX_DDI_TC4		6
 #define   ICL_PW_CTL_IDX_DDI_F			5
