@@ -1,29 +1,23 @@
 # drm-kmod
 The DRM drivers ported from Linux to FreeBSD using LinuxKPI
 
-## Contributing
+This is work in progress. This merged drm-intel commit 830b3c68c1fb1e9176028d02ef86f3cf76aa2476 (drm-intel-fixes)
+into drm-kmod, but focused only on i915.
 
-### Linux source code
-Folders `amd`, `drm`, `i915`, `radeon` contain FreeBSD Makefiles for the driver modules.  
+I will probably take out amd et al code at a later point, if they no longer compile properly.
 
-Folder `drivers` contain source code from Linux, patched (minimally) to run on FreeBSD with LinuxKPI.
-Try to keep changes to the code to a minimum but if you have to patch it, leave the Linux source code intact like so:
+For the moment:
+* i915 driver code is updated
+* previous 5.12 patches were ported forward
+* focus is on 14.0 SNAPSHOT; my work on backporting to 13.1 caused way too much pain, so I paused that.
+  see freebsd13 branch if you want to know more details.
+* everything is based on freebsd/drm-kmod and freedesktop/drm-intel
+* I've flagged questionable or controversial code parts with FIXME BSD, intentionally differnet from BSDFIXME;
+  this way, we can revisit ported issue and newly introduced issues separately
 
-```
-#ifdef __linux__
-...intact linux code...
-#elif defined(__FreeBSD__)
-bsd code
-#endif
-```
+This is one attempt to give back to FreeBSD. You're invited to join in the effort, if you have time.
 
-When updating and patching this code with code from Linux there are often merge conflicts where the code has been changed. If there are no markers it is difficult to know what code to keep and what to throw away.
-
-Pull requests that do not follow this will not be accepted. 
-
-Unless obvious what your code does, please leave a comment to explain to fellow developers why you patched it. The source code is the documentation!
-
-If the patch can be avoided by adding functionality to LinuxKPI, please consider the latter. Sooner or later, there will be more places where the functionality is used and having it in LinuxKPI mean we don't have to patch twice.
+I'll save you the sermon on why I think it's the best OS choice, because if you're reading this, you're likely already converted anyways.
 
 ### FreeBSD source code
 Folders `linuxkpi`
@@ -31,3 +25,6 @@ Folders `linuxkpi`
 Code style and rules same as FreeBSD kernel.
 No new code should be added there, all new linuxkpi functions should be
 added in FreeBSD base.
+
+(Note: this is a tough one; from what I can tell, there might be stuff we need to add to get this working. Never thought I'd be writing "kernel"
+code any time soon. Yet, here we are...)
