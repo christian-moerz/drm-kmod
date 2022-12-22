@@ -7,7 +7,9 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
-
+#ifdef __FreeBSD__
+#include <linux/file.h>
+#endif
 #include "gem/i915_gem_object.h"
 #include "gem/i915_gem_lmem.h"
 #include "shmem_utils.h"
@@ -37,7 +39,12 @@ struct file *shmem_create_from_object(struct drm_i915_gem_object *obj)
 
 	if (i915_gem_object_is_shmem(obj)) {
 		file = obj->base.filp;
+#ifdef __linux__
 		atomic_long_inc(&file->f_count);
+#elif defined(__FreeBSD__)
+		MPASS(file->_file == NULL);
+		refcount_acquire(&file->f_count);
+#endif
 		return file;
 	}
 
@@ -100,7 +107,11 @@ static int __shmem_rw(struct file *file, loff_t off,
 		struct page *page;
 		void *vaddr;
 
+#ifdef __linux__
 		page = shmem_read_mapping_page_gfp(file->f_mapping, pfn,
+#elif defined(__FreeBSD__)
+		page = shmem_read_mapping_page_gfp(file->f_shmem, pfn,
+#endif
 						   GFP_KERNEL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);

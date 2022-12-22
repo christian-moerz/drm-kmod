@@ -1657,7 +1657,14 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* Waiting to drain ELSP? */
+#ifdef __linux__
 	intel_synchronize_hardirq(engine->i915);
+#elif defined(__FreeBSD__)
+	/* BSDFIXME: Is it enough to wait that all cpu have context-switched ? */
+	/* FIXME BSD */
+	synchronize_rcu();
+#endif
+
 	intel_engine_flush_submission(engine);
 
 	/* ELSP is empty, but there are ready requests? E.g. after reset */
@@ -1789,7 +1796,12 @@ static int print_ring(char *buf, int sz, struct i915_request *rq)
 	return len;
 }
 
+#ifdef __linux__
 static void hexdump(struct drm_printer *m, const void *buf, size_t len)
+#elif defined(__FreeBSD__)
+#define	hexdump linux_hexdump
+static void linux_hexdump(struct drm_printer *m, const void *buf, size_t len)
+#endif
 {
 	const size_t rowsize = 8 * sizeof(u32);
 	const void *prev = NULL;
@@ -2000,6 +2012,7 @@ static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 		memcpy(ring + len, vaddr + head, size - len);
 
 		hexdump(m, ring, size);
+
 		kfree(ring);
 	}
 }
@@ -2205,7 +2218,11 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	intel_execlists_show_requests(engine, m, i915_request_show, 8);
 
 	drm_printf(m, "HWSP:\n");
+#ifdef __linux__
 	hexdump(m, engine->status_page.addr, PAGE_SIZE);
+#elif defined(__FreeBSD__)
+	linux_hexdump(m, engine->status_page.addr, PAGE_SIZE);
+#endif
 
 	drm_printf(m, "Idle? %s\n", str_yes_no(intel_engine_is_idle(engine)));
 

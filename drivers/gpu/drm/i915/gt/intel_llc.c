@@ -5,6 +5,10 @@
 
 #include <asm/tsc.h>
 #include <linux/cpufreq.h>
+#if defined(__FreeBSD__)
+#include <sys/types.h>
+#include <machine/clock.h>
+#endif
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -29,9 +33,12 @@ static struct intel_gt *llc_to_gt(struct intel_llc *llc)
 
 static unsigned int cpu_max_MHz(void)
 {
+#ifdef __linux__
 	struct cpufreq_policy *policy;
+#endif
 	unsigned int max_khz;
 
+#ifdef __linux__
 	policy = cpufreq_cpu_get(0);
 	if (policy) {
 		max_khz = policy->cpuinfo.max_freq;
@@ -43,6 +50,9 @@ static unsigned int cpu_max_MHz(void)
 		 */
 		max_khz = tsc_khz;
 	}
+#elif defined(__FreeBSD__)
+	max_khz = tsc_freq / 1000;
+#endif
 
 	return max_khz / 1000;
 }

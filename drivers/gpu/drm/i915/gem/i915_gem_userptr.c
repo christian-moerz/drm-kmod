@@ -45,6 +45,20 @@
 #include "i915_gem_userptr.h"
 #include "i915_scatterlist.h"
 
+#ifdef __FreeBSD__
+/*
+ * This effectively reverts Linux 2170ecfa768850bb29487baa3101c993ab7d7402
+ * "drm/i915: convert get_user_pages() --> pin_user_pages()" commit.
+ */
+#define	pin_user_pages_remote(task, mm, start, nr_pages, gup_flags, pages, \
+    vmas, locked)							\
+    get_user_pages_remote(task, mm, start, nr_pages, gup_flags, pages, vmas)
+#define	pin_user_pages_fast_only(start, nr_pages, gup_flags, pagep)	\
+    __get_user_pages_fast(start, nr_pages, (gup_flags) & FOLL_WRITE, pagep)
+#define	unpin_user_pages(pages, npages)	release_pages(pages, npages)
+#define	unpin_user_page(page)	put_page(page)
+#endif
+
 #ifdef CONFIG_MMU_NOTIFIER
 
 /**

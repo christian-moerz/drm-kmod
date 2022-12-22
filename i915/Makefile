@@ -241,16 +241,21 @@ gen2_engine_cs.c \
 	sysfs_engines.c
 
 # gt/uc*
-SRCS+=	intel_guc.c \
+SRCS+=	\
+	intel_guc.c \
 	intel_guc_ads.c \
+	intel_guc_capture.c \
 	intel_guc_ct.c \
 	intel_guc_fw.c \
+	intel_guc_hwconfig.c \
 	intel_guc_log.c \
+	intel_guc_rc.c \
+	intel_guc_slpc.c \
 	intel_guc_submission.c \
 	intel_huc.c \
 	intel_huc_fw.c \
 	intel_uc.c \
-	intel_uc_fw.c
+	intel_uc_fw.c 
 
 # gem/*
 SRCS+= \
@@ -410,14 +415,3 @@ CWARNFLAGS.i915_active.c=	-Wno-unused-function
 CWARNFLAGS.i915_sw_fence.c=	-Wno-unused-function
 CWARNFLAGS.i915_vma.c=		-Wno-unused-function -Wno-unused-but-set-variable
 CWARNFLAGS.vlv_dsi.c=		-Wno-unused-but-set-variable
-i915
-display
-
-gem
-
-gt
-	
-gvt
- \
-pxp
-

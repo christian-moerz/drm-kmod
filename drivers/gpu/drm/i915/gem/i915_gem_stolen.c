@@ -139,6 +139,9 @@ static int i915_adjust_stolen(struct drm_i915_private *i915,
 	if (HAS_LMEM(i915))
 		return 0;
 
+#ifdef __FreeBSD__
+	(void)r;
+#else
 	/*
 	 * Verify that nothing else uses this physical address. Stolen
 	 * memory should be reserved by the BIOS and hidden from the
@@ -173,6 +176,7 @@ static int i915_adjust_stolen(struct drm_i915_private *i915,
 			return -EBUSY;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -414,6 +418,12 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 			   "DMAR active");
 		return 0;
 	}
+
+#ifdef __FreeBSD__
+	DRM_INFO("Got stolen memory base 0x%x, size 0x%x\n",
+	    intel_graphics_stolen_res.start,
+	    resource_size(&intel_graphics_stolen_res));
+#endif
 
 	if (resource_size(&mem->region) == 0)
 		return 0;

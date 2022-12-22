@@ -18,6 +18,10 @@
 #include "intel_gt_regs.h"
 #include "intel_gtt.h"
 
+#ifdef __FreeBSD__
+#include <dev/agp/agpvar.h>
+#include <dev/agp/agp_i810.h>
+#endif
 
 static bool intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
 {

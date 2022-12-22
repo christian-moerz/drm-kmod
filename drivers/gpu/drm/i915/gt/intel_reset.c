@@ -778,10 +778,17 @@ static void revoke_mmaps(struct intel_gt *gt)
 		node = &vma->mmo->vma_node;
 		vma_offset = vma->gtt_view.partial.offset << PAGE_SHIFT;
 
+#ifdef __linux__
 		unmap_mapping_range(gt->i915->drm.anon_inode->i_mapping,
 				    drm_vma_node_offset_addr(node) + vma_offset,
 				    vma->size,
 				    1);
+#elif defined(__FreeBSD__)
+		unmap_mapping_range(vma->mmo,
+				    drm_vma_node_offset_addr(node),
+				    drm_vma_node_size(node) << PAGE_SHIFT,
+				    1);
+#endif	
 	}
 }
 
