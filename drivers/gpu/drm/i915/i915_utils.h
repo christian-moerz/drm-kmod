@@ -31,6 +31,8 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include <asm/hypervisor.h>
+
 struct drm_i915_private;
 struct timer_list;
 
