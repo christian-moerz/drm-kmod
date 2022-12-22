@@ -137,6 +137,43 @@ static inline unsigned int i915_sg_segment_size(void)
 }
 
 /**
+ * struct i915_refct_sgt_ops - Operations structure for struct i915_refct_sgt
+ */
+struct i915_refct_sgt_ops {
+	/**
+	 * release() - Free the memory of the struct i915_refct_sgt
+	 * @ref: struct kref that is embedded in the struct i915_refct_sgt
+	 */
+	void (*release)(struct kref *ref);
+};
+
+/**
+ * struct i915_refct_sgt - A refcounted scatter-gather table
+ * @kref: struct kref for refcounting
+ * @table: struct sg_table holding the scatter-gather table itself. Note that
+ * @table->sgl = NULL can be used to determine whether a scatter-gather table
+ * is present or not.
+ * @size: The size in bytes of the underlying memory buffer
+ * @ops: The operations structure.
+ */
+struct i915_refct_sgt {
+	struct kref kref;
+	struct sg_table table;
+	size_t size;
+	const struct i915_refct_sgt_ops *ops;
+};
+
+/**
+ * i915_refct_sgt_put - Put a refcounted sg-table
+ * @rsgt the struct i915_refct_sgt to put.
+ */
+static inline void i915_refct_sgt_put(struct i915_refct_sgt *rsgt)
+{
+	if (rsgt)
+		kref_put(&rsgt->kref, rsgt->ops->release);
+}
+
+/**
  * i915_refct_sgt_get - Get a refcounted sg-table
  * @rsgt the struct i915_refct_sgt to get.
  */
