@@ -626,6 +626,10 @@
 #define _MMIO_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1)		\
 	_MMIO(_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1))
 
+/* There are the 16 64-bit CS General Purpose Registers */
+#define HSW_CS_GPR(n)                   _MMIO(0x2600 + (n) * 8)
+#define HSW_CS_GPR_UDW(n)               _MMIO(0x2600 + (n) * 8 + 4)
+
 #define BXT_P_CR_GT_DISP_PWRON		_MMIO(0x138090)
 #define  MIPIO_RST_CTRL				(1 << 2)
 
