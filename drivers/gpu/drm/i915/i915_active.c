@@ -610,8 +610,13 @@ int __i915_active_wait(struct i915_active *ref, int state)
 		if (err)
 			return err;
 
+#ifdef __linux__
 		if (___wait_var_event(ref, i915_active_is_idle(ref),
 				      state, 0, 0, schedule()))
+#elif defined(__FreeBSD__)
+		if (__wait_event_common(linux_var_waitq, i915_active_is_idle(ref),
+					MAX_SCHEDULE_TIMEOUT, state, NULL))
+#endif
 			return -EINTR;
 	}
 

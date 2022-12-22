@@ -65,6 +65,12 @@
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
 
+#ifdef __FreeBSD__
+/* BSD: Make sure we get out[bwl] redefines */
+#include <linux/compiler.h>
+#include <linux/shrinker.h>
+#endif
+
 struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
 struct drm_i915_private;
@@ -410,6 +416,10 @@ struct drm_i915_private {
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
 	 */
+
+#ifdef __FreeBSD__
+	int mch_res_rid;
+#endif	 
 };
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)

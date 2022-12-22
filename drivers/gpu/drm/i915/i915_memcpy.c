@@ -24,6 +24,9 @@
 
 #include <linux/kernel.h>
 #include <asm/fpu/api.h>
+#ifdef __FreeBSD__
+#include <linux/jump_label.h>
+#endif
 
 #include "i915_memcpy.h"
 

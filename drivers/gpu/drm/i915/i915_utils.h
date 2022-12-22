@@ -387,10 +387,9 @@ static inline bool timer_expired(const struct timer_list *t)
 
 static inline bool i915_run_as_guest(void)
 {
-#if IS_ENABLED(CONFIG_X86)
+#ifdef __linux__
 	return !hypervisor_is_type(X86_HYPER_NATIVE);
-#else
-	/* Not supported yet */
+#elif defined(__FreeBSD__)
 	return false;
 #endif
 }

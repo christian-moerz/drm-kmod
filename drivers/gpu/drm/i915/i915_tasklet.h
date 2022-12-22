@@ -16,8 +16,11 @@ static inline void tasklet_lock(struct tasklet_struct *t)
 
 static inline bool tasklet_is_locked(const struct tasklet_struct *t)
 {
+#ifdef __linux__
 	return test_bit(TASKLET_STATE_RUN, &t->state);
-}
+#elif defined(__FreeBSD__)
+	return t->tasklet_state == 2;	/* BSDFIXME: Check if it's correct to use TASKLET_ST_EXEC */
+#endif
 
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
@@ -37,7 +40,11 @@ static inline bool __tasklet_enable(struct tasklet_struct *t)
 
 static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
 {
+#ifdef __linux__
 	return test_bit(TASKLET_STATE_SCHED, &t->state);
+#elif defined(__FreeBSD__)
+	return t->tasklet_state == 3;	/* BSDFIXME: Check if it's correct to use TASKLET_ST_LOOP */
+#endif
 }
 
 #endif /* __I915_TASKLET_H__ */

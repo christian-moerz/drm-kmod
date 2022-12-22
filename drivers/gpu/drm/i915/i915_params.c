@@ -24,10 +24,19 @@
 
 #include <linux/string_helpers.h>
 
+#ifdef __FreeBSD__
+#include <linux/types.h>
+#endif
 #include <drm/drm_print.h>
 
 #include "i915_params.h"
 #include "i915_drv.h"
+
+#ifdef __FreeBSD__
+SYSCTL_NODE(_hw, OID_AUTO, i915kms,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    DRIVER_DESC " parameters");
+#endif
 
 DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_CORE",
@@ -121,9 +130,11 @@ i915_param_named_unsafe(enable_psr2_sel_fetch, bool, 0400,
 	"(0=disabled, 1=enabled) "
 	"Default: 0");
 
+#ifdef __freebsd_notyet__
 i915_param_named_unsafe(force_probe, charp, 0400,
 	"Force probe the driver for specified devices. "
 	"See CONFIG_DRM_I915_FORCE_PROBE for details.");
+#endif
 
 i915_param_named_unsafe(disable_power_well, int, 0400,
 	"Disable display power wells when possible "
