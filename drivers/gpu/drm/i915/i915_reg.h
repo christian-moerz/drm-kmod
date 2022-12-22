@@ -28,6 +28,10 @@
 #include "i915_reg_defs.h"
 #define GEN12_SFC_DONE_MAX            4
 
+/* There are 16 GPR registers */
+#define BCS_GPR(n)	_MMIO(0x22600 + (n) * 8)
+#define BCS_GPR_UDW(n)	_MMIO(0x22600 + (n) * 8 + 4)
+
 /**
  * DOC: The i915 register macro definition style guide
  *
