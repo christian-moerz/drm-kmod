@@ -33,7 +33,12 @@ static void check_release_pagevec(struct pagevec *pvec)
 	cond_resched();
 }
 
-void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+void shmem_sg_free_table(struct sg_table *st, 
+#ifdef __linux__
+		struct address_space *mapping,
+#elif defined(__FreeBSD__)
+		vm_object_t mapping,
+#endif
 			 bool dirty, bool backup)
 {
 	struct sgt_iter sgt_iter;
@@ -62,7 +67,7 @@ void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
 int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			 size_t size, struct intel_memory_region *mr,
 #ifdef __FreeBSD__
-			 vm_object_t *mapping;
+			 vm_object_t mapping;
 #else
 			 struct address_space *mapping,
 #endif
@@ -610,7 +615,11 @@ static int shmem_object_init(struct intel_memory_region *mem,
 {
 	static struct lock_class_key lock_class;
 	struct drm_i915_private *i915 = mem->i915;
+#ifdef __linux__
 	struct address_space *mapping;
+#elif defined(__FreeBSD__)
+	vm_object_t mapping;
+#endif
 	unsigned int cache_level;
 	gfp_t mask;
 	int ret;
