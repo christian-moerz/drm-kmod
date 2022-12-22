@@ -898,12 +898,18 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 	 */
 	if (panel->backlight.enabled) {
 		if (panel->backlight.power) {
+#ifdef __linux__
 			bool enable = bd->props.power == FB_BLANK_UNBLANK &&
 				bd->props.brightness != 0;
+#elif defined(__FreeBSD__)
+			bool enable = bd->props.brightness != 0;
+#endif
 			panel->backlight.power(connector, enable);
 		}
 	} else {
+#ifdef __linux__
 		bd->props.power = FB_BLANK_POWERDOWN;
+#endif
 	}
 
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
@@ -972,10 +978,12 @@ int intel_backlight_device_register(struct intel_connector *connector)
 					    panel->backlight.level,
 					    props.max_brightness);
 
+#ifdef __linux__
 	if (panel->backlight.enabled)
 		props.power = FB_BLANK_UNBLANK;
 	else
 		props.power = FB_BLANK_POWERDOWN;
+#endif
 
 	name = kstrdup("intel_backlight", GFP_KERNEL);
 	if (!name)
@@ -997,8 +1005,14 @@ int intel_backlight_device_register(struct intel_connector *connector)
 		if (!name)
 			return -ENOMEM;
 	}
-	bd = backlight_device_register(name, connector->base.kdev, connector,
-				       &intel_backlight_device_ops, &props);
+	bd = backlight_device_register(name, 
+#ifdef __linux__
+					  	connector->base.kdev,
+#elif defined(__FreeBSD__)
+					  	connector->base.dev->dev,
+#endif
+						connector,
+				       	&intel_backlight_device_ops, &props);
 
 	if (IS_ERR(bd)) {
 		drm_err(&i915->drm,

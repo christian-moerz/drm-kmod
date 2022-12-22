@@ -31,6 +31,11 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/types.h>
 
+#ifdef __FreeBSD__
+#include <linux/kernel.h>	/* For container_of */
+#include <linux/io.h>		/* For writeb/readb */
+#endif
+
 #include "i915_reg_defs.h"
 
 struct drm_device;
@@ -63,7 +68,11 @@ enum forcewake_domain_id {
 	FW_DOMAIN_ID_MEDIA_VEBOX2,
 	FW_DOMAIN_ID_MEDIA_VEBOX3,
 
+#ifdef __linux__
 	FW_DOMAIN_ID_COUNT
+#elif defined(__FreeBSD__)
+	FW_DOMAIN_ID_DUMMY = -1, /* force enum type signed */
+#endif
 };
 
 enum forcewake_domains {

@@ -4571,7 +4571,9 @@ static int destroy_config(int id, void *p, void *data)
 
 int i915_perf_sysctl_register(void)
 {
+#ifdef __linux__
 	sysctl_header = register_sysctl("dev/i915", oa_table);
+#endif
 	return 0;
 }
 

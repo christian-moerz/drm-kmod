@@ -50,6 +50,7 @@ SRCS=	\
 	i915_vma_resource.c \
 	intel_device_info.c \
 	intel_dram.c \
+	intel_freebsd.c \
 	intel_gvt.c \
 	intel_gvt_mmio_table.c \
 	intel_memory_region.c \

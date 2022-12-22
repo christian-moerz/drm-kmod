@@ -26,6 +26,12 @@
 #include <drm/drm_drv.h>
 #include <drm/i915_pciids.h>
 
+/* NOTE BEGIN
+#if defined(__FreeBSD__)
+#include <drm_os_freebsd.h>
+#endif
+NOTE END */
+
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_sa_media.h"
 
@@ -1375,10 +1381,20 @@ static struct pci_driver i915_pci_driver = {
 
 int i915_pci_register_driver(void)
 {
-	return pci_register_driver(&i915_pci_driver);
+#ifdef __linux__
+	err = pci_register_driver(&i915_pci_driver);
+#elif defined(__FreeBSD__)
+	i915_pci_driver.bsdclass = drm_devclass;
+	err = linux_pci_register_drm_driver(&i915_pci_driver);
+#endif
 }
 
 void i915_pci_unregister_driver(void)
 {
+#if defined(__FreeBSD__)
+	linux_pci_unregister_drm_driver(&i915_pci_driver);
+	vt_unfreeze_main_vd();
+#else
 	pci_unregister_driver(&i915_pci_driver);
+#endif
 }

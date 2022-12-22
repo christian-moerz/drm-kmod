@@ -559,17 +559,25 @@ void intel_fbdev_initial_config_async(struct drm_device *dev)
 	if (!ifbdev)
 		return;
 
+#ifdef __linux__
 	ifbdev->cookie = async_schedule(intel_fbdev_initial_config, ifbdev);
+#elif defined(__FreeBSD__)
+	if (drm_fb_helper_initial_config(&ifbdev->helper,
+					 ifbdev->preferred_bpp))
+		intel_fbdev_unregister(to_i915(ifbdev->helper.dev));
+#endif
 }
 
 static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
 {
+#ifdef __linux__
 	if (!ifbdev->cookie)
 		return;
 
 	/* Only serialises with all preceding async calls, hence +1 */
 	async_synchronize_cookie(ifbdev->cookie + 1);
 	ifbdev->cookie = 0;
+#endif
 }
 
 void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
@@ -581,8 +589,10 @@ void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
 
 	intel_fbdev_set_suspend(&dev_priv->drm, FBINFO_STATE_SUSPENDED, true);
 
+#ifdef __linux__
 	if (!current_is_async())
 		intel_fbdev_sync(ifbdev);
+#endif
 
 	drm_fb_helper_unregister_fbi(&ifbdev->helper);
 }

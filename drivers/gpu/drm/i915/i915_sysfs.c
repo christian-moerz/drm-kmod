@@ -39,6 +39,11 @@
 #include "i915_sysfs.h"
 #include "intel_pm.h"
 
+#ifdef __FreeBSD__
+/* TODO: Move to base (when refactoring sysfs.h to sysfs.c) */
+const char power_group_name[] = "power";
+#endif
+
 struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 {
 	struct drm_minor *minor = dev_get_drvdata(kdev);

@@ -8670,7 +8670,11 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 
 	i915->display.wq.modeset = alloc_ordered_workqueue("i915_modeset", 0);
 	i915->display.wq.flip = alloc_workqueue("i915_flip", WQ_HIGHPRI |
-						WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
+#ifdef __linux__
+					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
+#elif defined(__FreeBSD__)
+					WQ_UNBOUND, 512);
+#endif
 
 	intel_mode_config_init(i915);
 

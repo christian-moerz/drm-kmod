@@ -48,7 +48,9 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
-
+#ifdef __FreeBSD__
+#include <asm/smp.h>
+#endif
 struct execute_cb {
 	struct irq_work work;
 	struct i915_sw_fence *fence;
@@ -199,9 +201,15 @@ __notify_execute_cb(struct i915_request *rq, bool (*fn)(struct irq_work *wrk))
 	if (llist_empty(&rq->execute_cb))
 		return;
 
+#ifdef __linux__
 	llist_for_each_entry_safe(cb, cn,
 				  llist_del_all(&rq->execute_cb),
 				  work.node.llist)
+#elif defined(__FreeBSD__)
+	struct llist_node *head = llist_del_all(&rq->execute_cb);
+	/* Only variable can be a third parameter of this macro */
+	llist_for_each_entry_safe(cb, cn, head, work.node.llist)
+#endif
 		fn(&cb->work);
 }
 
@@ -864,8 +872,12 @@ request_alloc_slow(struct intel_timeline *tl,
 
 	/* Ratelimit ourselves to prevent oom from malicious clients */
 	rq = list_last_entry(&tl->requests, typeof(*rq), link);
+#ifdef __linux__
 	cond_synchronize_rcu(rq->rcustate);
-
+#elif defined(__FreeBSD__)
+	/* BSDFIXME: OK to always synchronize here? */
+	synchronize_rcu();
+#endif
 	/* Retire our old requests in the hope that we free some */
 	retire_requests(tl);
 
@@ -963,7 +975,11 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->hwsp_seqno = tl->hwsp_seqno;
 	GEM_BUG_ON(__i915_request_is_complete(rq));
 
+#ifdef __linux__
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
+#elif __FreeBSD__
+	smp_mb();
+#endif
 
 	rq->guc_prio = GUC_PRIO_INIT;
 

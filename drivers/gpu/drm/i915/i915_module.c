@@ -115,11 +115,28 @@ static void __exit i915_exit(void)
 	}
 }
 
+#ifdef __linux__
 module_init(i915_init);
 module_exit(i915_exit);
+#endif
 
 MODULE_AUTHOR("Tungsten Graphics, Inc.");
 MODULE_AUTHOR("Intel Corporation");
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
+
+/* BSD stuff */
+#ifdef __FreeBSD__
+LKPI_DRIVER_MODULE(i915kms, i915_init, i915_exit);
+LKPI_PNP_INFO(pci, i915kms, pciidlist);
+MODULE_DEPEND(i915kms, drmn, 2, 2, 2);
+MODULE_DEPEND(i915kms, agp, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi_gplv2, 1, 1, 1);
+MODULE_DEPEND(i915kms, dmabuf, 1, 1, 1);
+MODULE_DEPEND(i915kms, firmware, 1, 1, 1);
+#ifdef CONFIG_DEBUG_FS
+MODULE_DEPEND(i915kms, lindebugfs, 1, 1, 1);
+#endif
+#endif

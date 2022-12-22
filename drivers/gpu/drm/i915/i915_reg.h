@@ -172,6 +172,7 @@
 					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
 
 #define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
+#ifdef __linux__
 #define _MASKED_FIELD(mask, value) ({					   \
 	if (__builtin_constant_p(mask))					   \
 		BUILD_BUG_ON_MSG(((mask) & 0xffff0000), "Incorrect mask"); \
@@ -181,6 +182,10 @@
 		BUILD_BUG_ON_MSG((value) & ~(mask),			   \
 				 "Incorrect value for mask");		   \
 	__MASKED_FIELD(mask, value); })
+#elif defined(__FreeBSD__)
+#define _MASKED_FIELD(mask, value) __MASKED_FIELD(mask, value)
+#endif
+
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
 #define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
 
