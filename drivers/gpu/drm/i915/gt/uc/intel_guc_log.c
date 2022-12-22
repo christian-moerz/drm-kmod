@@ -13,6 +13,12 @@
 #include "intel_guc_capture.h"
 #include "intel_guc_log.h"
 
+#ifdef __FreeBSD__
+static bool intel_guc_log_relay_enabled(const struct intel_guc_log *log) {
+	return false;
+}
+#endif
+
 #if defined(CONFIG_DRM_I915_DEBUG_GUC)
 #define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_2M
 #define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_16M
@@ -312,7 +318,11 @@ static void *guc_get_write_buffer(struct intel_guc_log *log)
 	 * done without using relay_reserve() along with relay_write(). So its
 	 * better to use relay_reserve() alone.
 	 */
+#ifdef __linux__
 	return relay_reserve(log->relay.channel, 0);
+#elif defined(__FreeBSD__)
+	return (NULL);
+#endif	
 }
 
 bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
@@ -333,8 +343,10 @@ bool intel_guc_check_log_buf_overflow(struct intel_guc_log *log,
 			log->stats[type].sampled_overflow += 16;
 		}
 
+#ifdef __freebsd_notyet__
 		dev_notice_ratelimited(guc_to_gt(log_to_guc(log))->i915->drm.dev,
 				       "GuC log buffer overflow\n");
+#endif
 	}
 
 	return overflow;
@@ -383,8 +395,17 @@ static void _guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log)
 
 	mutex_lock(&log->relay.lock);
 
+#ifdef __linux__
+	/* BSDFIXME: bsd 'log' doesn't like this.. */
 	if (WARN_ON(!intel_guc_log_relay_created(log)))
 		goto out_unlock;
+#elif defined(__FreeBSD__)
+	/* FIXME BSD */
+	if (!intel_guc_log_relay_enabled(log)) {
+		DRM_WARN("guc log relay not enabled");
+		goto out_unlock;
+	}
+#endif		
 
 	/* Get the pointer to shared GuC log buffer */
 	src_data = log->buf_addr;
@@ -519,6 +540,7 @@ void intel_guc_log_init_early(struct intel_guc_log *log)
 
 static int guc_log_relay_create(struct intel_guc_log *log)
 {
+#ifdef __linux__
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
 	struct rchan *guc_log_relay_chan;
@@ -557,6 +579,9 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	log->relay.channel = guc_log_relay_chan;
 
 	return 0;
+#elif defined(__FreeBSD__)
+	return (-ENOSYS);
+#endif
 }
 
 static void guc_log_relay_destroy(struct intel_guc_log *log)

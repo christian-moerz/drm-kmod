@@ -216,7 +216,11 @@ int intel_huc_check_status(struct intel_huc *huc)
 	case INTEL_UC_FIRMWARE_DISABLED:
 		return -EOPNOTSUPP;
 	case INTEL_UC_FIRMWARE_MISSING:
+#ifdef __linux__
 		return -ENOPKG;
+#elif defined(__FreeBSD__)
+		return -ENODEV;
+#endif
 	case INTEL_UC_FIRMWARE_ERROR:
 		return -ENOEXEC;
 	default:
