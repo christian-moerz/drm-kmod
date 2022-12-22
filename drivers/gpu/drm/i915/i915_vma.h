@@ -37,6 +37,7 @@
 
 #include "i915_active.h"
 #include "i915_request.h"
+#include "i915_vma_resource.h"
 #include "i915_vma_types.h"
 
 struct i915_vma *
