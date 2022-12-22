@@ -7,15 +7,17 @@ SRCDIR=	${.CURDIR:H}/drivers/gpu/drm/ttm
 .include "../kconfig.mk"
 
 KMOD=	ttm
-SRCS=	ttm_bo.c \
+SRCS=	\
+	ttm_bo.c \
 	ttm_bo_util.c \
 	ttm_bo_vm.c \
+	ttm_device.c \
 	ttm_execbuf_util.c \
-	ttm_memory.c \
 	ttm_module.c \
 	ttm_pool.c \
 	ttm_range_manager.c \
 	ttm_resource.c \
+	ttm_sys_manager.c \
 	ttm_tt.c \
 	drm_gem_ttm_helper.c
 
