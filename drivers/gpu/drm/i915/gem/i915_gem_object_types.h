@@ -12,6 +12,7 @@
 
 #include "i915_active.h"
 #include "i915_selftest.h"
+#include "i915_vma_resource.h"
 
 struct drm_i915_gem_object;
 struct intel_fronbuffer;
