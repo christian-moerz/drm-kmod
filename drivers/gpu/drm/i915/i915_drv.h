@@ -1289,8 +1289,26 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define INTEL_GEN(dev_priv)	(INTEL_INFO(dev_priv)->gen)
 #define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
 
-#define REVID_FOREVER		0xff
+#define IP_VER(ver, rel)		((ver) << 8 | (rel))
+
+#define GRAPHICS_VER(i915)		(RUNTIME_INFO(i915)->graphics.ip.ver)
+#define GRAPHICS_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->graphics.ip.ver, \
+					       RUNTIME_INFO(i915)->graphics.ip.rel)
+#define IS_GRAPHICS_VER(i915, from, until) \
+	(GRAPHICS_VER(i915) >= (from) && GRAPHICS_VER(i915) <= (until))
+
+#define MEDIA_VER(i915)			(RUNTIME_INFO(i915)->media.ip.ver)
+#define MEDIA_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->media.ip.ver, \
+					       RUNTIME_INFO(i915)->media.ip.rel)
+#define IS_MEDIA_VER(i915, from, until) \
+	(MEDIA_VER(i915) >= (from) && MEDIA_VER(i915) <= (until))
+
+#define DISPLAY_VER(i915)	(RUNTIME_INFO(i915)->display.ip.ver)
+#define IS_DISPLAY_VER(i915, from, until) \
+	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
+
 #define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)
+#define REVID_FOREVER		0xff
 
 #define INTEL_GEN_MASK(s, e) ( \
 	BUILD_BUG_ON_ZERO(!__builtin_constant_p(s)) + \
