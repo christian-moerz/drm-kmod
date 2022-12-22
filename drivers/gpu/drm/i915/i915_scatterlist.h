@@ -9,9 +9,13 @@
 
 #include <linux/pfn.h>
 #include <linux/scatterlist.h>
-#include <linux/swiotlb.h>
+#include <linux/dma-mapping.h>
+#include <xen/xen.h>
 
 #include "i915_gem.h"
+
+struct drm_mm_node;
+struct ttm_resource;
 
 /*
  * Optimised SGL iterator for GEM objects
@@ -101,40 +105,52 @@ static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 	     (((__iter).curr += PAGE_SIZE) >= (__iter).max) ?		\
 	     (__iter) = __sgt_iter(__sg_next((__iter).sgp), false), 0 : 0)
 
-static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
+/**
+ * i915_sg_dma_sizes - Record the dma segment sizes of a scatterlist
+ * @sg: The scatterlist
+ *
+ * Return: An unsigned int with segment sizes logically or'ed together.
+ * A caller can use this information to determine what hardware page table
+ * entry sizes can be used to map the memory represented by the scatterlist.
+ */
+static inline unsigned int i915_sg_dma_sizes(struct scatterlist *sg)
 {
 	unsigned int page_sizes;
 
 	page_sizes = 0;
-	while (sg) {
+	while (sg && sg_dma_len(sg)) {
 		GEM_BUG_ON(sg->offset);
-		GEM_BUG_ON(!IS_ALIGNED(sg->length, PAGE_SIZE));
-		page_sizes |= sg->length;
+		GEM_BUG_ON(!IS_ALIGNED(sg_dma_len(sg), PAGE_SIZE));
+		page_sizes |= sg_dma_len(sg);
 		sg = __sg_next(sg);
 	}
 
 	return page_sizes;
 }
 
-static inline unsigned int i915_sg_segment_size(void)
+static inline unsigned int i915_sg_segment_size(struct device *dev)
 {
-#ifdef __linux__
-	unsigned int size = swiotlb_max_segment();
-#elif defined(__FreeBSD__)
-	/* !CONFIG_SWIOTLB */
-	unsigned int size = 0;
-#endif
+	size_t max = min_t(size_t, UINT_MAX, dma_max_mapping_size(dev));
 
-	if (size == 0)
-		size = UINT_MAX;
-
-	size = rounddown(size, PAGE_SIZE);
-	/* swiotlb_max_segment_size can return 1 byte when it means one page. */
-	if (size < PAGE_SIZE)
-		size = PAGE_SIZE;
-
-	return size;
+	/*
+	 * For Xen PV guests pages aren't contiguous in DMA (machine) address
+	 * space.  The DMA API takes care of that both in dma_alloc_* (by
+	 * calling into the hypervisor to make the pages contiguous) and in
+	 * dma_map_* (by bounce buffering).  But i915 abuses ignores the
+	 * coherency aspects of the DMA API and thus can't cope with bounce
+	 * buffering actually happening, so add a hack here to force small
+	 * allocations and mappings when running in PV mode on Xen.
+	 *
+	 * Note this will still break if bounce buffering is required for other
+	 * reasons, like confidential computing hypervisors or PCIe root ports
+	 * with addressing limitations.
+	 */
+	if (xen_pv_domain())
+		max = PAGE_SIZE;
+	return round_down(max, PAGE_SIZE);
 }
+
+bool i915_sg_trim(struct sg_table *orig_st);
 
 /**
  * struct i915_refct_sgt_ops - Operations structure for struct i915_refct_sgt
@@ -184,7 +200,32 @@ i915_refct_sgt_get(struct i915_refct_sgt *rsgt)
 	return rsgt;
 }
 
+/**
+ * __i915_refct_sgt_init - Initialize a refcounted sg-list with a custom
+ * operations structure
+ * @rsgt The struct i915_refct_sgt to initialize.
+ * @size: Size in bytes of the underlying memory buffer.
+ * @ops: A customized operations structure in case the refcounted sg-list
+ * is embedded into another structure.
+ */
+static inline void __i915_refct_sgt_init(struct i915_refct_sgt *rsgt,
+					 size_t size,
+					 const struct i915_refct_sgt_ops *ops)
+{
+	kref_init(&rsgt->kref);
+	rsgt->table.sgl = NULL;
+	rsgt->size = size;
+	rsgt->ops = ops;
+}
 
-bool i915_sg_trim(struct sg_table *orig_st);
+void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size);
+
+struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
+					      u64 region_start,
+					      u32 page_alignment);
+
+struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
+						     u64 region_start,
+						     u32 page_alignment);
 
 #endif
