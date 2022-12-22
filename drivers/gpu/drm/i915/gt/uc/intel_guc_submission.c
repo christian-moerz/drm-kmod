@@ -4,6 +4,9 @@
  */
 
 #include <linux/circ_buf.h>
+#if defined(__FreeBSD__)
+#include <linux/interrupt.h>
+#endif
 
 #include "gem/i915_gem_context.h"
 #include "gt/gen8_engine_cs.h"

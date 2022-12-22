@@ -8,6 +8,9 @@
 #include <linux/time64.h>
 #include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
+#if defined(__FreeBSD__)
+#include <linux/interrupt.h>
+#endif
 
 #include "i915_drv.h"
 #include "intel_guc_ct.h"

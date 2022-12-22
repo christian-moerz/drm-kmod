@@ -4,6 +4,9 @@
  */
 
 #include <linux/string_helpers.h>
+#if defined(__FreeBSD__)
+#include <linux/interrupt.h>
+#endif
 
 #include <drm/drm_print.h>
 
