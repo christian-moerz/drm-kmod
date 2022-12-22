@@ -3633,7 +3633,6 @@
 #define   PIPECONF_INTERLACE_W_SYNC_SHIFT	REG_FIELD_PREP(PIPECONF_INTERLACE_MASK, 5) /* gen4 only */
 #define   PIPECONF_INTERLACE_W_FIELD_INDICATION	REG_FIELD_PREP(PIPECONF_INTERLACE_MASK, 6)
 #define   PIPECONF_INTERLACE_FIELD_0_ONLY	REG_FIELD_PREP(PIPECONF_INTERLACE_MASK, 7) /* gen3 only */
-#define   PIPECONF_INTERLACE_MASK_HSW	(3 << 21)
 /*
  * ilk+: PF/D=progressive fetch/display, IF/D=interlaced fetch/display,
  * DBL=power saving pixel doubling, PF-ID* requires panel fitter
@@ -3649,10 +3648,6 @@
 #define   PIPECONF_REFRESH_RATE_ALT_ILK		REG_BIT(20)
 #define   PIPECONF_MSA_TIMING_DELAY_MASK	REG_GENMASK(19, 18) /* ilk/snb/ivb */
 #define   PIPECONF_MSA_TIMING_DELAY(x)		REG_FIELD_PREP(PIPECONF_MSA_TIMING_DELAY_MASK, (x))
-#define   PIPECONF_INTERLACE_W_SYNC_SHIFT_PANEL	(4 << 21) /* gen4 only */
-#define   PIPECONF_INTERLACE_W_SYNC_SHIFT	(5 << 21) /* gen4 only */
-#define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
-#define   PIPECONF_INTERLACE_FIELD_0_ONLY	(7 << 21) /* gen3 only */
 /* Ironlake and later have a complete new set of values for interlaced. PFIT
  * means panel fitter required, PF means progressive fetch, DBL means power
  * saving pixel doubling. */
@@ -3797,8 +3792,6 @@
 #define   PIPEMISC_DITHER_10_BPC	(1 << 5)
 #define   PIPEMISC_DITHER_6_BPC		(2 << 5)
 #define   PIPEMISC_DITHER_12_BPC	(3 << 5)
-#define   PIPEMISC_DITHER_ENABLE	(1 << 4)
-#define   PIPEMISC_DITHER_TYPE_SP	(0 << 2)
 #define PIPEMISC(pipe)			_MMIO_PIPE2(pipe, _PIPE_MISC_A)
 
 #define _PIPE_MISC2_A					0x7002C
@@ -4169,9 +4162,7 @@
 #define  WM0_PIPE_CURSOR(x)	REG_FIELD_PREP(WM0_PIPE_CURSOR_MASK, (x))
 #define  WM0_PIPE_PLANE_MASK	(0xffff << 16)
 #define  WM0_PIPE_PLANE_SHIFT	16
-#define  WM0_PIPE_SPRITE_MASK	(0xff << 8)
 #define  WM0_PIPE_SPRITE_SHIFT	8
-#define  WM0_PIPE_CURSOR_MASK	(0xff)
 #define WM1_LP_ILK		_MMIO(0x45108)
 #define  WM1_LP_SR_EN		(1 << 31)
 #define  WM1_LP_LATENCY_SHIFT	24
