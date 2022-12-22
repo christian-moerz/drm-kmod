@@ -26,6 +26,7 @@
 #define _I915_REG_H_
 
 #include "i915_reg_defs.h"
+#define GEN12_SFC_DONE_MAX            4
 
 /**
  * DOC: The i915 register macro definition style guide
