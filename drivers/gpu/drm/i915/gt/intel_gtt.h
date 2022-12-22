@@ -271,6 +271,9 @@ struct i915_address_space {
 	/* Global GTT */
 	bool is_ggtt:1;
 
+	/* Display page table */
+	bool is_dpt:1;
+
 	/* Some systems support read-only mappings for GGTT and/or PPGTT */
 	bool has_read_only:1;
 
