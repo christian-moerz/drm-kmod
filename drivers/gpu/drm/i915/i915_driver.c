@@ -110,7 +110,7 @@ static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 static int
 intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 {
-	int reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int reg = GRAPHICS_VER(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr = 0;
 	int ret;
@@ -119,7 +119,7 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 		mchbar_addr = 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (GRAPHICS_VER(dev_priv) >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
 	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
@@ -163,7 +163,7 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (GRAPHICS_VER(dev_priv) >= 4)
 		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
 				       upper_32_bits(dev_priv->mch_res.start));
 

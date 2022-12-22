@@ -84,6 +84,12 @@ enum intel_platform {
 	INTEL_TIGERLAKE,
 	INTEL_ROCKETLAKE,
 	INTEL_DG1,
+	INTEL_ALDERLAKE_S,
+	INTEL_ALDERLAKE_P,
+	INTEL_XEHPSDV,
+	INTEL_DG2,
+	INTEL_PONTEVECCHIO,
+	INTEL_METEORLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -93,13 +99,37 @@ enum intel_platform {
  */
 
 #define INTEL_SUBPLATFORM_BITS (3)
+#define INTEL_SUBPLATFORM_MASK (BIT(INTEL_SUBPLATFORM_BITS) - 1)
 
 /* HSW/BDW/SKL/KBL/CFL */
 #define INTEL_SUBPLATFORM_ULT	(0)
 #define INTEL_SUBPLATFORM_ULX	(1)
 
-/* CNL/ICL */
+/* ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
+
+/* TGL */
+#define INTEL_SUBPLATFORM_UY	(0)
+
+/* DG2 */
+#define INTEL_SUBPLATFORM_G10	0
+#define INTEL_SUBPLATFORM_G11	1
+#define INTEL_SUBPLATFORM_G12	2
+
+/* ADL */
+#define INTEL_SUBPLATFORM_RPL	0
+
+/* ADL-P */
+/*
+ * As #define INTEL_SUBPLATFORM_RPL 0 will apply
+ * here too, SUBPLATFORM_N will have different
+ * bit set
+ */
+#define INTEL_SUBPLATFORM_N    1
+
+/* MTL */
+#define INTEL_SUBPLATFORM_M	0
+#define INTEL_SUBPLATFORM_P	1
 
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
@@ -155,6 +185,30 @@ enum intel_ppgtt_type {
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
+struct ip_version {
+	u8 ver;
+	u8 rel;
+};
+
+struct intel_runtime_info {
+	/*
+	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
+	 * into single runtime conditionals, and also to provide groundwork
+	 * for future per platform, or per SKU build optimizations.
+	 *
+	 * Array can be extended when necessary if the corresponding
+	 * BUILD_BUG_ON is hit.
+	 */
+	u32 platform_mask[2];
+
+	u16 device_id;
+
+	u8 num_sprites[I915_MAX_PIPES];
+	u8 num_scalers[I915_MAX_PIPES];
+
+	u32 rawclk_freq;
+};
+
 struct intel_device_info {
 	u16 gen_mask;
 
@@ -204,25 +258,6 @@ struct intel_device_info {
 		u32 degamma_lut_tests;
 		u32 gamma_lut_tests;
 	} color;
-};
-
-struct intel_runtime_info {
-	/*
-	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
-	 * into single runtime conditionals, and also to provide groundwork
-	 * for future per platform, or per SKU build optimizations.
-	 *
-	 * Array can be extended when necessary if the corresponding
-	 * BUILD_BUG_ON is hit.
-	 */
-	u32 platform_mask[2];
-
-	u16 device_id;
-
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
-
-	u32 rawclk_freq;
 };
 
 struct intel_driver_caps {
