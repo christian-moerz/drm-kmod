@@ -308,8 +308,6 @@ SRCS+=	i915_ioc32.c
 SRCS+=	\
 	debugfs.c \
 	intel_pxp_debugfs.c \
-	debugfs_gt.c \
-	debugfs_gt_pm.c \
 	i915_debugfs.c \
 	i915_debugfs_params.c \
 	intel_display_debugfs.c \
