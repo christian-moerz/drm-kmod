@@ -201,6 +201,11 @@ __check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
 	__T;								\
 })
 
+static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
+{
+	return a - b;
+}
+
 /*
  * container_of_user: Extract the superclass from a pointer to a member.
  *
@@ -447,6 +452,18 @@ static inline bool timer_expired(const struct timer_list *t)
 {
 	return timer_active(t) && !timer_pending(t);
 }
+
+static inline bool i915_run_as_guest(void)
+{
+#if IS_ENABLED(CONFIG_X86)
+	return !hypervisor_is_type(X86_HYPER_NATIVE);
+#else
+	/* Not supported yet */
+	return false;
+#endif
+}
+
+bool i915_vtd_active(struct drm_i915_private *i915);
 
 /*
  * This is a lookalike for IS_ENABLED() that takes a kconfig value,
