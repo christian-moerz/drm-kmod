@@ -4100,10 +4100,28 @@
 /* Watermark register definitions for SKL */
 #define _CUR_WM_A_0		0x70140
 #define _CUR_WM_B_0		0x71140
+#define _CUR_WM_SAGV_A		0x70158
+#define _CUR_WM_SAGV_B		0x71158
+#define _CUR_WM_SAGV_TRANS_A	0x7015C
+#define _CUR_WM_SAGV_TRANS_B	0x7115C
+#define _CUR_WM_TRANS_A		0x70168
+#define _CUR_WM_TRANS_B		0x71168
 #define _PLANE_WM_1_A_0		0x70240
 #define _PLANE_WM_1_B_0		0x71240
 #define _PLANE_WM_2_A_0		0x70340
 #define _PLANE_WM_2_B_0		0x71340
+#define _PLANE_WM_SAGV_1_A	0x70258
+#define _PLANE_WM_SAGV_1_B	0x71258
+#define _PLANE_WM_SAGV_2_A	0x70358
+#define _PLANE_WM_SAGV_2_B	0x71358
+#define _PLANE_WM_SAGV_TRANS_1_A	0x7025C
+#define _PLANE_WM_SAGV_TRANS_1_B	0x7125C
+#define _PLANE_WM_SAGV_TRANS_2_A	0x7035C
+#define _PLANE_WM_SAGV_TRANS_2_B	0x7135C
+#define _PLANE_WM_TRANS_1_A	0x70268
+#define _PLANE_WM_TRANS_1_B	0x71268
+#define _PLANE_WM_TRANS_2_A	0x70368
+#define _PLANE_WM_TRANS_2_B	0x71368
 #define _PLANE_WM_TRANS_1_A_0	0x70268
 #define _PLANE_WM_TRANS_1_B_0	0x71268
 #define _PLANE_WM_TRANS_2_A_0	0x70368
@@ -4112,20 +4130,33 @@
 #define _CUR_WM_TRANS_B_0	0x71168
 #define   PLANE_WM_EN		(1 << 31)
 #define   PLANE_WM_IGNORE_LINES	(1 << 30)
-#define   PLANE_WM_LINES_SHIFT	14
 #define   PLANE_WM_LINES_MASK	0x1f
 #define   PLANE_WM_BLOCKS_MASK	0x7ff /* skl+: 10 bits, icl+ 11 bits */
+#define   PLANE_WM_LINES_SHIFT	14
 
 #define _CUR_WM_0(pipe) _PIPE(pipe, _CUR_WM_A_0, _CUR_WM_B_0)
 #define CUR_WM(pipe, level) _MMIO(_CUR_WM_0(pipe) + ((4) * (level)))
+#define CUR_WM_SAGV(pipe) _MMIO_PIPE(pipe, _CUR_WM_SAGV_A, _CUR_WM_SAGV_B)
+#define CUR_WM_SAGV_TRANS(pipe) _MMIO_PIPE(pipe, _CUR_WM_SAGV_TRANS_A, _CUR_WM_SAGV_TRANS_B)
 #define CUR_WM_TRANS(pipe) _MMIO_PIPE(pipe, _CUR_WM_TRANS_A_0, _CUR_WM_TRANS_B_0)
-
 #define _PLANE_WM_1(pipe) _PIPE(pipe, _PLANE_WM_1_A_0, _PLANE_WM_1_B_0)
 #define _PLANE_WM_2(pipe) _PIPE(pipe, _PLANE_WM_2_A_0, _PLANE_WM_2_B_0)
 #define _PLANE_WM_BASE(pipe, plane)	\
 			_PLANE(plane, _PLANE_WM_1(pipe), _PLANE_WM_2(pipe))
 #define PLANE_WM(pipe, plane, level)	\
 			_MMIO(_PLANE_WM_BASE(pipe, plane) + ((4) * (level)))
+#define _PLANE_WM_SAGV_1(pipe) \
+	_PIPE(pipe, _PLANE_WM_SAGV_1_A, _PLANE_WM_SAGV_1_B)
+#define _PLANE_WM_SAGV_2(pipe) \
+	_PIPE(pipe, _PLANE_WM_SAGV_2_A, _PLANE_WM_SAGV_2_B)
+#define PLANE_WM_SAGV(pipe, plane) \
+	_MMIO(_PLANE(plane, _PLANE_WM_SAGV_1(pipe), _PLANE_WM_SAGV_2(pipe)))
+#define _PLANE_WM_SAGV_TRANS_1(pipe) \
+	_PIPE(pipe, _PLANE_WM_SAGV_TRANS_1_A, _PLANE_WM_SAGV_TRANS_1_B)
+#define _PLANE_WM_SAGV_TRANS_2(pipe) \
+	_PIPE(pipe, _PLANE_WM_SAGV_TRANS_2_A, _PLANE_WM_SAGV_TRANS_2_B)
+#define PLANE_WM_SAGV_TRANS(pipe, plane) \
+	_MMIO(_PLANE(plane, _PLANE_WM_SAGV_TRANS_1(pipe), _PLANE_WM_SAGV_TRANS_2(pipe)))
 #define _PLANE_WM_TRANS_1(pipe)	\
 			_PIPE(pipe, _PLANE_WM_TRANS_1_A_0, _PLANE_WM_TRANS_1_B_0)
 #define _PLANE_WM_TRANS_2(pipe)	\
@@ -4139,6 +4170,12 @@
 #define _WM0_PIPEC_IVB		0x45200
 #define WM0_PIPE_ILK(pipe)	_MMIO_PIPE3((pipe), _WM0_PIPEA_ILK, \
 					    _WM0_PIPEB_ILK, _WM0_PIPEC_IVB)
+#define  WM0_PIPE_PRIMARY_MASK	REG_GENMASK(31, 16)
+#define  WM0_PIPE_SPRITE_MASK	REG_GENMASK(15, 8)
+#define  WM0_PIPE_CURSOR_MASK	REG_GENMASK(7, 0)
+#define  WM0_PIPE_PRIMARY(x)	REG_FIELD_PREP(WM0_PIPE_PRIMARY_MASK, (x))
+#define  WM0_PIPE_SPRITE(x)	REG_FIELD_PREP(WM0_PIPE_SPRITE_MASK, (x))
+#define  WM0_PIPE_CURSOR(x)	REG_FIELD_PREP(WM0_PIPE_CURSOR_MASK, (x))
 #define  WM0_PIPE_PLANE_MASK	(0xffff << 16)
 #define  WM0_PIPE_PLANE_SHIFT	16
 #define  WM0_PIPE_SPRITE_MASK	(0xff << 8)
@@ -4158,30 +4195,29 @@
 #define  WM2_LP_EN		(1 << 31)
 #define WM3_LP_ILK		_MMIO(0x45110)
 #define  WM3_LP_EN		(1 << 31)
+#define  WM_LP_ENABLE		REG_BIT(31)
+#define  WM_LP_LATENCY_MASK	REG_GENMASK(30, 24)
+#define  WM_LP_FBC_MASK_BDW	REG_GENMASK(23, 19)
+#define  WM_LP_FBC_MASK_ILK	REG_GENMASK(23, 20)
+#define  WM_LP_PRIMARY_MASK	REG_GENMASK(18, 8)
+#define  WM_LP_CURSOR_MASK	REG_GENMASK(7, 0)
+#define  WM_LP_LATENCY(x)	REG_FIELD_PREP(WM_LP_LATENCY_MASK, (x))
+#define  WM_LP_FBC_BDW(x)	REG_FIELD_PREP(WM_LP_FBC_MASK_BDW, (x))
+#define  WM_LP_FBC_ILK(x)	REG_FIELD_PREP(WM_LP_FBC_MASK_ILK, (x))
+#define  WM_LP_PRIMARY(x)	REG_FIELD_PREP(WM_LP_PRIMARY_MASK, (x))
+#define  WM_LP_CURSOR(x)	REG_FIELD_PREP(WM_LP_CURSOR_MASK, (x))
 #define WM1S_LP_ILK		_MMIO(0x45120)
 #define WM2S_LP_IVB		_MMIO(0x45124)
 #define WM3S_LP_IVB		_MMIO(0x45128)
+#define  WM_LP_SPRITE_ENABLE	REG_BIT(31) /* ilk/snb WM1S only */
+#define  WM_LP_SPRITE_MASK	REG_GENMASK(10, 0)
+#define  WM_LP_SPRITE(x)	REG_FIELD_PREP(WM_LP_SPRITE_MASK, (x))
 #define  WM1S_LP_EN		(1 << 31)
 
 #define HSW_WM_LP_VAL(lat, fbc, pri, cur) \
 	(WM3_LP_EN | ((lat) << WM1_LP_LATENCY_SHIFT) | \
 	 ((fbc) << WM1_LP_FBC_SHIFT) | ((pri) << WM1_LP_SR_SHIFT) | (cur))
 
-/* Memory latency timer register */
-#define MLTR_ILK		_MMIO(0x11222)
-#define  MLTR_WM1_SHIFT		0
-#define  MLTR_WM2_SHIFT		8
-/* the unit of memory self-refresh latency time is 0.5us */
-#define  ILK_SRLT_MASK		0x3f
-
-
-/* the address where we get all kinds of latency value */
-#define SSKPD			_MMIO(0x5d10)
-#define SSKPD_WM_MASK		0x3f
-#define SSKPD_WM0_SHIFT		0
-#define SSKPD_WM1_SHIFT		8
-#define SSKPD_WM2_SHIFT		16
-#define SSKPD_WM3_SHIFT		24
 
 /*
  * The two pipe frame counter registers are not synchronized, so
@@ -4228,6 +4264,19 @@
 #define   CURSOR_FORMAT_XRGB	(0x05 << CURSOR_FORMAT_SHIFT)
 /* New style CUR*CNTR flags */
 #define   MCURSOR_MODE		0x27
+#define   MCURSOR_PIPE_SELECT_MASK	(0x3 << 28)
+#define   MCURSOR_PIPE_SELECT_SHIFT	28
+#define   MCURSOR_PIPE_SELECT(pipe)	((pipe) << 28)
+#define   MCURSOR_GAMMA_ENABLE  (1 << 26)
+#define   MCURSOR_ARB_SLOTS_MASK	REG_GENMASK(30, 28) /* icl+ */
+#define   MCURSOR_ARB_SLOTS(x)		REG_FIELD_PREP(MCURSOR_ARB_SLOTS_MASK, (x)) /* icl+ */
+#define   MCURSOR_PIPE_SEL_MASK		REG_GENMASK(29, 28)
+#define   MCURSOR_PIPE_SEL(pipe)	REG_FIELD_PREP(MCURSOR_PIPE_SEL_MASK, (pipe))
+#define   MCURSOR_PIPE_GAMMA_ENABLE	REG_BIT(26)
+#define   MCURSOR_PIPE_CSC_ENABLE (1 << 24) /* ilk+ */
+#define   MCURSOR_ROTATE_180	(1 << 15)
+#define   MCURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
+#define   MCURSOR_MODE_MASK		0x27
 #define   MCURSOR_MODE_DISABLE   0x00
 #define   MCURSOR_MODE_128_32B_AX 0x02
 #define   MCURSOR_MODE_256_32B_AX 0x03
@@ -4235,22 +4284,29 @@
 #define   MCURSOR_MODE_128_ARGB_AX ((1 << 5) | MCURSOR_MODE_128_32B_AX)
 #define   MCURSOR_MODE_256_ARGB_AX ((1 << 5) | MCURSOR_MODE_256_32B_AX)
 #define   MCURSOR_MODE_64_ARGB_AX ((1 << 5) | MCURSOR_MODE_64_32B_AX)
-#define   MCURSOR_PIPE_SELECT_MASK	(0x3 << 28)
-#define   MCURSOR_PIPE_SELECT_SHIFT	28
-#define   MCURSOR_PIPE_SELECT(pipe)	((pipe) << 28)
-#define   MCURSOR_GAMMA_ENABLE  (1 << 26)
-#define   MCURSOR_PIPE_CSC_ENABLE (1 << 24) /* ilk+ */
-#define   MCURSOR_ROTATE_180	(1 << 15)
-#define   MCURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		0x70084
 #define _CURAPOS		0x70088
 #define   CURSOR_POS_MASK       0x007FF
 #define   CURSOR_POS_SIGN       0x8000
 #define   CURSOR_X_SHIFT        0
 #define   CURSOR_Y_SHIFT        16
+#define   CURSOR_POS_Y_SIGN		REG_BIT(31)
+#define   CURSOR_POS_Y_MASK		REG_GENMASK(30, 16)
+#define   CURSOR_POS_Y(y)		REG_FIELD_PREP(CURSOR_POS_Y_MASK, (y))
+#define   CURSOR_POS_X_SIGN		REG_BIT(15)
+#define   CURSOR_POS_X_MASK		REG_GENMASK(14, 0)
+#define   CURSOR_POS_X(x)		REG_FIELD_PREP(CURSOR_POS_X_MASK, (x))
+#define _CURASIZE		0x700a0 /* 845/865 */
+#define   CURSOR_HEIGHT_MASK		REG_GENMASK(21, 12)
+#define   CURSOR_HEIGHT(h)		REG_FIELD_PREP(CURSOR_HEIGHT_MASK, (h))
+#define   CURSOR_WIDTH_MASK		REG_GENMASK(9, 0)
+#define   CURSOR_WIDTH(w)		REG_FIELD_PREP(CURSOR_WIDTH_MASK, (w))
 #define CURSIZE			_MMIO(0x700a0) /* 845/865 */
 #define _CUR_FBC_CTL_A		0x700a0 /* ivb+ */
 #define   CUR_FBC_CTL_EN	(1 << 31)
+#define   CUR_FBC_EN			REG_BIT(31)
+#define   CUR_FBC_HEIGHT_MASK		REG_GENMASK(7, 0)
+#define   CUR_FBC_HEIGHT(h)		REG_FIELD_PREP(CUR_FBC_HEIGHT_MASK, (h))
 #define _CURASURFLIVE		0x700ac /* g4x+ */
 #define _CURBCNTR		0x700c0
 #define _CURBBASE		0x700c4
@@ -4263,6 +4319,7 @@
 #define CURCNTR(pipe) _CURSOR2(pipe, _CURACNTR)
 #define CURBASE(pipe) _CURSOR2(pipe, _CURABASE)
 #define CURPOS(pipe) _CURSOR2(pipe, _CURAPOS)
+#define CURSIZE(pipe) _MMIO_CURSOR2(pipe, _CURASIZE)
 #define CUR_FBC_CTL(pipe) _CURSOR2(pipe, _CUR_FBC_CTL_A)
 #define CURSURFLIVE(pipe) _CURSOR2(pipe, _CURASURFLIVE)
 
@@ -4276,6 +4333,36 @@
 /* Display A control */
 #define _DSPAADDR_VLV				0x7017C /* vlv/chv */
 #define _DSPACNTR				0x70180
+#define   DISP_ENABLE			REG_BIT(31)
+#define   DISP_PIPE_GAMMA_ENABLE	REG_BIT(30)
+#define   DISP_FORMAT_MASK		REG_GENMASK(29, 26)
+#define   DISP_FORMAT_8BPP		REG_FIELD_PREP(DISP_FORMAT_MASK, 2)
+#define   DISP_FORMAT_BGRA555		REG_FIELD_PREP(DISP_FORMAT_MASK, 3)
+#define   DISP_FORMAT_BGRX555		REG_FIELD_PREP(DISP_FORMAT_MASK, 4)
+#define   DISP_FORMAT_BGRX565		REG_FIELD_PREP(DISP_FORMAT_MASK, 5)
+#define   DISP_FORMAT_BGRX888		REG_FIELD_PREP(DISP_FORMAT_MASK, 6)
+#define   DISP_FORMAT_BGRA888		REG_FIELD_PREP(DISP_FORMAT_MASK, 7)
+#define   DISP_FORMAT_RGBX101010	REG_FIELD_PREP(DISP_FORMAT_MASK, 8)
+#define   DISP_FORMAT_RGBA101010	REG_FIELD_PREP(DISP_FORMAT_MASK, 9)
+#define   DISP_FORMAT_BGRX101010	REG_FIELD_PREP(DISP_FORMAT_MASK, 10)
+#define   DISP_FORMAT_BGRA101010	REG_FIELD_PREP(DISP_FORMAT_MASK, 11)
+#define   DISP_FORMAT_RGBX161616	REG_FIELD_PREP(DISP_FORMAT_MASK, 12)
+#define   DISP_FORMAT_RGBX888		REG_FIELD_PREP(DISP_FORMAT_MASK, 14)
+#define   DISP_FORMAT_RGBA888		REG_FIELD_PREP(DISP_FORMAT_MASK, 15)
+#define   DISP_STEREO_ENABLE		REG_BIT(25)
+#define   DISP_PIPE_CSC_ENABLE		REG_BIT(24) /* ilk+ */
+#define   DISP_PIPE_SEL_MASK		REG_GENMASK(25, 24)
+#define   DISP_PIPE_SEL(pipe)		REG_FIELD_PREP(DISP_PIPE_SEL_MASK, (pipe))
+#define   DISP_SRC_KEY_ENABLE		REG_BIT(22)
+#define   DISP_LINE_DOUBLE		REG_BIT(20)
+#define   DISP_STEREO_POLARITY_SECOND	REG_BIT(18)
+#define   DISP_ALPHA_PREMULTIPLY	REG_BIT(16) /* CHV pipe B */
+#define   DISP_ROTATE_180		REG_BIT(15)
+#define   DISP_TRICKLE_FEED_DISABLE	REG_BIT(14) /* g4x+ */
+#define   DISP_TILED			REG_BIT(10)
+#define   DISP_ASYNC_FLIP		REG_BIT(9) /* g4x+ */
+#define   DISP_MIRROR			REG_BIT(8) /* CHV pipe B */
+/* BEGIN DEPRECATE */
 #define   DISPLAY_PLANE_ENABLE			(1 << 31)
 #define   DISPLAY_PLANE_DISABLE			0
 #define   DISPPLANE_GAMMA_ENABLE		(1 << 30)
@@ -4313,12 +4400,26 @@
 #define   DISPPLANE_TILED			(1 << 10)
 #define   DISPPLANE_ASYNC_FLIP			(1 << 9) /* g4x+ */
 #define   DISPPLANE_MIRROR			(1 << 8) /* CHV pipe B */
+/* END DEPRECATE */
 #define _DSPAADDR				0x70184
 #define _DSPASTRIDE				0x70188
 #define _DSPAPOS				0x7018C /* reserved */
+#define   DISP_POS_Y_MASK		REG_GENMASK(31, 16)
+#define   DISP_POS_Y(y)			REG_FIELD_PREP(DISP_POS_Y_MASK, (y))
+#define   DISP_POS_X_MASK		REG_GENMASK(15, 0)
+#define   DISP_POS_X(x)			REG_FIELD_PREP(DISP_POS_X_MASK, (x))
 #define _DSPASIZE				0x70190
+#define   DISP_HEIGHT_MASK		REG_GENMASK(31, 16)
+#define   DISP_HEIGHT(h)		REG_FIELD_PREP(DISP_HEIGHT_MASK, (h))
+#define   DISP_WIDTH_MASK		REG_GENMASK(15, 0)
+#define   DISP_WIDTH(w)			REG_FIELD_PREP(DISP_WIDTH_MASK, (w))
 #define _DSPASURF				0x7019C /* 965+ only */
+#define   DISP_ADDR_MASK		REG_GENMASK(31, 12)
 #define _DSPATILEOFF				0x701A4 /* 965+ only */
+#define   DISP_OFFSET_Y_MASK		REG_GENMASK(31, 16)
+#define   DISP_OFFSET_Y(y)		REG_FIELD_PREP(DISP_OFFSET_Y_MASK, (y))
+#define   DISP_OFFSET_X_MASK		REG_GENMASK(15, 0)
+#define   DISP_OFFSET_X(x)		REG_FIELD_PREP(DISP_OFFSET_X_MASK, (x))
 #define _DSPAOFFSET				0x701A4 /* HSW */
 #define _DSPASURFLIVE				0x701AC
 #define _DSPAGAMC				0x701E0
@@ -4338,15 +4439,28 @@
 
 /* CHV pipe B blender and primary plane */
 #define _CHV_BLEND_A		0x60a00
+#define   CHV_BLEND_MASK		(3 << 30)
 #define   CHV_BLEND_LEGACY		(0 << 30)
 #define   CHV_BLEND_ANDROID		(1 << 30)
 #define   CHV_BLEND_MPO			(2 << 30)
-#define   CHV_BLEND_MASK		(3 << 30)
 #define _CHV_CANVAS_A		0x60a04
+#define   CHV_CANVAS_RED_MASK	REG_GENMASK(29, 20)
+#define   CHV_CANVAS_GREEN_MASK	REG_GENMASK(19, 10)
+#define   CHV_CANVAS_BLUE_MASK	REG_GENMASK(9, 0)
 #define _PRIMPOS_A		0x60a08
+#define   PRIM_POS_Y_MASK	REG_GENMASK(31, 16)
+#define   PRIM_POS_Y(y)		REG_FIELD_PREP(PRIM_POS_Y_MASK, (y))
+#define   PRIM_POS_X_MASK	REG_GENMASK(15, 0)
+#define   PRIM_POS_X(x)		REG_FIELD_PREP(PRIM_POS_X_MASK, (x))
 #define _PRIMSIZE_A		0x60a0c
+#define   PRIM_HEIGHT_MASK	REG_GENMASK(31, 16)
+#define   PRIM_HEIGHT(h)	REG_FIELD_PREP(PRIM_HEIGHT_MASK, (h))
+#define   PRIM_WIDTH_MASK	REG_GENMASK(15, 0)
+#define   PRIM_WIDTH(w)		REG_FIELD_PREP(PRIM_WIDTH_MASK, (w))
 #define _PRIMCNSTALPHA_A	0x60a10
 #define   PRIM_CONST_ALPHA_ENABLE	(1 << 31)
+#define   PRIM_CONST_ALPHA_MASK		REG_GENMASK(7, 0)
+#define   PRIM_CONST_ALPHA(alpha)	REG_FIELD_PREP(PRIM_CONST_ALPHA_MASK, (alpha))
 
 #define CHV_BLEND(pipe)		_MMIO_TRANS2(pipe, _CHV_BLEND_A)
 #define CHV_CANVAS(pipe)	_MMIO_TRANS2(pipe, _CHV_CANVAS_A)
@@ -4387,10 +4501,14 @@
 
 /* Display B control */
 #define _DSPBCNTR		(DISPLAY_MMIO_BASE(dev_priv) + 0x71180)
+#define   DISP_ALPHA_TRANS_ENABLE	REG_BIT(15)
+#define   DISP_SPRITE_ABOVE_OVERLAY	REG_BIT(0)
+/* BEGIN DEPRECATE */
 #define   DISPPLANE_ALPHA_TRANS_ENABLE		(1 << 15)
 #define   DISPPLANE_ALPHA_TRANS_DISABLE		0
 #define   DISPPLANE_SPRITE_ABOVE_DISPLAY	0
 #define   DISPPLANE_SPRITE_ABOVE_OVERLAY	(1)
+/* END DEPRECATE */
 #define _DSPBADDR		(DISPLAY_MMIO_BASE(dev_priv) + 0x71184)
 #define _DSPBSTRIDE		(DISPLAY_MMIO_BASE(dev_priv) + 0x71188)
 #define _DSPBPOS		(DISPLAY_MMIO_BASE(dev_priv) + 0x7118C)
@@ -4408,8 +4526,10 @@
 #define _DVSACNTR		0x72180
 #define   DVS_ENABLE		(1 << 31)
 #define   DVS_GAMMA_ENABLE	(1 << 30)
+#define   DVS_PIPE_GAMMA_ENABLE		REG_BIT(30)
 #define   DVS_YUV_RANGE_CORRECTION_DISABLE	(1 << 27)
 #define   DVS_PIXFORMAT_MASK	(3 << 25)
+#define   DVS_FORMAT_MASK		REG_GENMASK(26, 25)
 #define   DVS_FORMAT_YUV422	(0 << 25)
 #define   DVS_FORMAT_RGBX101010	(1 << 25)
 #define   DVS_FORMAT_RGBX888	(2 << 25)
@@ -4419,23 +4539,37 @@
 #define   DVS_RGB_ORDER_XBGR	(1 << 20)
 #define   DVS_YUV_FORMAT_BT709	(1 << 18)
 #define   DVS_YUV_BYTE_ORDER_MASK (3 << 16)
+#define   DVS_YUV_ORDER_MASK		REG_GENMASK(17, 16)
 #define   DVS_YUV_ORDER_YUYV	(0 << 16)
 #define   DVS_YUV_ORDER_UYVY	(1 << 16)
 #define   DVS_YUV_ORDER_YVYU	(2 << 16)
 #define   DVS_YUV_ORDER_VYUY	(3 << 16)
 #define   DVS_ROTATE_180	(1 << 15)
-#define   DVS_DEST_KEY		(1 << 2)
 #define   DVS_TRICKLE_FEED_DISABLE (1 << 14)
 #define   DVS_TILED		(1 << 10)
+#define   DVS_DEST_KEY		(1 << 2)
 #define _DVSALINOFF		0x72184
 #define _DVSASTRIDE		0x72188
 #define _DVSAPOS		0x7218c
+#define   DVS_POS_Y_MASK		REG_GENMASK(31, 16)
+#define   DVS_POS_Y(y)			REG_FIELD_PREP(DVS_POS_Y_MASK, (y))
+#define   DVS_POS_X_MASK		REG_GENMASK(15, 0)
+#define   DVS_POS_X(x)			REG_FIELD_PREP(DVS_POS_X_MASK, (x))
 #define _DVSASIZE		0x72190
+#define   DVS_HEIGHT_MASK		REG_GENMASK(31, 16)
+#define   DVS_HEIGHT(h)			REG_FIELD_PREP(DVS_HEIGHT_MASK, (h))
+#define   DVS_WIDTH_MASK		REG_GENMASK(15, 0)
+#define   DVS_WIDTH(w)			REG_FIELD_PREP(DVS_WIDTH_MASK, (w))
 #define _DVSAKEYVAL		0x72194
 #define _DVSAKEYMSK		0x72198
 #define _DVSASURF		0x7219c
+#define   DVS_ADDR_MASK			REG_GENMASK(31, 12)
 #define _DVSAKEYMAXVAL		0x721a0
 #define _DVSATILEOFF		0x721a4
+#define   DVS_OFFSET_Y_MASK		REG_GENMASK(31, 16)
+#define   DVS_OFFSET_Y(y)		REG_FIELD_PREP(DVS_OFFSET_Y_MASK, (y))
+#define   DVS_OFFSET_X_MASK		REG_GENMASK(15, 0)
+#define   DVS_OFFSET_X(x)		REG_FIELD_PREP(DVS_OFFSET_X_MASK, (x))
 #define _DVSASURFLIVE		0x721ac
 #define _DVSAGAMC_G4X		0x721e0 /* g4x */
 #define _DVSASCALE		0x72204
@@ -4446,6 +4580,10 @@
 #define   DVS_FILTER_SOFTENING	(2 << 29)
 #define   DVS_VERTICAL_OFFSET_HALF (1 << 28) /* must be enabled below */
 #define   DVS_VERTICAL_OFFSET_ENABLE (1 << 27)
+#define   DVS_SRC_WIDTH_MASK		REG_GENMASK(26, 16)
+#define   DVS_SRC_WIDTH(w)		REG_FIELD_PREP(DVS_SRC_WIDTH_MASK, (w))
+#define   DVS_SRC_HEIGHT_MASK		REG_GENMASK(10, 0)
+#define   DVS_SRC_HEIGHT(h)		REG_FIELD_PREP(DVS_SRC_HEIGHT_MASK, (h))
 #define _DVSAGAMC_ILK		0x72300 /* ilk/snb */
 #define _DVSAGAMCMAX_ILK	0x72340 /* ilk/snb */
 
@@ -4486,6 +4624,7 @@
 #define   SPRITE_GAMMA_ENABLE		(1 << 30)
 #define   SPRITE_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 #define   SPRITE_PIXFORMAT_MASK		(7 << 25)
+#define   SPRITE_FORMAT_MASK			REG_GENMASK(27, 25)
 #define   SPRITE_FORMAT_YUV422		(0 << 25)
 #define   SPRITE_FORMAT_RGBX101010	(1 << 25)
 #define   SPRITE_FORMAT_RGBX888		(2 << 25)
@@ -4498,6 +4637,7 @@
 #define   SPRITE_YUV_TO_RGB_CSC_DISABLE	(1 << 19)
 #define   SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709	(1 << 18) /* 0 is BT601 */
 #define   SPRITE_YUV_BYTE_ORDER_MASK	(3 << 16)
+#define   SPRITE_YUV_ORDER_MASK			REG_GENMASK(17, 16)
 #define   SPRITE_YUV_ORDER_YUYV		(0 << 16)
 #define   SPRITE_YUV_ORDER_UYVY		(1 << 16)
 #define   SPRITE_YUV_ORDER_YVYU		(2 << 16)
@@ -4505,17 +4645,31 @@
 #define   SPRITE_ROTATE_180		(1 << 15)
 #define   SPRITE_TRICKLE_FEED_DISABLE	(1 << 14)
 #define   SPRITE_INT_GAMMA_DISABLE	(1 << 13)
+#define   SPRITE_PLANE_GAMMA_DISABLE		REG_BIT(13)
 #define   SPRITE_TILED			(1 << 10)
 #define   SPRITE_DEST_KEY		(1 << 2)
 #define _SPRA_LINOFF		0x70284
 #define _SPRA_STRIDE		0x70288
 #define _SPRA_POS		0x7028c
+#define   SPRITE_POS_Y_MASK	REG_GENMASK(31, 16)
+#define   SPRITE_POS_Y(y)	REG_FIELD_PREP(SPRITE_POS_Y_MASK, (y))
+#define   SPRITE_POS_X_MASK	REG_GENMASK(15, 0)
+#define   SPRITE_POS_X(x)	REG_FIELD_PREP(SPRITE_POS_X_MASK, (x))
 #define _SPRA_SIZE		0x70290
+#define   SPRITE_HEIGHT_MASK	REG_GENMASK(31, 16)
+#define   SPRITE_HEIGHT(h)	REG_FIELD_PREP(SPRITE_HEIGHT_MASK, (h))
+#define   SPRITE_WIDTH_MASK	REG_GENMASK(15, 0)
+#define   SPRITE_WIDTH(w)	REG_FIELD_PREP(SPRITE_WIDTH_MASK, (w))
 #define _SPRA_KEYVAL		0x70294
 #define _SPRA_KEYMSK		0x70298
 #define _SPRA_SURF		0x7029c
+#define   SPRITE_ADDR_MASK	REG_GENMASK(31, 12)
 #define _SPRA_KEYMAX		0x702a0
 #define _SPRA_TILEOFF		0x702a4
+#define   SPRITE_OFFSET_Y_MASK	REG_GENMASK(31, 16)
+#define   SPRITE_OFFSET_Y(y)	REG_FIELD_PREP(SPRITE_OFFSET_Y_MASK, (y))
+#define   SPRITE_OFFSET_X_MASK	REG_GENMASK(15, 0)
+#define   SPRITE_OFFSET_X(x)	REG_FIELD_PREP(SPRITE_OFFSET_X_MASK, (x))
 #define _SPRA_OFFSET		0x702a4
 #define _SPRA_SURFLIVE		0x702ac
 #define _SPRA_SCALE		0x70304
@@ -4526,6 +4680,10 @@
 #define   SPRITE_FILTER_SOFTENING	(2 << 29)
 #define   SPRITE_VERTICAL_OFFSET_HALF	(1 << 28) /* must be enabled below */
 #define   SPRITE_VERTICAL_OFFSET_ENABLE	(1 << 27)
+#define   SPRITE_SRC_WIDTH_MASK			REG_GENMASK(26, 16)
+#define   SPRITE_SRC_WIDTH(w)			REG_FIELD_PREP(SPRITE_SRC_WIDTH_MASK, (w))
+#define   SPRITE_SRC_HEIGHT_MASK		REG_GENMASK(10, 0)
+#define   SPRITE_SRC_HEIGHT(h)			REG_FIELD_PREP(SPRITE_SRC_HEIGHT_MASK, (h))
 #define _SPRA_GAMC		0x70400
 #define _SPRA_GAMC16		0x70440
 #define _SPRA_GAMC17		0x7044c
@@ -4568,6 +4726,8 @@
 #define   SP_ENABLE			(1 << 31)
 #define   SP_GAMMA_ENABLE		(1 << 30)
 #define   SP_PIXFORMAT_MASK		(0xf << 26)
+#define   SP_PIPE_GAMMA_ENABLE		REG_BIT(30)
+#define   SP_FORMAT_MASK		REG_GENMASK(29, 26)
 #define   SP_FORMAT_YUV422		(0x0 << 26)
 #define   SP_FORMAT_8BPP		(0x2 << 26)
 #define   SP_FORMAT_BGR565		(0x5 << 26)
@@ -4583,6 +4743,7 @@
 #define   SP_SOURCE_KEY			(1 << 22)
 #define   SP_YUV_FORMAT_BT709		(1 << 18)
 #define   SP_YUV_BYTE_ORDER_MASK	(3 << 16)
+#define   SP_YUV_ORDER_MASK		REG_GENMASK(17, 16)
 #define   SP_YUV_ORDER_YUYV		(0 << 16)
 #define   SP_YUV_ORDER_UYVY		(1 << 16)
 #define   SP_YUV_ORDER_YVYU		(2 << 16)
@@ -4593,19 +4754,38 @@
 #define _SPALINOFF		(VLV_DISPLAY_BASE + 0x72184)
 #define _SPASTRIDE		(VLV_DISPLAY_BASE + 0x72188)
 #define _SPAPOS			(VLV_DISPLAY_BASE + 0x7218c)
+#define   SP_POS_Y_MASK			REG_GENMASK(31, 16)
+#define   SP_POS_Y(y)			REG_FIELD_PREP(SP_POS_Y_MASK, (y))
+#define   SP_POS_X_MASK			REG_GENMASK(15, 0)
+#define   SP_POS_X(x)			REG_FIELD_PREP(SP_POS_X_MASK, (x))
 #define _SPASIZE		(VLV_DISPLAY_BASE + 0x72190)
+#define   SP_HEIGHT_MASK		REG_GENMASK(31, 16)
+#define   SP_HEIGHT(h)			REG_FIELD_PREP(SP_HEIGHT_MASK, (h))
+#define   SP_WIDTH_MASK			REG_GENMASK(15, 0)
+#define   SP_WIDTH(w)			REG_FIELD_PREP(SP_WIDTH_MASK, (w))
 #define _SPAKEYMINVAL		(VLV_DISPLAY_BASE + 0x72194)
 #define _SPAKEYMSK		(VLV_DISPLAY_BASE + 0x72198)
 #define _SPASURF		(VLV_DISPLAY_BASE + 0x7219c)
+#define   SP_ADDR_MASK			REG_GENMASK(31, 12)
 #define _SPAKEYMAXVAL		(VLV_DISPLAY_BASE + 0x721a0)
 #define _SPATILEOFF		(VLV_DISPLAY_BASE + 0x721a4)
+#define   SP_OFFSET_Y_MASK		REG_GENMASK(31, 16)
+#define   SP_OFFSET_Y(y)		REG_FIELD_PREP(SP_OFFSET_Y_MASK, (y))
+#define   SP_OFFSET_X_MASK		REG_GENMASK(15, 0)
+#define   SP_OFFSET_X(x)		REG_FIELD_PREP(SP_OFFSET_X_MASK, (x))
 #define _SPACONSTALPHA		(VLV_DISPLAY_BASE + 0x721a8)
 #define   SP_CONST_ALPHA_ENABLE		(1 << 31)
+#define   SP_CONST_ALPHA_MASK		REG_GENMASK(7, 0)
+#define   SP_CONST_ALPHA(alpha)		REG_FIELD_PREP(SP_CONST_ALPHA_MASK, (alpha))
 #define _SPACLRC0		(VLV_DISPLAY_BASE + 0x721d0)
+#define   SP_CONTRAST_MASK		REG_GENMASK(26, 18)
 #define   SP_CONTRAST(x)		((x) << 18) /* u3.6 */
+#define   SP_BRIGHTNESS_MASK		REG_GENMASK(7, 0)
 #define   SP_BRIGHTNESS(x)		((x) & 0xff) /* s8 */
 #define _SPACLRC1		(VLV_DISPLAY_BASE + 0x721d4)
+#define   SP_SH_SIN_MASK		REG_GENMASK(26, 16)
 #define   SP_SH_SIN(x)			(((x) & 0x7ff) << 16) /* s4.7 */
+#define   SP_SH_COS_MASK		REG_GENMASK(9, 0)
 #define   SP_SH_COS(x)			(x) /* u3.7 */
 #define _SPAGAMC		(VLV_DISPLAY_BASE + 0x721e0)
 
@@ -4657,7 +4837,9 @@
 #define SPCSCYGOFF(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d900)
 #define SPCSCCBOFF(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d904)
 #define SPCSCCROFF(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d908)
+#define  SPCSC_OOFF_MASK	REG_GENMASK(26, 16)
 #define  SPCSC_OOFF(x)		(((x) & 0x7ff) << 16) /* s11 */
+#define  SPCSC_IOFF_MASK	REG_GENMASK(10, 0)
 #define  SPCSC_IOFF(x)		(((x) & 0x7ff) << 0) /* s11 */
 
 #define SPCSCC01(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d90c)
@@ -4665,19 +4847,25 @@
 #define SPCSCC45(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d914)
 #define SPCSCC67(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d918)
 #define SPCSCC8(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d91c)
+#define  SPCSC_C1_MASK		REG_GENMASK(30, 16)
 #define  SPCSC_C1(x)		(((x) & 0x7fff) << 16) /* s3.12 */
+#define  SPCSC_C0_MASK		REG_GENMASK(14, 0)
 #define  SPCSC_C0(x)		(((x) & 0x7fff) << 0) /* s3.12 */
 
 #define SPCSCYGICLAMP(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d920)
 #define SPCSCCBICLAMP(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d924)
 #define SPCSCCRICLAMP(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d928)
+#define  SPCSC_IMAX_MASK	REG_GENMASK(26, 16)
 #define  SPCSC_IMAX(x)		(((x) & 0x7ff) << 16) /* s11 */
+#define  SPCSC_IMIN_MASK	REG_GENMASK(10, 0)
 #define  SPCSC_IMIN(x)		(((x) & 0x7ff) << 0) /* s11 */
 
 #define SPCSCYGOCLAMP(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d92c)
 #define SPCSCCBOCLAMP(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d930)
 #define SPCSCCROCLAMP(plane_id)	_MMIO_CHV_SPCSC(plane_id, 0x6d934)
+#define  SPCSC_OMAX_MASK	REG_GENMASK(25, 16)
 #define  SPCSC_OMAX(x)		((x) << 16) /* u10 */
+#define  SPCSC_OMIN_MASK	REG_GENMASK(9, 0)
 #define  SPCSC_OMIN(x)		((x) << 0) /* u10 */
 
 /* Skylake plane registers */
@@ -4686,6 +4874,8 @@
 #define _PLANE_CTL_2_A				0x70280
 #define _PLANE_CTL_3_A				0x70380
 #define   PLANE_CTL_ENABLE			(1 << 31)
+#define   PLANE_CTL_ARB_SLOTS_MASK		REG_GENMASK(30, 28) /* icl+ */
+#define   PLANE_CTL_ARB_SLOTS(x)		REG_FIELD_PREP(PLANE_CTL_ARB_SLOTS_MASK, (x)) /* icl+ */
 #define   PLANE_CTL_PIPE_GAMMA_ENABLE		(1 << 30)   /* Pre-GLK */
 #define   PLANE_CTL_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 /*
@@ -4694,6 +4884,9 @@
  * correctly map to the same formats in ICL, as long as bit 23 is set to 0
  */
 #define   PLANE_CTL_FORMAT_MASK			(0xf << 24)
+#define   ICL_PLANE_CTL_FORMAT_MASK		(0x1f << 23)
+#define   PLANE_CTL_FORMAT_MASK_SKL		REG_GENMASK(27, 24) /* pre-icl */
+#define   PLANE_CTL_FORMAT_MASK_ICL		REG_GENMASK(27, 23) /* icl+ */
 #define   PLANE_CTL_FORMAT_YUV422		(0 << 24)
 #define   PLANE_CTL_FORMAT_NV12			(1 << 24)
 #define   PLANE_CTL_FORMAT_XRGB_2101010		(2 << 24)
@@ -4705,14 +4898,13 @@
 #define   PLANE_CTL_FORMAT_XYUV			(8 << 24)
 #define   PLANE_CTL_FORMAT_INDEXED		(12 << 24)
 #define   PLANE_CTL_FORMAT_RGB_565		(14 << 24)
-#define   ICL_PLANE_CTL_FORMAT_MASK		(0x1f << 23)
-#define   PLANE_CTL_PIPE_CSC_ENABLE		(1 << 23) /* Pre-GLK */
 #define   PLANE_CTL_FORMAT_Y210                 (1 << 23)
 #define   PLANE_CTL_FORMAT_Y212                 (3 << 23)
 #define   PLANE_CTL_FORMAT_Y216                 (5 << 23)
 #define   PLANE_CTL_FORMAT_Y410                 (7 << 23)
 #define   PLANE_CTL_FORMAT_Y412                 (9 << 23)
 #define   PLANE_CTL_FORMAT_Y416                 (0xb << 23)
+#define   PLANE_CTL_PIPE_CSC_ENABLE		(1 << 23) /* Pre-GLK */
 #define   PLANE_CTL_KEY_ENABLE_MASK		(0x3 << 21)
 #define   PLANE_CTL_KEY_ENABLE_SOURCE		(1 << 21)
 #define   PLANE_CTL_KEY_ENABLE_DESTINATION	(2 << 21)
@@ -4749,18 +4941,34 @@
 #define _PLANE_STRIDE_1_A			0x70188
 #define _PLANE_STRIDE_2_A			0x70288
 #define _PLANE_STRIDE_3_A			0x70388
+#define   PLANE_STRIDE__MASK			REG_GENMASK(11, 0)
+#define   PLANE_STRIDE_(stride)			REG_FIELD_PREP(PLANE_STRIDE__MASK, (stride))
 #define _PLANE_POS_1_A				0x7018c
 #define _PLANE_POS_2_A				0x7028c
 #define _PLANE_POS_3_A				0x7038c
+#define   PLANE_POS_Y_MASK			REG_GENMASK(31, 16)
+#define   PLANE_POS_Y(y)			REG_FIELD_PREP(PLANE_POS_Y_MASK, (y))
+#define   PLANE_POS_X_MASK			REG_GENMASK(15, 0)
+#define   PLANE_POS_X(x)			REG_FIELD_PREP(PLANE_POS_X_MASK, (x))
 #define _PLANE_SIZE_1_A				0x70190
 #define _PLANE_SIZE_2_A				0x70290
 #define _PLANE_SIZE_3_A				0x70390
+#define   PLANE_HEIGHT_MASK			REG_GENMASK(31, 16)
+#define   PLANE_HEIGHT(h)			REG_FIELD_PREP(PLANE_HEIGHT_MASK, (h))
+#define   PLANE_WIDTH_MASK			REG_GENMASK(15, 0)
+#define   PLANE_WIDTH(w)			REG_FIELD_PREP(PLANE_WIDTH_MASK, (w))
 #define _PLANE_SURF_1_A				0x7019c
 #define _PLANE_SURF_2_A				0x7029c
 #define _PLANE_SURF_3_A				0x7039c
+#define   PLANE_SURF_ADDR_MASK			REG_GENMASK(31, 12)
+#define   PLANE_SURF_DECRYPT			REG_BIT(2)
 #define _PLANE_OFFSET_1_A			0x701a4
 #define _PLANE_OFFSET_2_A			0x702a4
 #define _PLANE_OFFSET_3_A			0x703a4
+#define   PLANE_OFFSET_Y_MASK			REG_GENMASK(31, 16)
+#define   PLANE_OFFSET_Y(y)			REG_FIELD_PREP(PLANE_OFFSET_Y_MASK, (y))
+#define   PLANE_OFFSET_X_MASK			REG_GENMASK(15, 0)
+#define   PLANE_OFFSET_X(x)			REG_FIELD_PREP(PLANE_OFFSET_X_MASK, (x))
 #define _PLANE_KEYVAL_1_A			0x70194
 #define _PLANE_KEYVAL_2_A			0x70294
 #define _PLANE_KEYMSK_1_A			0x70198
@@ -4772,31 +4980,43 @@
 #define _PLANE_CC_VAL_1_A			0x701b4
 #define _PLANE_CC_VAL_2_A			0x702b4
 #define _PLANE_AUX_DIST_1_A			0x701c0
+#define   PLANE_AUX_DISTANCE_MASK		REG_GENMASK(31, 12)
+#define   PLANE_AUX_STRIDE_MASK			REG_GENMASK(11, 0)
+#define   PLANE_AUX_STRIDE(stride)		REG_FIELD_PREP(PLANE_AUX_STRIDE_MASK, (stride))
 #define _PLANE_AUX_DIST_2_A			0x702c0
 #define _PLANE_AUX_OFFSET_1_A			0x701c4
 #define _PLANE_AUX_OFFSET_2_A			0x702c4
 #define _PLANE_CUS_CTL_1_A			0x701c8
 #define _PLANE_CUS_CTL_2_A			0x702c8
-#define  PLANE_CUS_ENABLE			(1 << 31)
-#define  PLANE_CUS_PLANE_4_RKL			(0 << 30)
-#define  PLANE_CUS_PLANE_5_RKL			(1 << 30)
-#define  PLANE_CUS_PLANE_6			(0 << 30)
-#define  PLANE_CUS_PLANE_7			(1 << 30)
+#define   PLANE_CUS_ENABLE			(1 << 31)
+#define   PLANE_CUS_PLANE_4_RKL			(0 << 30)
+#define   PLANE_CUS_PLANE_5_RKL			(1 << 30)
+#define   PLANE_CUS_PLANE_6			(0 << 30)
+#define   PLANE_CUS_PLANE_7			(1 << 30)
+#define   PLANE_CUS_Y_PLANE_MASK			REG_BIT(30)
+#define   PLANE_CUS_Y_PLANE_4_RKL		REG_FIELD_PREP(PLANE_CUS_Y_PLANE_MASK, 0)
+#define   PLANE_CUS_Y_PLANE_5_RKL		REG_FIELD_PREP(PLANE_CUS_Y_PLANE_MASK, 1)
+#define   PLANE_CUS_Y_PLANE_6_ICL		REG_FIELD_PREP(PLANE_CUS_Y_PLANE_MASK, 0)
+#define   PLANE_CUS_Y_PLANE_7_ICL		REG_FIELD_PREP(PLANE_CUS_Y_PLANE_MASK, 1)
 #define  PLANE_CUS_HPHASE_SIGN_NEGATIVE		(1 << 19)
+#define   PLANE_CUS_HPHASE_MASK			REG_GENMASK(17, 16)
 #define  PLANE_CUS_HPHASE_0			(0 << 16)
 #define  PLANE_CUS_HPHASE_0_25			(1 << 16)
 #define  PLANE_CUS_HPHASE_0_5			(2 << 16)
 #define  PLANE_CUS_VPHASE_SIGN_NEGATIVE		(1 << 15)
-#define  PLANE_CUS_VPHASE_0			(0 << 12)
-#define  PLANE_CUS_VPHASE_0_25			(1 << 12)
-#define  PLANE_CUS_VPHASE_0_5			(2 << 12)
+#define   PLANE_CUS_VPHASE_MASK			REG_GENMASK(13, 12)
+#define   PLANE_CUS_VPHASE_0			REG_FIELD_PREP(PLANE_CUS_VPHASE_MASK, 0)
+#define   PLANE_CUS_VPHASE_0_25			REG_FIELD_PREP(PLANE_CUS_VPHASE_MASK, 1)
+#define   PLANE_CUS_VPHASE_0_5			REG_FIELD_PREP(PLANE_CUS_VPHASE_MASK, 2)
 #define _PLANE_COLOR_CTL_1_A			0x701CC /* GLK+ */
 #define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
 #define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30) /* Pre-ICL */
 #define   PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
-#define   PLANE_COLOR_INPUT_CSC_ENABLE		(1 << 20) /* ICL+ */
 #define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23) /* Pre-ICL */
+#define   PLANE_COLOR_PLANE_CSC_ENABLE			REG_BIT(21) /* ICL+ */
+#define   PLANE_COLOR_INPUT_CSC_ENABLE		(1 << 20) /* ICL+ */
+#define   PLANE_COLOR_CSC_MODE_MASK			REG_GENMASK(19, 17)
 #define   PLANE_COLOR_CSC_MODE_BYPASS			(0 << 17)
 #define   PLANE_COLOR_CSC_MODE_YUV601_TO_RGB601		(1 << 17)
 #define   PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709		(2 << 17)
@@ -4949,6 +5169,11 @@
 #define _PLANE_BUF_CFG_2_B			0x7137c
 #define  DDB_ENTRY_MASK				0x7FF /* skl+: 10 bits, icl+ 11 bits */
 #define  DDB_ENTRY_END_SHIFT			16
+/* skl+: 10 bits, icl+ 11 bits, adlp+ 12 bits */
+#define   PLANE_BUF_END_MASK		REG_GENMASK(27, 16)
+#define   PLANE_BUF_END(end)		REG_FIELD_PREP(PLANE_BUF_END_MASK, (end))
+#define   PLANE_BUF_START_MASK		REG_GENMASK(11, 0)
+#define   PLANE_BUF_START(start)	REG_FIELD_PREP(PLANE_BUF_START_MASK, (start))
 #define _PLANE_BUF_CFG_1(pipe)	\
 	_PIPE(pipe, _PLANE_BUF_CFG_1_A, _PLANE_BUF_CFG_1_B)
 #define _PLANE_BUF_CFG_2(pipe)	\
@@ -5320,6 +5545,13 @@
 #define SKL_PS_ECC_STAT(pipe, id)  _MMIO_PIPE(pipe,     \
 			_ID(id, _PS_ECC_STAT_1A, _PS_ECC_STAT_2A),   \
 			_ID(id, _PS_ECC_STAT_1B, _PS_ECC_STAT_2B))
+#define GLK_PS_COEF_INDEX_SET(pipe, id, set)  _MMIO_PIPE(pipe,    \
+			_ID(id, _PS_COEF_SET0_INDEX_1A, _PS_COEF_SET0_INDEX_2A) + (set) * 8, \
+			_ID(id, _PS_COEF_SET0_INDEX_1B, _PS_COEF_SET0_INDEX_2B) + (set) * 8)
+
+#define GLK_PS_COEF_DATA_SET(pipe, id, set)  _MMIO_PIPE(pipe,     \
+			_ID(id, _PS_COEF_SET0_DATA_1A, _PS_COEF_SET0_DATA_2A) + (set) * 8, \
+			_ID(id, _PS_COEF_SET0_DATA_1B, _PS_COEF_SET0_DATA_2B) + (set) * 8)
 #define CNL_PS_COEF_INDEX_SET(pipe, id, set)  _MMIO_PIPE(pipe,    \
 			_ID(id, _PS_COEF_SET0_INDEX_1A, _PS_COEF_SET0_INDEX_2A) + (set) * 8, \
 			_ID(id, _PS_COEF_SET0_INDEX_1B, _PS_COEF_SET0_INDEX_2B) + (set) * 8)
