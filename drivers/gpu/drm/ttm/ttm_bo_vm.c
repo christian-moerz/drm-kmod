@@ -360,7 +360,10 @@ void ttm_bo_vm_open(struct vm_area_struct *vma)
 {
 	struct ttm_buffer_object *bo = vma->vm_private_data;
 
+#ifdef __linux__
+	/* FIXMBE BSD does not seem to exist on FreeBSD? */
 	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
+#endif
 
 	ttm_bo_get(bo);
 }
