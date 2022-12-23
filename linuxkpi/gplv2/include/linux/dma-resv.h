@@ -50,6 +50,9 @@
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#ifdef BSDTNG
+#include <linux/dma-fence-array.h>
+#endif
 #endif
 
 extern struct ww_class reservation_ww_class;
