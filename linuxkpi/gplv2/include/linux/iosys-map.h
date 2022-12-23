@@ -6,7 +6,9 @@
 #ifndef __IOSYS_MAP_H__
 #define __IOSYS_MAP_H__
 
+#ifdef __linux__
 #include <linux/compiler_types.h>
+#endif
 #include <linux/io.h>
 #include <linux/string.h>
 
