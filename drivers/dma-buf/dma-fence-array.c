@@ -157,6 +157,7 @@ dma_fence_array_create(int num_fences,
 	return (array);
 }
 
+#ifndef BSDTNG
 /*
  * check if a fence is from the array subsclass
  */
@@ -165,6 +166,7 @@ bool dma_fence_is_array(struct dma_fence *fence)
 
 	return (fence->ops == &dma_fence_array_ops);
 }
+#endif
 
 /*
  * cast a fence to a dma_fence_array
