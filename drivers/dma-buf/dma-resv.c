@@ -200,7 +200,7 @@ void dma_resv_init(struct dma_resv *obj)
 #endif
 	seqcount_init(&obj->seq);
 
-	RCU_INIT_POINTER(obj->fence, NULL);
+	RCU_INIT_POINTER(obj->fences, NULL);
 #ifndef BSDTNG
 	RCU_INIT_POINTER(obj->fence_excl, NULL);
 #endif

@@ -159,9 +159,8 @@ struct dma_resv {
 
 #ifndef BSDTNG
 	struct dma_fence __rcu *fence_excl;
-#else
-	struct dma_resv_list __rcu *fences;
 #endif
+	struct dma_resv_list __rcu *fence;
 };
 
 #ifdef BSDTNG
