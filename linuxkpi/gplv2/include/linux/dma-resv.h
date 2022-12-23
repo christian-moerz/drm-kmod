@@ -494,7 +494,7 @@ static inline void dma_resv_unlock(struct dma_resv *obj)
 static inline struct dma_fence *
 dma_resv_get_excl(struct dma_resv *obj)
 {
-	return rcu_dereference_protected(obj->fence_excl,
+	return rcu_dereference_protected(obj->fences,
 					 dma_resv_held(obj));
 }
 
@@ -514,11 +514,11 @@ dma_resv_get_excl_rcu(struct dma_resv *obj)
 {
 	struct dma_fence *fence;
 
-	if (!rcu_access_pointer(obj->fence_excl))
+	if (!rcu_access_pointer(obj->fences))
 		return NULL;
 
 	rcu_read_lock();
-	fence = dma_fence_get_rcu_safe(&obj->fence_excl);
+	fence = dma_fence_get_rcu_safe(&obj->fences);
 	rcu_read_unlock();
 
 	return fence;
