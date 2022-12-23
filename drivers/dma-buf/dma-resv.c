@@ -55,7 +55,11 @@
 DEFINE_WW_CLASS(reservation_ww_class);
 EXPORT_SYMBOL(reservation_ww_class);
 
+
 #ifdef BSDTNG
+/* Mask for the lower fence pointer bits */
+#define DMA_RESV_LIST_MASK	0x3
+
 /* Extract the fence and usage flags from an RCU protected entry in the list. */
 static void dma_resv_list_entry(struct dma_resv_list *list, unsigned int index,
 				struct dma_resv *resv, struct dma_fence **fence,
@@ -95,7 +99,7 @@ static struct dma_resv_list *dma_resv_list_alloc(unsigned int shared_max)
 
 	list = kmalloc(struct_size(list, 
 #ifdef BSDTNG
-		table, max_fences
+		table, shared_max
 #else
 		shared, shared_max
 #endif
