@@ -42,6 +42,12 @@
 #include <linux/module.h>
 #include <linux/dma-resv.h>
 
+#if defined(__FreeBSD__)
+			/* FIXME BSD not sure, whether this is right? */
+			/* linuxkpi does not (yet?) know ioremap_cache */
+#define ioremap_cache ioremap_nocache
+#endif
+
 struct ttm_transfer_obj {
 	struct ttm_buffer_object base;
 	struct ttm_buffer_object *bo;
@@ -298,13 +304,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 			map->virtual = ioremap_wc(res, size);
 #ifdef CONFIG_X86
 		else if (mem->bus.caching == ttm_cached)
-#if defined(__FreeBSD__)
-			/* FIXME BSD not sure, whether this is right? */
-			/* linuxkpi does not (yet?) know ioremap_cache */
-			map->virtual = ioremap_nocache(res, size);
-#else
 			map->virtual = ioremap_cache(res, size);
-#endif /* __FreeBSD__ */
 #endif
 		else
 			map->virtual = ioremap(res, size);
