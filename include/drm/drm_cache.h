@@ -70,4 +70,10 @@ static inline bool drm_arch_can_wc_memory(void)
 #endif
 }
 
+#ifdef BSDTNG
+void drm_memcpy_from_wc(struct iosys_map *dst,
+			const struct iosys_map *src,
+			unsigned long len);
+#endif
+
 #endif

@@ -221,3 +221,91 @@ bool drm_need_swiotlb(int dma_bits)
 #endif
 }
 EXPORT_SYMBOL(drm_need_swiotlb);
+
+#ifdef BSDTNG
+static void memcpy_fallback(struct iosys_map *dst,
+			    const struct iosys_map *src,
+			    unsigned long len)
+{
+	if (!dst->is_iomem && !src->is_iomem) {
+		memcpy(dst->vaddr, src->vaddr, len);
+	} else if (!src->is_iomem) {
+#if defined(__FreeBSD__)
+		memcpy(dst->vaddr_iomem, src->vaddr, len);
+#else
+		iosys_map_memcpy_to(dst, 0, src->vaddr, len);
+#endif
+	} else if (!dst->is_iomem) {
+		memcpy_fromio(dst->vaddr, src->vaddr_iomem, len);
+	} else {
+		/*
+		 * Bounce size is not performance tuned, but using a
+		 * bounce buffer like this is significantly faster than
+		 * resorting to ioreadxx() + iowritexx().
+		 */
+		char bounce[MEMCPY_BOUNCE_SIZE];
+		void __iomem *_src = src->vaddr_iomem;
+		void __iomem *_dst = dst->vaddr_iomem;
+
+		while (len >= MEMCPY_BOUNCE_SIZE) {
+			memcpy_fromio(bounce, _src, MEMCPY_BOUNCE_SIZE);
+			memcpy_toio(_dst, bounce, MEMCPY_BOUNCE_SIZE);
+			_src += MEMCPY_BOUNCE_SIZE;
+			_dst += MEMCPY_BOUNCE_SIZE;
+			len -= MEMCPY_BOUNCE_SIZE;
+		}
+		if (len) {
+			memcpy_fromio(bounce, _src, MEMCPY_BOUNCE_SIZE);
+			memcpy_toio(_dst, bounce, MEMCPY_BOUNCE_SIZE);
+		}
+	}
+}
+
+/*
+ * __drm_memcpy_from_wc copies @len bytes from @src to @dst using
+ * non-temporal instructions where available. Note that all arguments
+ * (@src, @dst) must be aligned to 16 bytes and @len must be a multiple
+ * of 16.
+ */
+static void __drm_memcpy_from_wc(void *dst, const void *src, unsigned long len)
+{
+	if (unlikely(((unsigned long)dst | (unsigned long)src | len) & 15))
+		memcpy(dst, src, len);
+	else if (likely(len))
+		__memcpy_ntdqa(dst, src, len >> 4);
+}
+
+/**
+ * drm_memcpy_from_wc - Perform the fastest available memcpy from a source
+ * that may be WC.
+ * @dst: The destination pointer
+ * @src: The source pointer
+ * @len: The size of the area o transfer in bytes
+ *
+ * Tries an arch optimized memcpy for prefetching reading out of a WC region,
+ * and if no such beast is available, falls back to a normal memcpy.
+ */
+void drm_memcpy_from_wc(struct iosys_map *dst,
+			const struct iosys_map *src,
+			unsigned long len)
+{
+	if (WARN_ON(in_interrupt())) {
+		memcpy_fallback(dst, src, len);
+		return;
+	}
+
+	if (static_branch_likely(&has_movntdqa)) {
+		__drm_memcpy_from_wc(dst->is_iomem ?
+				     (void __force *)dst->vaddr_iomem :
+				     dst->vaddr,
+				     src->is_iomem ?
+				     (void const __force *)src->vaddr_iomem :
+				     src->vaddr,
+				     len);
+		return;
+	}
+
+	memcpy_fallback(dst, src, len);
+}
+EXPORT_SYMBOL(drm_memcpy_from_wc);
+#endif
