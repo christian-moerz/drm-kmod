@@ -89,6 +89,10 @@ void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
     spinlock_t *lock, u64 context, u64 seqno);
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
+#ifdef BSDTNG
+void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq);
+#endif
+
 int dma_fence_signal(struct dma_fence *fence);
 int dma_fence_signal_locked(struct dma_fence *fence);
 int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp);
