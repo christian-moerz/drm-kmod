@@ -12,6 +12,9 @@
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
 #include <linux/vmalloc.h>
+#if defined(__FreeBSD__)
+#include <linux/shrinker.h>
+#endif
 
 #include "gt/intel_gt_requests.h"
 

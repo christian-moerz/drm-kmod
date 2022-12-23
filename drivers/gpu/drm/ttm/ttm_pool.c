@@ -45,6 +45,8 @@
 #include <drm/ttm/ttm_tt.h>
 #ifdef __FreeBSD__
 #include <drm/ttm/ttm_sysctl_freebsd.h>
+#include <linux/gfp_types.h>
+#include <linux/shrinker.h>
 #endif
 
 #include "ttm_module.h"
@@ -161,11 +163,13 @@ static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 	if (order)
 		attr |= DMA_ATTR_NO_WARN;
 
+#ifdef __linux__
 	dma = (void *)p->private;
 	vaddr = (void *)(dma->vaddr & PAGE_MASK);
 	dma_free_attrs(pool->dev, (1UL << order) * PAGE_SIZE, vaddr, dma->addr,
 		       attr);
 	kfree(dma);
+#endif
 }
 
 /* Apply a new caching to an array of pages */
