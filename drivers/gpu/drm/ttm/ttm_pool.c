@@ -47,6 +47,9 @@
 #include <drm/ttm/ttm_sysctl_freebsd.h>
 #include <linux/gfp.h>
 #include <linux/shrinker.h>
+
+#define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
+
 #endif
 
 #include "ttm_module.h"
@@ -574,22 +577,6 @@ void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
 	}
 }
 
-#if defined(__FreeBSD__)
-/**
- * synchronize_shrinkers - Wait for all running shrinkers to complete.
- *
- * This is equivalent to calling unregister_shrink() and register_shrinker(),
- * but atomically and with less overhead. This is useful to guarantee that all
- * shrinker invocations have seen an update, before freeing memory, similar to
- * rcu.
- */
-void synchronize_shrinkers(void)
-{
-	down_write(&shrinker_rwsem);
-	up_write(&shrinker_rwsem);
-}
-#endif
-
 /**
  * ttm_pool_fini - Cleanup a pool
  *
@@ -608,10 +595,12 @@ void ttm_pool_fini(struct ttm_pool *pool)
 				ttm_pool_type_fini(&pool->caching[i].orders[j]);
 	}
 
+#ifdef __linux__
 	/* We removed the pool types from the LRU, but we need to also make sure
 	 * that no shrinker is concurrently freeing pages from the pool.
 	 */
 	synchronize_shrinkers();
+#endif
 }
 
 /* As long as pages are available make sure to release at least one */
