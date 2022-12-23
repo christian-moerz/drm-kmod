@@ -25,6 +25,9 @@
  */
 
 #include <linux/dma-fence.h>
+#ifdef BSDTNG
+#include <linux/export.h>
+#endif
 
 MALLOC_DECLARE(M_DMABUF);
 
