@@ -34,7 +34,7 @@
 #ifdef __linux__
 #include <linux/pgtable.h>
 #elif defined(__FreeBSD__)
-#include <asm/pgtable.h>
+#include <linux/page.h>
 #endif
 #include <linux/sched.h>
 #include <linux/debugfs.h>
