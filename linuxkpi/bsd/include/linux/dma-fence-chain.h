@@ -52,39 +52,4 @@ int dma_fence_chain_find_seqno(struct dma_fence **fence, uint64_t seqno);
 void dma_fence_chain_init(struct dma_fence_chain *chain, struct dma_fence *prev,
   struct dma_fence *fence, uint64_t seqno);
 
-/**
- * dma_fence_is_array - check if a fence is from the array subclass
- * @fence: the fence to test
- *
- * Return true if it is a dma_fence_array and false otherwise.
- */
-static inline bool dma_fence_is_array(struct dma_fence *fence)
-{
-	return fence->ops == &dma_fence_array_ops;
-}
-
-/**
- * dma_fence_is_chain - check if a fence is from the chain subclass
- * @fence: the fence to test
- *
- * Return true if it is a dma_fence_chain and false otherwise.
- */
-static inline bool dma_fence_is_chain(struct dma_fence *fence)
-{
-	return fence->ops == &dma_fence_chain_ops;
-}
-
-/**
- * dma_fence_is_container - check if a fence is a container for other fences
- * @fence: the fence to test
- *
- * Return true if this fence is a container for other fences, false otherwise.
- * This is important since we can't build up large fence structure or otherwise
- * we run into recursion during operation on those fences.
- */
-static inline bool dma_fence_is_container(struct dma_fence *fence)
-{
-	return dma_fence_is_array(fence) || dma_fence_is_chain(fence);
-}
-
 #endif /* _LINUX_DMA_FENCE_CHAIN_H_ */
