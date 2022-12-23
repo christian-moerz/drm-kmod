@@ -42,9 +42,6 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/mem_encrypt.h>
-#if defined(__FreeBSD__)
-#include <linux/mm2.h>
-#endif
 
 static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_fault *vmf)
