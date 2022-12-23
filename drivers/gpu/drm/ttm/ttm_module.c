@@ -101,46 +101,14 @@ pgprot_t ttm_prot_from_caching(enum ttm_caching caching, pgprot_t tmp)
 	return tmp;
 }
 
-#ifdef BSDTNG
-static int __init ttm_init(void)
-{
-	int ret;
-
-	ret = dev_set_name(&ttm_drm_class_device, "ttm");
-	if (unlikely(ret != 0))
-		return ret;
-
-	atomic_set(&device_released, 0);
-	ret = drm_class_device_register(&ttm_drm_class_device);
-	if (unlikely(ret != 0))
-		goto out_no_dev_reg;
-
-	return 0;
-out_no_dev_reg:
-	atomic_set(&device_released, 1);
-	wake_up_all(&exit_q);
-	return ret;
-}
-
-static void __exit ttm_exit(void)
-{
-	drm_class_device_unregister(&ttm_drm_class_device);
-
-	/**
-	 * Refuse to unload until the TTM device is released.
-	 * Not sure this is 100% needed.
-	 */
-
-	wait_event(exit_q, atomic_read(&device_released) == 1);
-}
-#endif /* BSDTNG */
-
 #ifdef __linux__
 MODULE_AUTHOR("Thomas Hellstrom, Jerome Glisse");
 MODULE_DESCRIPTION("TTM memory manager subsystem (for DRM device)");
 MODULE_LICENSE("GPL and additional rights");
 #elif defined(__FreeBSD__)
+#ifndef BSDTNG
 LKPI_DRIVER_MODULE(ttm, ttm_init, ttm_exit);
+#endif
 MODULE_VERSION(ttm, 1);
 #ifdef CONFIG_AGP
 MODULE_DEPEND(ttm, agp, 1, 1, 1);
