@@ -215,7 +215,9 @@ EXPORT_SYMBOL(dma_resv_init);
 void dma_resv_fini(struct dma_resv *obj)
 {
 	struct dma_resv_list *fobj;
+#ifndef BSDTNG
 	struct dma_fence *excl;
+#endif
 
 	/*
 	 * This object should be dead and all references must have
@@ -1004,7 +1006,7 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 	}
 	dma_resv_iter_end(&cursor);
 
-	list = rcu_replace_pointer(dst->fences, list, dma_resv_held(dst));
+	list = rcu_replace_pointer(dst->fence, list, dma_resv_held(dst));
 	dma_resv_list_free(list);
 
 #else /* !BSDTNG */
