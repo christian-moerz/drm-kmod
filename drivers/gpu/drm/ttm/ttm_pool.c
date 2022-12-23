@@ -746,12 +746,15 @@ EXPORT_SYMBOL(ttm_pool_debugfs);
 /* Test the shrinker functions and dump the result */
 static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 {
+#ifndef BSDTNG
+	/* FIXME BSD incompatible shrink_control use */
 	struct shrink_control sc = { .gfp_mask = GFP_NOFS };
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(&mm_shrinker, &sc),
 		   ttm_pool_shrinker_scan(&mm_shrinker, &sc));
 	fs_reclaim_release(GFP_KERNEL);
+#endif
 
 	return 0;
 }
@@ -797,7 +800,11 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 	mm_shrinker.count_objects = ttm_pool_shrinker_count;
 	mm_shrinker.scan_objects = ttm_pool_shrinker_scan;
 	mm_shrinker.seeks = 1;
+#ifdef __linux__
 	return register_shrinker(&mm_shrinker, "drm-ttm_pool");
+#elif defined(__FreeBSD__)
+	return register_shrinker(&mm_shrinker);
+#endif
 }
 
 /**

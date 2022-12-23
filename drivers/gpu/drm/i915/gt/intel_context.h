@@ -9,6 +9,9 @@
 #include <linux/bitops.h>
 #include <linux/lockdep.h>
 #include <linux/types.h>
+#if defined(__FreeBSD__)
+#include <linux/lockdep.h>
+#endif
 
 #include "i915_active.h"
 #include "i915_drv.h"
@@ -213,8 +216,10 @@ static inline void intel_context_enter(struct intel_context *ce)
 
 static inline void intel_context_mark_active(struct intel_context *ce)
 {
+#ifdef __linux__
 	lockdep_assert(lockdep_is_held(&ce->timeline->mutex) ||
 		       test_bit(CONTEXT_IS_PARKING, &ce->flags));
+#endif
 	++ce->active_count;
 }
 

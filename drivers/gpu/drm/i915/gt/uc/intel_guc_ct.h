@@ -6,6 +6,9 @@
 #ifndef _INTEL_GUC_CT_H_
 #define _INTEL_GUC_CT_H_
 
+#if defined(__FreeBSD__)
+#include <sys/cdefs.h>
+#endif
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -106,11 +109,18 @@ static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
 #define INTEL_GUC_CT_SEND_NB		BIT(31)
 #define INTEL_GUC_CT_SEND_G2H_DW_SHIFT	0
 #define INTEL_GUC_CT_SEND_G2H_DW_MASK	(0xff << INTEL_GUC_CT_SEND_G2H_DW_SHIFT)
+#ifdef __linux__
 #define MAKE_SEND_FLAGS(len) ({ \
 	typeof(len) len_ = (len); \
 	GEM_BUG_ON(!FIELD_FIT(INTEL_GUC_CT_SEND_G2H_DW_MASK, len_)); \
 	(FIELD_PREP(INTEL_GUC_CT_SEND_G2H_DW_MASK, len_) | INTEL_GUC_CT_SEND_NB); \
 })
+#elif defined(__FreeBSD__)
+#define MAKE_SEND_FLAGS(len) ({ \
+	typeof(len) len_ = (len); \
+	(FIELD_PREP(INTEL_GUC_CT_SEND_G2H_DW_MASK, len_) | INTEL_GUC_CT_SEND_NB); \
+})
+#endif
 int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		      u32 *response_buf, u32 response_buf_size, u32 flags);
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct);

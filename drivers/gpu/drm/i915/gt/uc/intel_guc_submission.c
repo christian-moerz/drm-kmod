@@ -817,7 +817,9 @@ static int guc_wq_noop_append(struct intel_context *ce)
 	if (!wqi)
 		return -EBUSY;
 
+#ifdef __linux__
 	GEM_BUG_ON(!FIELD_FIT(WQ_LEN_MASK, len_dw));
+#endif
 
 	*wqi = FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_NOOP) |
 		FIELD_PREP(WQ_LEN_MASK, len_dw);
@@ -853,7 +855,9 @@ static int __guc_wq_item_append(struct i915_request *rq)
 	if (!wqi)
 		return -EBUSY;
 
+#ifdef __linux__
 	GEM_BUG_ON(!FIELD_FIT(WQ_LEN_MASK, len_dw));
+#endif
 
 	*wqi++ = FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_MULTI_LRC) |
 		FIELD_PREP(WQ_LEN_MASK, len_dw);

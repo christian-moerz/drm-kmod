@@ -561,16 +561,30 @@ retry:
 		goto retry;
 	}
 
+#ifdef __linux__
 	addr = io_mapping_map_local_wc(iter_io->iomap, iter_io->cache.offs +
 				       (((resource_size_t)i - iter_io->cache.i)
 					<< PAGE_SHIFT));
+#elif defined(__FreeBSD__)
+	/* FIXME BSD */
+	/* should we implement io_mapping_map_local_wc?
+	   according to kernel.org docs io_mapping_map_atomic_wc() has the side 
+	   effect of disabling preemption and pagefaults? */
+	addr = io_mapping_map_atomic_wc(iter_io->iomap, iter_io->cache.offs +
+				       (((resource_size_t)i - iter_io->cache.i)
+					<< PAGE_SHIFT));
+#endif
 	iosys_map_set_vaddr_iomem(dmap, addr);
 }
 
 static void ttm_kmap_iter_iomap_unmap_local(struct ttm_kmap_iter *iter,
 					    struct iosys_map *map)
 {
+#ifdef __linux__
 	io_mapping_unmap_local(map->vaddr_iomem);
+#elif defined(__FreeBSD__)
+	io_mapping_unmap_atomic(map->vaddr_iomem);
+#endif
 }
 
 static const struct ttm_kmap_iter_ops ttm_kmap_iter_io_ops = {

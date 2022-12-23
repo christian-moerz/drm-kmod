@@ -38,6 +38,11 @@
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+#if defined(__FreeBSD__)
+#include <drm/ttm/ttm_sysctl_freebsd.h>
+#include <linux/vmalloc.h>
+#endif
+
 #include "ttm_module.h"
 
 static unsigned long ttm_pages_limit;
@@ -305,7 +310,7 @@ int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
 #elif defined(__FreeBSD__)
 	swap_space = swap_storage->f_shmem;
 	/* FIXME BSD unsure if this is right; different in 5.12 */
-	gfp_mask &= 0;
+	gfp_flags &= 0;
 #endif
 
 	for (i = 0; i < ttm->num_pages; ++i) {
@@ -455,14 +460,23 @@ static void ttm_kmap_iter_tt_map_local(struct ttm_kmap_iter *iter,
 	struct ttm_kmap_iter_tt *iter_tt =
 		container_of(iter, typeof(*iter_tt), base);
 
+#ifdef __linux__
 	iosys_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
 						       iter_tt->prot));
+#elif defined(__FreeBSD__)
+	iosys_map_set_vaddr(dmap, kmap_atomic_prot(iter_tt->tt->pages[i],
+						       iter_tt->prot));
+#endif
 }
 
 static void ttm_kmap_iter_tt_unmap_local(struct ttm_kmap_iter *iter,
 					 struct iosys_map *map)
 {
+#ifdef __linux__
 	kunmap_local(map->vaddr);
+#elif defined(__FreeBSD__)
+	kunmap_atomic(map->vaddr);
+#endif
 }
 
 static const struct ttm_kmap_iter_ops ttm_kmap_iter_tt_ops = {

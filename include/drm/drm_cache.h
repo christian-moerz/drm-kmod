@@ -34,6 +34,9 @@
 #define _DRM_CACHE_H_
 
 #include <linux/scatterlist.h>
+#if defined(__FreeBSD__)
+#include <linux/iosys-map.h>
+#endif
 
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);

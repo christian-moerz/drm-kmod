@@ -216,7 +216,11 @@ static inline bool i915_gem_object_trylock(struct drm_i915_gem_object *obj,
 	if (!ww)
 		return dma_resv_trylock(obj->base.resv);
 	else
+#ifdef __linux__
 		return ww_mutex_trylock(&obj->base.resv->lock, &ww->ctx);
+#elif defined(__FreeBSD__)
+		return ww_mutex_trylock(&obj->base.resv->lock);
+#endif
 }
 
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)

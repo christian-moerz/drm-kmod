@@ -643,6 +643,7 @@ DEFINE_EVENT(i915_request, i915_request_wait_end,
 	    TP_ARGS(rq)
 );
 
+#ifdef __linux__
 TRACE_EVENT_CONDITION(i915_reg_rw,
 	TP_PROTO(bool write, i915_reg_t reg, u64 val, int len, bool trace),
 
@@ -670,6 +671,12 @@ TRACE_EVENT_CONDITION(i915_reg_rw,
 		(u32)(__entry->val & 0xffffffff),
 		(u32)(__entry->val >> 32))
 );
+#elif defined(__FreeBSD__)
+	/* those linuxkpi tracepoints are not doing anything... */
+static inline void trace_i915_reg_rw(bool write, i915_reg_t reg, u64 val, int len, bool trace) 
+{
+}
+#endif
 
 TRACE_EVENT(intel_gpu_freq_change,
 	    TP_PROTO(u32 freq),

@@ -2,7 +2,9 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#ifdef __linux__
 #include <asm/cacheflush.h>
+#endif
 #include <drm/drm_util.h>
 #include <drm/drm_cache.h>
 
