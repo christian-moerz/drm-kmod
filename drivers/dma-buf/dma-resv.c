@@ -240,7 +240,7 @@ EXPORT_SYMBOL(dma_resv_fini);
 /* Dereference the fences while ensuring RCU rules */
 static inline struct dma_resv_list *dma_resv_fences_list(struct dma_resv *obj)
 {
-	return rcu_dereference_check(obj->fences, dma_resv_held(obj));
+	return rcu_dereference_check(obj->fence, dma_resv_held(obj));
 }
 
 /**
@@ -304,7 +304,7 @@ int dma_resv_reserve_fences(struct dma_resv *obj, unsigned int num_fences)
 	 * old array are protected by RCU and so will not vanish under
 	 * the gaze of the rcu_read_lock() readers.
 	 */
-	rcu_assign_pointer(obj->fences, new);
+	rcu_assign_pointer(obj->fence, new);
 
 	if (!old)
 		return 0;
