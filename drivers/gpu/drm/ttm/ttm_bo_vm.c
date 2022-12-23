@@ -261,7 +261,11 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		 * at arbitrary times while the data is mmap'ed.
 		 * See vmf_insert_mixed_prot() for a discussion.
 		 */
+#ifdef __linux__
 		ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
+#elif defined(__FreeBSD__)
+		ret = lkpi_vmf_insert_pfn_prot(vma, address, pfn, prot);
+#endif
 
 		/* Never error on prefaulted PTEs */
 		if (unlikely((ret & VM_FAULT_ERROR))) {
@@ -310,7 +314,11 @@ vm_fault_t ttm_bo_vm_dummy_page(struct vm_fault *vmf, pgprot_t prot)
 	/* Prefault the entire VMA range right away to avoid further faults */
 	for (address = vma->vm_start; address < vma->vm_end;
 	     address += PAGE_SIZE)
+#ifdef __linux__
 		ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
+#elif defined(__FreeBSD__)
+		ret = lkpi_vmf_insert_pfn_prot(vma, address, pfn, prot);
+#endif
 
 	return ret;
 }
