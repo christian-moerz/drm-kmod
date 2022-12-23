@@ -103,8 +103,6 @@
 
 #if defined(__FreeBSD__)
 #define __iomem
-#define memcpy_toio memcpy
-#define memset_io memset
 #endif
 
 /**
