@@ -300,7 +300,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 		else if (mem->bus.caching == ttm_cached)
 #if defined(__FreeBSD__)
 			/* FIXME BSD not sure, whether this is right? */
-			/* linuxkpi does not (yet?) know ioremap_cache
+			/* linuxkpi does not (yet?) know ioremap_cache */
 			map->virtual = ioremap_nocache(res, size);
 #else
 			map->virtual = ioremap_cache(res, size);
