@@ -35,6 +35,9 @@
 #include <linux/sched.h>
 #include <linux/printk.h>
 #include <linux/rcupdate.h>
+#ifdef BSDTNG
+#include <linux/seq_file.h>
+#endif
 
 struct dma_fence_ops;
 
