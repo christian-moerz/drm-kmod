@@ -336,7 +336,7 @@ static inline void dma_resv_reset_max_fences(struct dma_resv *obj) {}
  */
 static inline struct dma_resv_list *dma_resv_get_list(struct dma_resv *obj)
 {
-	return rcu_dereference_protected(obj->fence,
+	return rcu_dereference_protected(obj->fences,
 					 dma_resv_held(obj));
 }
 
