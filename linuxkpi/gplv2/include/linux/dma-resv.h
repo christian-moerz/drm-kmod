@@ -159,8 +159,9 @@ struct dma_resv {
 
 #ifndef BSDTNG
 	struct dma_fence __rcu *fence_excl;
+#else
+	struct dma_resv_list __rcu *fences;
 #endif
-	struct dma_resv_list __rcu *fence;
 };
 
 #ifdef BSDTNG
@@ -479,6 +480,7 @@ static inline void dma_resv_unlock(struct dma_resv *obj)
 	ww_mutex_unlock(&obj->lock);
 }
 
+#ifndef BSDTNG
 /**
  * dma_resv_get_excl - get the reservation object's
  * exclusive fence, with update-side lock held
@@ -494,7 +496,7 @@ static inline void dma_resv_unlock(struct dma_resv *obj)
 static inline struct dma_fence *
 dma_resv_get_excl(struct dma_resv *obj)
 {
-	return rcu_dereference_protected(obj->fence,
+	return rcu_dereference_protected(obj->fence_excl,
 					 dma_resv_held(obj));
 }
 
@@ -514,15 +516,16 @@ dma_resv_get_excl_rcu(struct dma_resv *obj)
 {
 	struct dma_fence *fence;
 
-	if (!rcu_access_pointer(obj->fence))
+	if (!rcu_access_pointer(obj->fence_excl))
 		return NULL;
 
 	rcu_read_lock();
-	fence = dma_fence_get_rcu_safe(&obj->fence);
+	fence = dma_fence_get_rcu_safe(&obj->fence_excl);
 	rcu_read_unlock();
 
 	return fence;
 }
+#endif /* BSDTNG */
 
 void dma_resv_init(struct dma_resv *obj);
 void dma_resv_fini(struct dma_resv *obj);
