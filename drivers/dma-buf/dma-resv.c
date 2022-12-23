@@ -107,11 +107,12 @@ static struct dma_resv_list *dma_resv_list_alloc(unsigned int shared_max)
 	if (!list)
 		return NULL;
 
-	list->shared_max = (ksize(list) - offsetof(typeof(*list), 
 #ifndef BSDTNG
-		shared)) / sizeof(*list->shared);
+	list->shared_max = 
+		(ksize(list) - offsetof(typeof(*list), shared)) / sizeof(*list->shared);
 #else
-		table)) / sizeof(*list->table);
+	list->max_fences = 
+		(ksize(list) - offsetof(typeof(*list), table)) / sizeof(*list->table);
 #endif
 
 	return list;
@@ -200,7 +201,7 @@ void dma_resv_init(struct dma_resv *obj)
 #endif
 	seqcount_init(&obj->seq);
 
-	RCU_INIT_POINTER(obj->fences, NULL);
+	RCU_INIT_POINTER(obj->fence, NULL);
 #ifndef BSDTNG
 	RCU_INIT_POINTER(obj->fence_excl, NULL);
 #endif
