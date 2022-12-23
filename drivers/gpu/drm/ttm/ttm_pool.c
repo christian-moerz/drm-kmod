@@ -45,7 +45,7 @@
 #include <drm/ttm/ttm_tt.h>
 #ifdef __FreeBSD__
 #include <drm/ttm/ttm_sysctl_freebsd.h>
-#include <linux/gfp_types.h>
+#include <linux/gfp.h>
 #include <linux/shrinker.h>
 #endif
 
