@@ -105,8 +105,11 @@ static int ttm_global_init(void)
 	INIT_LIST_HEAD(&glob->device_list);
 	atomic_set(&glob->bo_count, 0);
 
+#if __linux__
+	/* FIXME BSD look into converting as string instead? */
 	debugfs_create_atomic_t("buffer_objects", 0444, ttm_debugfs_root,
 				&glob->bo_count);
+#endif
 out:
 	if (ret && ttm_debugfs_root)
 		debugfs_remove(ttm_debugfs_root);
