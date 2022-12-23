@@ -545,10 +545,12 @@ void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence);
 
 void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence);
 
+#ifndef BSDTNG
 int dma_resv_get_fences_rcu(struct dma_resv *obj,
 			    struct dma_fence **pfence_excl,
 			    unsigned *pshared_count,
 			    struct dma_fence ***pshared);
+#endif
 
 int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src);
 

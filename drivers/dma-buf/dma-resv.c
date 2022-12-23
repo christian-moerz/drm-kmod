@@ -1083,6 +1083,7 @@ retry:
 }
 EXPORT_SYMBOL(dma_resv_copy_fences);
 
+#ifndef BSDTNG
 /**
  * dma_resv_get_fences_rcu - Get an object's shared and exclusive
  * fences without update side lock held
@@ -1101,22 +1102,6 @@ int dma_resv_get_fences_rcu(struct dma_resv *obj,
 			    unsigned *pshared_count,
 			    struct dma_fence ***pshared)
 {
-#ifdef BSDTNG
-	if (!pfence_excl) {
-		/* include write locks into shared */
-		return dma_resv_get_fences(
-			obj, DMA_RESV_USAGE_WRITE, pshared_count, pshared
-		);
-	}
-	unsigned int count = 0;
-	int ret = dma_resv_get_fences(
-		obj, DMA_RESV_USAGE_WRITE, &count, pfence_excl
-	);
-
-	return ret || dma_resv_get_fences(
-		obj, DMA_RESV_USAGE_READ, pshared_count, pshared
-	);
-#else
 	struct dma_fence **shared = NULL;
 	struct dma_fence *fence_excl;
 	unsigned int shared_count;
@@ -1208,9 +1193,9 @@ unlock:
 	*pshared_count = shared_count;
 	*pshared = shared;
 	return ret;
-#endif /* BSDTNG */
 }
 EXPORT_SYMBOL_GPL(dma_resv_get_fences_rcu);
+#endif /* !BSDTNG */
 
 /**
  * dma_resv_wait_timeout_rcu - Wait on reservation's objects
