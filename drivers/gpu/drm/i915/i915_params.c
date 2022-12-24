@@ -26,6 +26,7 @@
 
 #ifdef __FreeBSD__
 #include <linux/types.h>
+#include "i915_driver.h"
 #endif
 #include <drm/drm_print.h>
 
@@ -38,6 +39,7 @@ SYSCTL_NODE(_hw, OID_AUTO, i915kms,
     DRIVER_DESC " parameters");
 #endif
 
+#ifdef __linux__
 DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_CORE",
 			"DRM_UT_DRIVER",
@@ -49,6 +51,7 @@ DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_LEASE",
 			"DRM_UT_DP",
 			"DRM_UT_DRMRES");
+#endif
 
 #define i915_param_named(name, T, perm, desc) \
 	module_param_named(name, i915_modparams.name, T, perm); \
@@ -228,10 +231,19 @@ i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
 #endif
 
+#ifdef __linux__
 #if CONFIG_DRM_I915_REQUEST_TIMEOUT
 i915_param_named_unsafe(request_timeout_ms, uint, 0600,
 			"Default request/fence/batch buffer expiration timeout.");
 #endif
+#elif defined(__FreeBSD__)
+#ifdef CONFIG_DRM_I915_REQUEST_TIMEOUT
+#if CONFIG_DRM_I915_REQUEST_TIMEOUT
+i915_param_named_unsafe(request_timeout_ms, uint, 0600,
+			"Default request/fence/batch buffer expiration timeout.");
+#endif
+#endif /* CONFIG_DRM_I915_REQUEST_TIMEOUT */
+#endif /* __FreeBSD__ */
 
 i915_param_named_unsafe(lmem_size, uint, 0400,
 			"Set the lmem size(in MiB) for each region. (default: 0, all memory)");

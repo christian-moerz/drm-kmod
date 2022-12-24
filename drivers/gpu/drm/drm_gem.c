@@ -546,7 +546,11 @@ static void drm_gem_check_release_pagevec(struct pagevec *pvec)
  */
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 {
+#ifdef __linux__
 	struct address_space *mapping;
+#elif defined(__FreeBSD__)
+	vm_object_t mapping;
+#endif
 	struct page *p, **pages;
 	struct pagevec pvec;
 	int i, npages;
@@ -615,7 +619,11 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed)
 {
 	int i, npages;
+#ifdef __linux__	
 	struct address_space *mapping;
+#elif defined(__FreeBSD__)
+	vm_object_t mapping;
+#endif
 	struct pagevec pvec;
 
 	mapping = file_inode(obj->filp)->i_mapping;

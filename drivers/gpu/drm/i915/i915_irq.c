@@ -4647,5 +4647,10 @@ void intel_synchronize_irq(struct drm_i915_private *i915)
 
 void intel_synchronize_hardirq(struct drm_i915_private *i915)
 {
+#ifdef __linux__
 	synchronize_hardirq(to_pci_dev(i915->drm.dev)->irq);
+#elif defined(__FreeBSD__)
+	/* FIXME BSD this might be totally wrong... */
+	synchronize_irq(to_pci_dev(i915->drm.dev)->irq);
+#endif
 }

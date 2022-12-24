@@ -974,7 +974,15 @@ static int intel_context_set_gem(struct intel_context *ce,
 	    intel_engine_has_semaphores(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 
+#ifdef __linux__
 	if (CONFIG_DRM_I915_REQUEST_TIMEOUT &&
+#elif defined(__FreeBSD__)
+#ifdef CONFIG_DRM_I915_REQUEST_TIMEOUT
+	if (CONFIG_DRM_I915_REQUEST_TIMEOUT &&
+#else
+	if (
+#endif
+#endif /* __FreeBSD */
 	    ctx->i915->params.request_timeout_ms) {
 		unsigned int timeout_ms = ctx->i915->params.request_timeout_ms;
 

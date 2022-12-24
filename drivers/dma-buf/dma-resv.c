@@ -152,7 +152,11 @@ static int __init dma_resv_lockdep(void)
 	struct mm_struct *mm = mm_alloc();
 	struct ww_acquire_ctx ctx;
 	struct dma_resv obj;
+#ifdef __linux__
 	struct address_space mapping;
+#elif defined(__FreeBSD__)
+	vm_object_t mapping;
+#endif
 	int ret;
 
 	if (!mm)

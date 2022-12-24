@@ -24,13 +24,12 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/i915_pciids.h>
 
-/* NOTE BEGIN
 #if defined(__FreeBSD__)
-#include <drm_os_freebsd.h>
+#include <drm/drm_os_freebsd.h>
+#include "i915_pciids.h"
+#include "i915_module.h"
 #endif
-NOTE END */
 
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_sa_media.h"
@@ -1384,10 +1383,10 @@ static struct pci_driver i915_pci_driver = {
 int i915_pci_register_driver(void)
 {
 #ifdef __linux__
-	err = pci_register_driver(&i915_pci_driver);
+	return pci_register_driver(&i915_pci_driver);
 #elif defined(__FreeBSD__)
-	i915_pci_driver.bsdclass = drm_devclass;
-	err = linux_pci_register_drm_driver(&i915_pci_driver);
+	
+	return linux_pci_register_drm_driver(&i915_pci_driver);
 #endif
 }
 
@@ -1400,3 +1399,18 @@ void i915_pci_unregister_driver(void)
 	pci_unregister_driver(&i915_pci_driver);
 #endif
 }
+
+/* BSD stuff */
+#ifdef __FreeBSD__
+LKPI_DRIVER_MODULE(i915kms, i915_init, i915_exit);
+LKPI_PNP_INFO(pci, i915kms, pciidlist);
+MODULE_DEPEND(i915kms, drmn, 2, 2, 2);
+MODULE_DEPEND(i915kms, agp, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi_gplv2, 1, 1, 1);
+MODULE_DEPEND(i915kms, dmabuf, 1, 1, 1);
+MODULE_DEPEND(i915kms, firmware, 1, 1, 1);
+#ifdef CONFIG_DEBUG_FS
+MODULE_DEPEND(i915kms, lindebugfs, 1, 1, 1);
+#endif
+#endif

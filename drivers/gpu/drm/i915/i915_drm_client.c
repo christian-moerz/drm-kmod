@@ -6,6 +6,9 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#if defined(__FreeBSD__)
+#include <linux/xarray.h>
+#endif
 
 #include <uapi/drm/i915_drm.h>
 
@@ -61,7 +64,11 @@ void __i915_drm_client_free(struct kref *kref)
 	struct i915_drm_client *client =
 		container_of(kref, typeof(*client), kref);
 	struct xarray *xa = &client->clients->xarray;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	xa_lock_irqsave(xa, flags);
 	__xa_erase(xa, client->id);

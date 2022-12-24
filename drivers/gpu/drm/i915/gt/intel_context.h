@@ -372,7 +372,12 @@ u64 intel_context_get_avg_runtime_ns(struct intel_context *ce);
 static inline u64 intel_context_clock(void)
 {
 	/* As we mix CS cycles with CPU clocks, use the raw monotonic clock. */
+#ifdef __linux__
 	return ktime_get_raw_fast_ns();
+#elif defined(__FreeBSD__)
+	/* FIXME BSD this might not work in combination w/ interrupts */
+	return ktime_get_raw_ns();
+#endif
 }
 
 #endif /* __INTEL_CONTEXT_H__ */

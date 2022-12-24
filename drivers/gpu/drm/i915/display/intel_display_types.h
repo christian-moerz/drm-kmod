@@ -31,9 +31,16 @@
 #include <linux/pwm.h>
 #include <linux/sched/clock.h>
 
+#ifdef __linux__
 #include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/display/drm_dsc.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_dp_dual_mode_helper.h>
+#include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_dsc.h>
+#endif
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
@@ -1272,7 +1279,10 @@ struct intel_crtc_state {
 		bool dsc_split;
 		u16 compressed_bpp;
 		u8 slice_count;
+#ifdef __linux__
+		/* FIXME BSDTNG */
 		struct drm_dsc_config config;
+#endif
 	} dsc;
 
 	/* HSW+ linetime watermarks */

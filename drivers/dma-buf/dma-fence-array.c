@@ -166,7 +166,6 @@ bool dma_fence_is_array(struct dma_fence *fence)
 
 	return (fence->ops == &dma_fence_array_ops);
 }
-#endif
 
 /*
  * cast a fence to a dma_fence_array
@@ -180,3 +179,34 @@ to_dma_fence_array(struct dma_fence *fence)
 
 	return (container_of(fence, struct dma_fence_array, base));
 }
+
+struct dma_fence *dma_fence_array_first(struct dma_fence *head)
+{
+	struct dma_fence_array *array;
+
+	if (!head)
+		return NULL;
+
+	array = to_dma_fence_array(head);
+	if (!array)
+		return head;
+
+	if (!array->num_fences)
+		return NULL;
+
+	return array->fences[0];
+}
+EXPORT_SYMBOL(dma_fence_array_first);
+
+struct dma_fence *dma_fence_array_next(struct dma_fence *head,
+				       unsigned int index)
+{
+	struct dma_fence_array *array = to_dma_fence_array(head);
+
+	if (!array || index >= array->num_fences)
+		return NULL;
+
+	return array->fences[index];
+}
+EXPORT_SYMBOL(dma_fence_array_next);
+#endif

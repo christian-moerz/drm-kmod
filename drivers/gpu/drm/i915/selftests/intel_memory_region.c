@@ -3,7 +3,9 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#ifdef __linux__
 #include <linux/prime_numbers.h>
+#endif
 #include <linux/sort.h>
 
 #include <drm/drm_buddy.h>

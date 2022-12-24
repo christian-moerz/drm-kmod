@@ -104,7 +104,11 @@ static void __i915_vma_resource_unhold(struct i915_vma_resource *vma_res)
 {
 	struct i915_address_space *vm;
 
+#ifdef __linux__
 	if (!refcount_dec_and_test(&vma_res->hold_count))
+#elif defined(__FreeBSD__)
+	if (!refcount_dec_and_test(&vma_res->hold_count.value))
+#endif
 		return;
 
 	dma_fence_signal(&vma_res->unbind_fence);

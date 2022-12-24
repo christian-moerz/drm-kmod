@@ -36,6 +36,7 @@ static u8 engine_config_sample(u64 config)
 	return config & I915_PMU_SAMPLE_MASK;
 }
 
+#ifdef __linux__
 static u8 engine_event_sample(struct perf_event *event)
 {
 	return engine_config_sample(event->attr.config);
@@ -50,6 +51,7 @@ static u8 engine_event_instance(struct perf_event *event)
 {
 	return (event->attr.config >> I915_PMU_SAMPLE_BITS) & 0xff;
 }
+#endif /* __linux__ */
 
 static bool is_engine_config(u64 config)
 {

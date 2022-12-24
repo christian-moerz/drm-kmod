@@ -25,6 +25,9 @@
 #include <linux/sched/mm.h>
 #include <linux/dma-fence-array.h>
 #include <drm/drm_gem.h>
+#if defined(__FreeBSD__)
+#include <linux/mm.h>
+#endif
 
 #include "display/intel_frontbuffer.h"
 #include "gem/i915_gem_lmem.h"

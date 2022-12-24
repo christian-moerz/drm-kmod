@@ -19,6 +19,10 @@
 #include "i915_vma.h"
 #include "i915_vma_resource.h"
 
+#if defined(__FreeBSD__)
+#include "i915_pciids.h"
+#endif
+
 static int i915_check_nomodeset(void)
 {
 	bool use_kms = true;
@@ -32,7 +36,11 @@ static int i915_check_nomodeset(void)
 	if (i915_modparams.modeset == 0)
 		use_kms = false;
 
+#ifdef __linux__
 	if (drm_firmware_drivers_only() && i915_modparams.modeset == -1)
+#elif defined(__FreeBSD__)
+	if (i915_modparams.modeset == -1)
+#endif
 		use_kms = false;
 
 	if (!use_kms) {
@@ -126,17 +134,4 @@ MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
 
-/* BSD stuff */
-#ifdef __FreeBSD__
-LKPI_DRIVER_MODULE(i915kms, i915_init, i915_exit);
-LKPI_PNP_INFO(pci, i915kms, pciidlist);
-MODULE_DEPEND(i915kms, drmn, 2, 2, 2);
-MODULE_DEPEND(i915kms, agp, 1, 1, 1);
-MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(i915kms, linuxkpi_gplv2, 1, 1, 1);
-MODULE_DEPEND(i915kms, dmabuf, 1, 1, 1);
-MODULE_DEPEND(i915kms, firmware, 1, 1, 1);
-#ifdef CONFIG_DEBUG_FS
-MODULE_DEPEND(i915kms, lindebugfs, 1, 1, 1);
-#endif
-#endif
+

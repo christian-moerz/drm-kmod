@@ -81,6 +81,7 @@ struct i915_perf_stream_ops {
 	 */
 	void (*disable)(struct i915_perf_stream *stream);
 
+#ifdef __linux__
 	/**
 	 * @poll_wait: Call poll_wait, passing a wait queue that will be woken
 	 * once there is something ready to read() for the stream
@@ -88,6 +89,15 @@ struct i915_perf_stream_ops {
 	void (*poll_wait)(struct i915_perf_stream *stream,
 			  struct file *file,
 			  poll_table *wait);
+#elif defined(__FreeBSD__)
+	/**
+	 * @xpoll_wait: Call poll_wait, passing a wait queue that will be woken
+	 * once there is something ready to read() for the stream
+	 */
+	void (*xpoll_wait)(struct i915_perf_stream *stream,
+			  struct file *file,
+			  poll_table *wait);
+#endif
 
 	/**
 	 * @wait_unlocked: For handling a blocking read, wait until there is

@@ -508,15 +508,19 @@ static int query_memregion_info(struct drm_i915_private *i915,
 		else
 			info.probed_cpu_visible_size = mr->total;
 
+#ifdef __linux__
 		if (perfmon_capable()) {
 			intel_memory_region_avail(mr,
 						  &info.unallocated_size,
 						  &info.unallocated_cpu_visible_size);
 		} else {
+#endif
 			info.unallocated_size = info.probed_size;
 			info.unallocated_cpu_visible_size =
 				info.probed_cpu_visible_size;
+#ifdef __linux__
 		}
+#endif
 
 		if (__copy_to_user(info_ptr, &info, sizeof(info)))
 			return -EFAULT;

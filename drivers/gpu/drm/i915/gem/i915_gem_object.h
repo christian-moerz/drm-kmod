@@ -630,11 +630,26 @@ bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj);
 
 int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			 size_t size, struct intel_memory_region *mr,
+#ifdef __linux__			 
 			 struct address_space *mapping,
+#elif defined(__FreeBSD__)
+			 vm_object_t mapping,
+#endif
 			 unsigned int max_segment);
-void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+void shmem_sg_free_table(struct sg_table *st, 
+#ifdef __linux__
+			 struct address_space *mapping,
+#elif defined(__FreeBSD__)
+ 			 vm_object_t mapping,
+#endif
 			 bool dirty, bool backup);
-void __shmem_writeback(size_t size, struct address_space *mapping);
+void __shmem_writeback(size_t size,
+#ifdef __linux__
+			 struct address_space *mapping
+#elif defined(__FreeBSD__)
+ 			 vm_object_t mapping
+#endif
+);
 
 #ifdef CONFIG_MMU_NOTIFIER
 static inline bool

@@ -5,6 +5,9 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#if defined(__FreeBSD__)
+#include <linux/fs.h>
+#endif
 
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mode_config.h>
@@ -130,9 +133,7 @@ struct drm_device {
 	bool unplugged;
 
 	/** @anon_inode: inode for private address-space */
-#ifdef __linux__	
 	struct inode *anon_inode;
-#endif
 
 	/** @unique: Unique name of the device */
 	char *unique;

@@ -69,7 +69,7 @@ void shmem_sg_free_table(struct sg_table *st,
 int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			 size_t size, struct intel_memory_region *mr,
 #ifdef __FreeBSD__
-			 vm_object_t mapping;
+			 vm_object_t mapping,
 #else
 			 struct address_space *mapping,
 #endif

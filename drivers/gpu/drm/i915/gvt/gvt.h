@@ -33,10 +33,16 @@
 #ifndef _GVT_H_
 #define _GVT_H_
 
+#ifdef __linux__
 #include <uapi/linux/pci_regs.h>
 #include <linux/kvm_host.h>
 #include <linux/vfio.h>
 #include <linux/mdev.h>
+#elif defined(__FreeBSD__)
+#include <linux/pci.h>
+
+#define PCI_CFG_SPACE_EXP_SIZE	4096
+#endif
 
 #include "i915_drv.h"
 #include "intel_gvt.h"

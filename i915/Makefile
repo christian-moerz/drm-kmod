@@ -3,7 +3,7 @@
 SRCDIR=	${.CURDIR:H}/drivers/gpu/drm/i915
 
 .PATH:	${SRCDIR} ${SRCDIR}/gt ${SRCDIR}/gt/uc ${SRCDIR}/gem ${SRCDIR}/display \
-		${SRCDIR}/gvt ${SRCDIR}/pxp ${SRCDIR}/oa
+		${SRCDIR}/pxp ${SRCDIR}/oa
 
 .include "../kconfig.mk"
 
@@ -30,8 +30,6 @@ SRCS=	\
 	i915_module.c \
 	i915_params.c \
 	i915_pci.c \
-	i915_perf.c \
-	i915_pmu.c \
 	i915_query.c \
 	i915_request.c \
 	i915_scatterlist.c \
@@ -52,8 +50,6 @@ SRCS=	\
 	intel_device_info.c \
 	intel_dram.c \
 	intel_freebsd.c \
-	intel_gvt.c \
-	intel_gvt_mmio_table.c \
 	intel_memory_region.c \
 	intel_pch.c \
 	intel_pcode.c \
@@ -67,6 +63,11 @@ SRCS=	\
 	intel_wopcm.c \
 	vlv_sideband.c \
 	vlv_suspend.c
+
+# intel_gvt.c		# needs separate activation with macro?
+# i915_perf.c       # as remarked previously: opens a can of worms
+# i915_pmu.c        # same here
+# intel_gvt_mmio_table.c  # virtual graphics adapter
 
 # display/*
 SRCS+=	\
@@ -267,30 +268,6 @@ SRCS+= \
 	i915_gem_wait.c \
 	i915_gemfs.c
 
-# gvt/*
-SRCS+=	\
-	aperture_gm.c \
-	cfg_space.c \
-	cmd_parser.c \
-	display.c \
-	dmabuf.c \
-	edid.c \
-	execlist.c \
-	fb_decoder.c \
-	firmware.c \
-	gtt.c \
-	handlers.c \
-	interrupt.c \
-	kvmgt.c \
-	mmio.c \
-	mmio_context.c \
-	opregion.c \
-	page_track.c \
-	sched_policy.c \
-	scheduler.c \
-	trace_points.c \
-	vgpu.c
-
 # pxp/*
 SRCS+=	\
 	intel_pxp.c \
@@ -306,7 +283,6 @@ SRCS+=	i915_ioc32.c
 
 .if !empty(KCONFIG:MDEBUG_FS)
 SRCS+=	intel_gt_engines_debugfs.c \
-	debugfs.c \
 	intel_pxp_debugfs.c \
 	i915_debugfs.c \
 	i915_debugfs_params.c \
@@ -345,7 +321,10 @@ CFLAGS+= -I${.CURDIR:H}/include/uapi
 CFLAGS+= -I${SRCDIR:H:H} -I${SRCDIR} -I${SRCDIR}/display
 
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"' -DBSDTNG
-CFLAGS+= '-DLINUXKPI_PARAM_PREFIX=i915_' -DDRM_SYSCTL_PARAM_PREFIX=_${KMOD} -DLINUXKPI_VERSION=50000
+#	-DCONFIG_DRM_I915_GVT \
+
+CFLAGS+= '-DLINUXKPI_PARAM_PREFIX=i915_' \
+	-DDRM_SYSCTL_PARAM_PREFIX=_${KMOD} -DLINUXKPI_VERSION=50000
 CFLAGS+= ${KCONFIG:C/(.*)/-DCONFIG_\1/}
 
 SRCS	+=			\

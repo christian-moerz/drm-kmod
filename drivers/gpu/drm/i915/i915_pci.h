@@ -8,6 +8,10 @@
 
 #include <linux/types.h>
 
+#if defined(__FreeBSD__)
+#define IORESOURCE_UNSET	0x20000000	/* No address assigned yet */
+#endif
+
 struct pci_dev;
 
 int i915_pci_register_driver(void);

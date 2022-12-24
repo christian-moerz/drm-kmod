@@ -6,6 +6,10 @@
 #ifndef __INTEL_GT__
 #define __INTEL_GT__
 
+#if defined(__FreeBSD__)
+#include <linux/seqlock.h>
+#endif
+
 #include "intel_engine_types.h"
 #include "intel_gt_types.h"
 #include "intel_reset.h"
@@ -103,7 +107,12 @@ void intel_gt_watchdog_work(struct work_struct *work);
 
 static inline u32 intel_gt_tlb_seqno(const struct intel_gt *gt)
 {
+#ifdef __linux__
 	return seqprop_sequence(&gt->tlb.seqno);
+#elif (__FreeBSD__)
+	u32 ret = READ_ONCE(gt->tlb.seqno.seqm_count.seqc);
+	return ret;
+#endif
 }
 
 static inline u32 intel_gt_next_invalidate_tlb_full(const struct intel_gt *gt)

@@ -242,9 +242,9 @@ static void i915_teardown_error_capture(struct device *kdev) {}
 void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 {
 	struct device *kdev = dev_priv->drm.primary->kdev;
+#ifdef __linux__
 	int ret;
 
-#ifdef __linux__
 	if (HAS_L3_DPF(dev_priv)) {
 		ret = device_create_bin_file(kdev, &dpf_attrs);
 		if (ret)

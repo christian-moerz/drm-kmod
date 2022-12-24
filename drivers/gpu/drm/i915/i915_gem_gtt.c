@@ -11,6 +11,9 @@
 #include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/stop_machine.h>
+#if defined(__FreeBSD__)
+#include <linux/random.h>
+#endif
 
 #include <asm/set_memory.h>
 #include <asm/smp.h>

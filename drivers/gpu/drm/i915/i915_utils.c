@@ -119,8 +119,10 @@ void set_timer_ms(struct timer_list *t, unsigned long timeout)
 
 bool i915_vtd_active(struct drm_i915_private *i915)
 {
+#ifdef __linux__
 	if (device_iommu_mapped(i915->drm.dev))
 		return true;
+#endif
 
 	/* Running as a guest, we assume the host is enforcing VT'd */
 	return i915_run_as_guest();

@@ -40,11 +40,17 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/vt.h>
 
+#ifdef __linux__
 #include <drm/drm_aperture.h>
+#endif
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
+
+#if defined(__FreeBSD__)
+#include <drm/drm_fb_helper.h>
+#endif
 
 #include "display/intel_acpi.h"
 #include "display/intel_bw.h"
@@ -101,8 +107,10 @@
 #include "intel_region_ttm.h"
 #include "vlv_suspend.h"
 
+#ifdef __linux__
 /* Intel Rapid Start Technology ACPI device name */
 static const char irst_name[] = "INT3392";
+#endif
 
 static const struct drm_driver i915_drm_driver;
 
@@ -133,14 +141,26 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 {
 	int reg = GRAPHICS_VER(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
+#if defined(__FreeBSD__)
+#ifdef CONFIG_PNP
 	u64 mchbar_addr;
+#endif
+#else
+	u64 mchbar_addr;
+#endif
 	int ret;
 
 	if (GRAPHICS_VER(dev_priv) >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
 	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
-	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
+#if defined(__FreeBSD__)
 
+#else
+	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
+#endif
+#ifdef CONFIG_PNP
+	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
+#endif
 	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
 #ifdef CONFIG_PNP
 	if (mchbar_addr &&
@@ -606,7 +626,9 @@ static int i915_pcode_init(struct drm_i915_private *i915)
 static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+#ifdef __linux__
 	struct pci_dev *root_pdev;
+#endif
 	int ret;
 
 	if (i915_inject_probe_failure(dev_priv))
@@ -652,9 +674,15 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_perf;
 
+#ifdef __linux__
 	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, dev_priv->drm.driver);
 	if (ret)
 		goto err_ggtt;
+#elif defined(__FreeBSD__)
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "inteldrmfb");
+	if (ret)
+		goto err_ggtt;
+#endif
 
 	ret = i915_ggtt_init_hw(dev_priv);
 	if (ret)
@@ -718,6 +746,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_bw_init_hw(dev_priv);
 
+#ifdef __linux__
+	/* FIXME BSD no idea how to transpose this? */
 	/*
 	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
 	 * This should be totally removed when we handle the pci states properly
@@ -726,6 +756,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	root_pdev = pcie_find_root_port(pdev);
 	if (root_pdev)
 		pci_d3cold_disable(root_pdev);
+#endif
 
 	return 0;
 
@@ -750,16 +781,21 @@ err_perf:
 static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+#ifdef __linux__
 	struct pci_dev *root_pdev;
+#endif
 
 	i915_perf_fini(dev_priv);
 
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 
+#ifdef __linux__
+	/* FIXME BSD no idea, wheher we need to fix this? */
 	root_pdev = pcie_find_root_port(pdev);
 	if (root_pdev)
 		pci_d3cold_enable(root_pdev);
+#endif
 }
 
 /**
@@ -1587,6 +1623,8 @@ static int i915_pm_resume(struct device *kdev)
 	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
+#ifdef __linux__
+	/* FIXME BSD no S4? */
 	/*
 	 * If IRST is enabled, or if we can't detect whether it's enabled,
 	 * then we must assume we lost the GGTT page table entries, since
@@ -1594,6 +1632,7 @@ static int i915_pm_resume(struct device *kdev)
 	 */
 	if (!IS_ENABLED(CONFIG_ACPI) || acpi_dev_present(irst_name, NULL, -1))
 		i915_ggtt_mark_pte_lost(i915, true);
+#endif
 
 	return i915_drm_resume(&i915->drm);
 }

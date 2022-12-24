@@ -35,6 +35,9 @@
 #include <linux/string_helpers.h>
 #include <linux/utsname.h>
 #include <linux/zlib.h>
+#if defined(__FreeBSD__)
+#include <linux/page.h>
+#endif
 
 #include <drm/drm_cache.h>
 #include <drm/drm_print.h>
@@ -151,9 +154,9 @@ static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 	e->bytes += len;
 }
 
-#ifdef __linux__
 static void i915_error_puts(struct drm_i915_error_state_buf *e, const char *str)
 {
+#ifdef __linux__
 	unsigned len;
 
 	if (e->err || !str)
@@ -166,8 +169,8 @@ static void i915_error_puts(struct drm_i915_error_state_buf *e, const char *str)
 	GEM_BUG_ON(e->bytes + len > e->size);
 	memcpy(e->buf + e->bytes, str, len);
 	e->bytes += len;
-}
 #endif
+}
 
 #define err_printf(e, ...) i915_error_printf(e, __VA_ARGS__)
 #define err_puts(e, s) i915_error_puts(e, s)
@@ -294,7 +297,9 @@ static void *compress_next_page(struct i915_vma_compress *c,
 		return ERR_PTR(-ENOMEM);
 
 	page = virt_to_page(page_addr);
+#ifdef __linux__
 	list_add_tail(&page->lru, &dst->page_list);
+#endif
 	return page_addr;
 }
 
@@ -410,7 +415,10 @@ static int compress_page(struct i915_vma_compress *c,
 
 	if (!(wc && i915_memcpy_from_wc(ptr, src, PAGE_SIZE)))
 		memcpy(ptr, src, PAGE_SIZE);
+#ifdef __linux__
+	/* FIXME BSD no lru list - do we need this? */
 	list_add_tail(&virt_to_page(ptr)->lru, &dst->page_list);
+#endif
 	cond_resched();
 
 	return 0;
@@ -1011,12 +1019,14 @@ static void i915_vma_coredump_free(struct i915_vma_coredump *vma)
 {
 	while (vma) {
 		struct i915_vma_coredump *next = vma->next;
+#ifdef __linux__
 		struct page *page, *n;
 
 		list_for_each_entry_safe(page, n, &vma->page_list, lru) {
 			list_del_init(&page->lru);
 			__free_page(page);
 		}
+#endif
 
 		kfree(vma);
 		vma = next;
@@ -1182,12 +1192,14 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 	}
 
 	if (ret || compress_flush(compress, dst)) {
+#ifdef __linux__
 		struct page *page, *n;
 
 		list_for_each_entry_safe_reverse(page, n, &dst->page_list, lru) {
 			list_del_init(&page->lru);
 			pool_free(&compress->pool, page_address(page));
 		}
+#endif
 
 		kfree(dst);
 		dst = NULL;

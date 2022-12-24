@@ -329,7 +329,13 @@ static void __rq_cancel_watchdog(struct i915_request *rq)
 {
 	struct i915_request_watchdog *wdg = &rq->watchdog;
 
-	if (wdg->timer.function && hrtimer_try_to_cancel(&wdg->timer) > 0)
+	if (wdg->timer.function && 
+#ifdef __linux__
+		hrtimer_try_to_cancel(&wdg->timer) > 0)
+#elif defined(__FreeBSD__)
+		hrtimer_cancel(&wdg->timer) > 0)
+#endif
+
 		i915_request_put(rq);
 }
 

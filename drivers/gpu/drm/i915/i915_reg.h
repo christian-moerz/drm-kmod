@@ -114,8 +114,11 @@
  *  #define BAR                         _MMIO(0xb000)
  *  #define GEN8_BAR                    _MMIO(0xb888)
  */
-
+#if defined(__FreeBSD__)
+#define DISPLAY_MMIO_BASE(dev_priv)	(INTEL_INFO(dev_priv)->display.mmio_offset)
+#else
 #define DISPLAY_MMIO_BASE(dev_priv)	(INTEL_INFO(dev_priv)->display_mmio_offset)
+#endif
 
 /*
  * Given the first two numbers __a and __b of arbitrarily many evenly spaced

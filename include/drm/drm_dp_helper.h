@@ -2038,6 +2038,30 @@ drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
 	return desc->quirks & BIT(quirk);
 }
 
+#ifdef BSDTNG
+/**
+ * struct drm_edp_backlight_info - Probed eDP backlight info struct
+ * @pwmgen_bit_count: The pwmgen bit count
+ * @pwm_freq_pre_divider: The PWM frequency pre-divider value being used for this backlight, if any
+ * @max: The maximum backlight level that may be set
+ * @lsb_reg_used: Do we also write values to the DP_EDP_BACKLIGHT_BRIGHTNESS_LSB register?
+ * @aux_enable: Does the panel support the AUX enable cap?
+ * @aux_set: Does the panel support setting the brightness through AUX?
+ *
+ * This structure contains various data about an eDP backlight, which can be populated by using
+ * drm_edp_backlight_init().
+ */
+struct drm_edp_backlight_info {
+	u8 pwmgen_bit_count;
+	u8 pwm_freq_pre_divider;
+	u16 max;
+
+	bool lsb_reg_used : 1;
+	bool aux_enable : 1;
+	bool aux_set : 1;
+};
+#endif
+
 #ifdef CONFIG_DRM_DP_CEC
 void drm_dp_cec_irq(struct drm_dp_aux *aux);
 void drm_dp_cec_register_connector(struct drm_dp_aux *aux,

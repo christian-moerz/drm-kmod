@@ -199,7 +199,11 @@ static int i915_ttm_tt_shmem_populate(struct ttm_device *bdev,
 	int err;
 
 	if (!filp) {
+#ifdef __linux__	
 		struct address_space *mapping;
+#elif defined(__FreeBSD__)
+		vm_object_t mapping;
+#endif
 		gfp_t mask;
 
 		filp = shmem_file_setup("i915-shmem-tt", size, VM_NORESERVE);

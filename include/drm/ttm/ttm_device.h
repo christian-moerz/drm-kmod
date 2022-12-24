@@ -265,7 +265,11 @@ struct ttm_device {
 	 * @dev_mapping: A pointer to the struct address_space for invalidating
 	 * CPU mappings on buffer move. Protected by load/unload sync.
 	 */
+#ifdef __linux__	
 	struct address_space *dev_mapping;
+#elif defined(__FreeBSD__)
+	vm_object_t dev_mapping;
+#endif
 
 	/**
 	 * @wq: Work queue structure for the delayed delete workqueue.
@@ -293,7 +297,12 @@ static inline void ttm_set_driver_manager(struct ttm_device *bdev, int type,
 }
 
 int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
-		    struct device *dev, struct address_space *mapping,
+		    struct device *dev, 
+#ifdef __linux__
+			struct address_space *mapping,
+#elif defined(__FreeBSD__)
+			vm_object_t mapping,
+#endif
 		    struct drm_vma_offset_manager *vma_manager,
 		    bool use_dma_alloc, bool use_dma32);
 void ttm_device_fini(struct ttm_device *bdev);

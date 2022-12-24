@@ -4,6 +4,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/device.h>
 #include <linux/acpi.h>
 #include <drm/i915_drm.h>
+#include <drm/intel-gtt.h>
 #include "i915_trace.h"
 #include <linux/mm.h>
 #include <linux/io-mapping.h>

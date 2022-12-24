@@ -481,7 +481,11 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	 */
 	hw_tail &= ~(report_size - 1);
 
+#ifdef __linux__
 	now = ktime_get_mono_fast_ns();
+#elif defined(__FreeBSD__)
+	now = ktime_get_raw_ns();
+#endif
 
 	if (hw_tail == stream->oa_buffer.aging_tail &&
 	    (now - stream->oa_buffer.aging_timestamp) > OA_TAIL_MARGIN_NSEC) {
@@ -1399,10 +1403,12 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_oa_configs(stream);
 	free_noa_wait(stream);
 
+#ifdef __linux__
 	if (perf->spurious_report_rs.missed) {
 		DRM_NOTE("%d spurious OA report notices suppressed due to ratelimiting\n",
 			 perf->spurious_report_rs.missed);
 	}
+#endif
 }
 
 static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
@@ -2785,7 +2791,7 @@ static const struct i915_perf_stream_ops i915_oa_stream_ops = {
 	.enable = i915_oa_stream_enable,
 	.disable = i915_oa_stream_disable,
 	.wait_unlocked = i915_oa_wait_unlocked,
-	.poll_wait = i915_oa_poll_wait,
+	.xpoll_wait = i915_oa_poll_wait,
 	.read = i915_oa_read,
 };
 
@@ -3151,7 +3157,11 @@ static __poll_t i915_perf_poll_locked(struct i915_perf_stream *stream,
 {
 	__poll_t events = 0;
 
+#ifdef __linux__
 	stream->ops->poll_wait(stream, file, wait);
+#elif defined(__FreeBSD__)
+	stream->ops->xpoll_wait(stream, file, wait);
+#endif
 
 	/* Note: we don't explicitly check whether there's something to read
 	 * here since this path may be very hot depending on what else
@@ -3535,7 +3545,12 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	if (param->flags & I915_PERF_FLAG_FD_NONBLOCK)
 		f_flags |= O_NONBLOCK;
 
+#ifdef __linux__
 	stream_fd = anon_inode_getfd("[i915_perf]", &fops, stream, f_flags);
+#elif defined(__FreeBSD__)
+	file *bsd_stream_file = anon_inode_getfile("[i915_perf]", &fops, stream, f_flags);
+	
+#endif
 	if (stream_fd < 0) {
 		ret = stream_fd;
 		goto err_flags;
@@ -4356,18 +4371,22 @@ static struct ctl_table oa_table[] = {
 	 .data = &i915_perf_stream_paranoid,
 	 .maxlen = sizeof(i915_perf_stream_paranoid),
 	 .mode = 0644,
+#ifdef __linux__
 	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = SYSCTL_ZERO,
 	 .extra2 = SYSCTL_ONE,
+#endif	 
 	 },
 	{
 	 .procname = "oa_max_sample_rate",
 	 .data = &i915_oa_max_sample_rate,
 	 .maxlen = sizeof(i915_oa_max_sample_rate),
 	 .mode = 0644,
+#ifdef __linux__
 	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = SYSCTL_ZERO,
 	 .extra2 = &oa_sample_rate_hard_limit,
+#endif
 	 },
 	{}
 };
@@ -4529,7 +4548,11 @@ void i915_perf_init(struct drm_i915_private *i915)
 		oa_sample_rate_hard_limit = to_gt(i915)->clock_frequency / 2;
 
 		mutex_init(&perf->metrics_lock);
+#ifdef __linux__
 		idr_init_base(&perf->metrics_idr, 1);
+#elif defined(__FreeBSD__)
+		idr_init(&perf->metrics_idr);
+#endif
 
 		/* We set up some ratelimit state to potentially throttle any
 		 * _NOTES about spurious, invalid OA reports which we don't
@@ -4579,7 +4602,9 @@ int i915_perf_sysctl_register(void)
 
 void i915_perf_sysctl_unregister(void)
 {
+#ifdef __linux__
 	unregister_sysctl_table(sysctl_header);
+#endif
 }
 
 /**

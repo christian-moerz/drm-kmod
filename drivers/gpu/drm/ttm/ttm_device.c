@@ -204,7 +204,12 @@ static void ttm_device_delayed_workqueue(struct work_struct *work)
  * !0: Failure.
  */
 int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
-		    struct device *dev, struct address_space *mapping,
+		    struct device *dev, 
+#ifdef __linux__	
+			struct address_space *mapping,
+#elif defined(__FreeBSD__)
+			vm_object_t mapping,
+#endif
 		    struct drm_vma_offset_manager *vma_manager,
 		    bool use_dma_alloc, bool use_dma32)
 {
