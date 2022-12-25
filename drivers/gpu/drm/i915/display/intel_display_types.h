@@ -1279,10 +1279,7 @@ struct intel_crtc_state {
 		bool dsc_split;
 		u16 compressed_bpp;
 		u8 slice_count;
-#ifdef __linux__
-		/* FIXME BSDTNG */
 		struct drm_dsc_config config;
-#endif
 	} dsc;
 
 	/* HSW+ linetime watermarks */

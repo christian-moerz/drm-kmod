@@ -24,6 +24,9 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#if defined(__FreeBSD__)
+#include <linux/errno.h>
+#endif
 #include <acpi/video.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -34,14 +37,21 @@
 #include <linux/string_helpers.h>
 #include <linux/vga_switcheroo.h>
 
+#ifdef __linux__
 #include <drm/display/drm_dp_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dp_helper.h>
+#include <uapi/drm/drm_fourcc.h>
+#endif
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_edid.h>
+#ifdef __linux__
 #include <drm/drm_fourcc.h>
 #include <drm/drm_privacy_screen_consumer.h>
+#endif
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 
@@ -5985,7 +5995,13 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_display_mode adjusted_mode;
 
+#ifdef __linux__
 	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
+#elif defined(__FreeBSD__)
+	/* FIXME BSD will be readjusted when drm is updated */
+	memset(&adjusted_mode, 0, sizeof(adjusted_mode));
+	drm_mode_copy(&adjusted_mode, &crtc_state->hw.adjusted_mode);
+#endif
 
 	if (crtc_state->vrr.enable) {
 		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
@@ -9045,7 +9061,9 @@ void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915)
 
 bool intel_modeset_probe_defer(struct pci_dev *pdev)
 {
+#ifdef __linux__
 	struct drm_privacy_screen *privacy_screen;
+#endif
 
 	/*
 	 * apple-gmux is needed on dual GPU MacBook Pro
@@ -9054,12 +9072,14 @@ bool intel_modeset_probe_defer(struct pci_dev *pdev)
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return true;
 
+#ifdef __linux__
 	/* If the LCD panel has a privacy-screen, wait for it */
 	privacy_screen = drm_privacy_screen_get(&pdev->dev, NULL);
 	if (IS_ERR(privacy_screen) && PTR_ERR(privacy_screen) == -EPROBE_DEFER)
 		return true;
 
 	drm_privacy_screen_put(privacy_screen);
+#endif
 
 	return false;
 }

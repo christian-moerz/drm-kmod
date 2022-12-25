@@ -965,10 +965,12 @@ int intel_backlight_device_register(struct intel_connector *connector)
 
 	WARN_ON(panel->backlight.max == 0);
 
+#ifdef __linux__
 	if (!acpi_video_backlight_use_native()) {
 		drm_info(&i915->drm, "Skipping intel_backlight registration\n");
 		return 0;
 	}
+#endif
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
@@ -993,6 +995,8 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	if (!name)
 		return -ENOMEM;
 
+#ifdef __linux__
+	/* FIXME BSD - have not yet checked how this is done in BSD */
 	bd = backlight_device_get_by_name(name);
 	if (bd) {
 		put_device(&bd->dev);
@@ -1009,6 +1013,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 		if (!name)
 			return -ENOMEM;
 	}
+#endif
 	bd = backlight_device_register(name, 
 #ifdef __linux__
 					  	connector->base.kdev,

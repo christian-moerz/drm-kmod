@@ -27,8 +27,12 @@
 
 #include <linux/string_helpers.h>
 
+#ifdef __linux__
 #include <drm/display/drm_scdc_helper.h>
 #include <drm/drm_privacy_screen_consumer.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_scdc_helper.h>
+#endif
 
 #include "i915_drv.h"
 #include "intel_audio.h"
@@ -2795,7 +2799,10 @@ static void intel_enable_ddi_dp(struct intel_atomic_state *state,
 	if (port == PORT_A && DISPLAY_VER(dev_priv) < 9)
 		intel_dp_stop_link_train(intel_dp, crtc_state);
 
+#ifdef __linux__
+	/* FIXME BSD what the heck is that? */
 	drm_connector_update_privacy_screen(conn_state);
+#endif
 	intel_edp_backlight_on(crtc_state, conn_state);
 
 	if (!dig_port->lspcon.active || dig_port->dp.has_hdmi_sink)
@@ -2996,7 +3003,9 @@ static void intel_ddi_update_pipe_dp(struct intel_atomic_state *state,
 	intel_dp_set_infoframes(encoder, true, crtc_state, conn_state);
 
 	intel_backlight_update(state, encoder, crtc_state, conn_state);
+#ifdef __linux__
 	drm_connector_update_privacy_screen(conn_state);
+#endif
 }
 
 void intel_ddi_update_pipe(struct intel_atomic_state *state,
@@ -3825,6 +3834,7 @@ intel_ddi_init_dp_connector(struct intel_digital_port *dig_port)
 	}
 
 	if (dig_port->base.type == INTEL_OUTPUT_EDP) {
+#ifdef __linux__
 		struct drm_device *dev = dig_port->base.base.dev;
 		struct drm_privacy_screen *privacy_screen;
 
@@ -3835,6 +3845,7 @@ intel_ddi_init_dp_connector(struct intel_digital_port *dig_port)
 		} else if (PTR_ERR(privacy_screen) != -ENODEV) {
 			drm_warn(dev, "Error getting privacy-screen\n");
 		}
+#endif
 	}
 
 	return connector;

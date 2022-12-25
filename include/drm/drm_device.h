@@ -132,8 +132,10 @@ struct drm_device {
 	 */
 	bool unplugged;
 
+#ifdef __linux__
 	/** @anon_inode: inode for private address-space */
 	struct inode *anon_inode;
+#endif
 
 	/** @unique: Unique name of the device */
 	char *unique;

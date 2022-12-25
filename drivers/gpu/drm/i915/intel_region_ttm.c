@@ -34,7 +34,11 @@ int intel_region_ttm_device_init(struct drm_i915_private *dev_priv)
 	struct drm_device *drm = &dev_priv->drm;
 
 	return ttm_device_init(&dev_priv->bdev, i915_ttm_driver(),
+#ifdef __linux__
 			       drm->dev, drm->anon_inode->i_mapping,
+#elif defined(__FreeBSD__)
+				   drm->dev, NULL,
+#endif
 			       drm->vma_offset_manager, false, false);
 }
 

@@ -2,6 +2,9 @@
 
 #ifndef _DRM_MANAGED_H_
 #define _DRM_MANAGED_H_
+#if defined(__FreeBSD__)
+#include <drm/drm_device.h>
+#endif
 
 typedef void (*drmm_func_t)(struct drm_device *, void *);
 

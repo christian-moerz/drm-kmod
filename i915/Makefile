@@ -313,6 +313,7 @@ CLEANFILES+= ${KMOD}.ko.full ${KMOD}.ko.debug
 CFLAGS+= -I${.CURDIR:H}/linuxkpi/gplv2/include
 CFLAGS+= -I${.CURDIR:H}/linuxkpi/bsd/include
 CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include
+CFLAGS+= -I${SYSDIR}/compat/linuxkpi/dummy/include
 CFLAGS+= -I${.CURDIR:H}/linuxkpi/dummy/include
 
 CFLAGS+= -I${.CURDIR:H}/include
@@ -323,7 +324,7 @@ CFLAGS+= -I${SRCDIR:H:H} -I${SRCDIR} -I${SRCDIR}/display
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"' -DBSDTNG
 #	-DCONFIG_DRM_I915_GVT \
 
-CFLAGS+= '-DLINUXKPI_PARAM_PREFIX=i915_' \
+CFLAGS+= '-DLINUXKPI_PARAM_PREFIX=i915_' -DBSDTNG \
 	-DDRM_SYSCTL_PARAM_PREFIX=_${KMOD} -DLINUXKPI_VERSION=50000
 CFLAGS+= ${KCONFIG:C/(.*)/-DCONFIG_\1/}
 

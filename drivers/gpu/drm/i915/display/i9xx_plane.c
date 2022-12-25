@@ -978,7 +978,11 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	enum pipe pipe;
+#ifdef __linux__
 	u32 val, base, offset;
+#elif defined(__FreeBSD__)
+	u32 val, base;
+#endif
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
@@ -1020,14 +1024,26 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->format = drm_format_info(fourcc);
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+#ifdef __linux__
 		offset = intel_de_read(dev_priv, DSPOFFSET(i9xx_plane));
+#elif defined(__FreeBSD__)
+		intel_de_read(dev_priv, DSPOFFSET(i9xx_plane));
+#endif
 		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		if (plane_config->tiling)
+#ifdef __linux__
 			offset = intel_de_read(dev_priv,
+#elif defined(__FreeBSD__)
+			intel_de_read(dev_priv,
+#endif
 					       DSPTILEOFF(i9xx_plane));
 		else
+#ifdef __linux__
 			offset = intel_de_read(dev_priv,
+#elif defined(__FreeBSD__)
+			intel_de_read(dev_priv,
+#endif
 					       DSPLINOFF(i9xx_plane));
 		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else {

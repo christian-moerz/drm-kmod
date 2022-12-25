@@ -7,11 +7,70 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#if defined(__FreeBSD__)
+#include <acpi/acpi_bus.h>
+#endif
 #include <acpi/video.h>
 
 #include "i915_drv.h"
 #include "intel_acpi.h"
 #include "intel_display_types.h"
+
+/* FIXME BSD this has a lot of exclusions */
+/* might have to redo the whole acpi integration? */
+#if defined(__FreeBSD__)
+/* FIXME BSD LINUXKPI */
+/**
+ * acpi_evaluate_dsm - evaluate device's _DSM method
+ * @handle: ACPI device handle
+ * @guid: GUID of requested functions, should be 16 bytes
+ * @rev: revision number of requested function
+ * @func: requested function number
+ * @argv4: the function specific parameter
+ *
+ * Evaluate device's _DSM method with specified GUID, revision id and
+ * function number. Caller needs to free the returned object.
+ *
+ * Though ACPI defines the fourth parameter for _DSM should be a package,
+ * some old BIOSes do expect a buffer or an integer etc.
+ */
+static inline union acpi_object *
+acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 func,
+		  union acpi_object *argv4)
+{
+	acpi_status ret;
+	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object params[4];
+	struct acpi_object_list input = {
+		.Count = 4,
+		.Pointer = params,
+	};
+
+	params[0].Type = ACPI_TYPE_BUFFER;
+	params[0].Buffer.Length = 16;
+	params[0].Buffer.Pointer = (u8 *)guid;
+	params[1].Type = ACPI_TYPE_INTEGER;
+	params[1].Integer.Value = rev;
+	params[2].Type = ACPI_TYPE_INTEGER;
+	params[2].Integer.Value = func;
+	if (argv4) {
+		params[3] = *argv4;
+	} else {
+		params[3].Type = ACPI_TYPE_PACKAGE;
+		params[3].Package.Count = 0;
+		params[3].Package.Elements = NULL;
+	}
+
+	ret = acpi_evaluate_object(handle, "_DSM", &input, &buf);
+	if (ACPI_SUCCESS(ret))
+		return (union acpi_object *)buf.Pointer;
+
+	if (ret != AE_NOT_FOUND)
+		printk("acpi_evaluate_dsm failed to evaluate _DSM %pUb (0x%x)\n", guid, ret);
+
+	return NULL;
+}
+#endif
 
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */
 #define INTEL_DSM_FN_PLATFORM_MUX_INFO 1 /* No args */
@@ -80,6 +139,7 @@ static char *intel_dsm_mux_type(u8 type)
 
 static void intel_dsm_platform_mux_info(acpi_handle dhandle)
 {
+#ifdef __linux__
 	int i;
 	union acpi_object *pkg, *connector_count;
 
@@ -129,6 +189,7 @@ static void intel_dsm_platform_mux_info(acpi_handle dhandle)
 	}
 
 	ACPI_FREE(pkg);
+#endif
 }
 
 static acpi_handle intel_dsm_pci_probe(struct pci_dev *pdev)
@@ -290,6 +351,7 @@ void intel_acpi_device_id_update(struct drm_i915_private *dev_priv)
 /* NOTE: The connector order must be final before this is called. */
 void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
 {
+#ifdef __linux__
 	struct drm_connector_list_iter conn_iter;
 	struct drm_device *drm_dev = &i915->drm;
 	struct fwnode_handle *fwnode = NULL;
@@ -331,15 +393,19 @@ void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
 	 * put this, otherwise fwnode is NULL and the put is a no-op.
 	 */
 	fwnode_handle_put(fwnode);
+#endif
 }
 
 void intel_acpi_video_register(struct drm_i915_private *i915)
 {
+#ifdef __linux__
 	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
+#endif
 
 	acpi_video_register();
 
+#ifdef __linux__
 	/*
 	 * If i915 is driving an internal panel without registering its native
 	 * backlight handler try to register the acpi_video backlight.
@@ -357,4 +423,5 @@ void intel_acpi_video_register(struct drm_i915_private *i915)
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
+#endif
 }

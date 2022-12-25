@@ -35,9 +35,14 @@
 
 #include <asm/byteorder.h>
 
+#ifdef __linux__
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_dsc.h>
+#endif
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>

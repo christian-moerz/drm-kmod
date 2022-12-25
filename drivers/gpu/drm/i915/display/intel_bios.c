@@ -26,8 +26,12 @@
  */
 
 #include <drm/drm_edid.h>
+#ifdef __linux__
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dsc_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dp_helper.h>
+#endif
 
 #include "display/intel_display.h"
 #include "display/intel_display_types.h"
@@ -604,6 +608,24 @@ get_lfp_data_tail(const struct bdb_lvds_lfp_data *data,
 	else
 		return NULL;
 }
+
+#if defined(__FreeBSD__)
+/**
+ * drm_edid_decode_mfg_id - Decode the manufacturer ID
+ * @mfg_id: The manufacturer ID
+ * @vend: A 4-byte buffer to store the 3-letter vendor string plus a '\0'
+ *	  termination
+ */
+static inline const char *drm_edid_decode_mfg_id(u16 mfg_id, char vend[4])
+{
+	vend[0] = '@' + ((mfg_id >> 10) & 0x1f);
+	vend[1] = '@' + ((mfg_id >> 5) & 0x1f);
+	vend[2] = '@' + ((mfg_id >> 0) & 0x1f);
+	vend[3] = '\0';
+
+	return vend;
+}
+#endif
 
 static void dump_pnp_id(struct drm_i915_private *i915,
 			const struct lvds_pnp_id *pnp_id,

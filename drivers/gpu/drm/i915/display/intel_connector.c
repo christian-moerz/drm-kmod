@@ -28,6 +28,9 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
+#if defined(__FreeBSD__)
+#include <drm/drm_connector.h>
+#endif
 
 #include "i915_drv.h"
 #include "intel_backlight.h"
@@ -283,13 +286,25 @@ intel_attach_aspect_ratio_property(struct drm_connector *connector)
 void
 intel_attach_hdmi_colorspace_property(struct drm_connector *connector)
 {
+#ifdef __linux__
 	if (!drm_mode_create_hdmi_colorspace_property(connector))
 		drm_connector_attach_colorspace_property(connector);
+#elif defined(__FreeBSD__)
+	if (!drm_mode_create_hdmi_colorspace_property(connector))
+		drm_object_attach_property(&connector->base,
+					   connector->colorspace_property, 0);
+#endif
 }
 
 void
 intel_attach_dp_colorspace_property(struct drm_connector *connector)
 {
+#ifdef __linux__
 	if (!drm_mode_create_dp_colorspace_property(connector))
 		drm_connector_attach_colorspace_property(connector);
+#elif defined(__FreeBSD__)
+	if (!drm_mode_create_dp_colorspace_property(connector))
+		drm_object_attach_property(&connector->base,
+					   connector->colorspace_property, 0);
+#endif
 }

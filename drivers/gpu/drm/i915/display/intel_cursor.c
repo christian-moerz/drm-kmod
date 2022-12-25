@@ -716,7 +716,9 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 * For now just make sure the register writes happen as
 	 * quickly as possible to minimize the race window.
 	 */
+#ifdef __linux__
 	local_irq_disable();
+#endif
 
 	if (new_plane_state->uapi.visible) {
 		intel_plane_update_noarm(plane, crtc_state, new_plane_state);
@@ -725,7 +727,9 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 		intel_plane_disable_arm(plane, crtc_state);
 	}
 
+#ifdef __linux__
 	local_irq_enable();
+#endif	
 
 	intel_plane_unpin_fb(old_plane_state);
 

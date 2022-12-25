@@ -6,7 +6,11 @@
 #ifndef __INTEL_DP_LINK_TRAINING_H__
 #define __INTEL_DP_LINK_TRAINING_H__
 
+#ifdef __linux__
 #include <drm/display/drm_dp_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dp_helper.h>
+#endif
 
 struct intel_crtc_state;
 struct intel_dp;

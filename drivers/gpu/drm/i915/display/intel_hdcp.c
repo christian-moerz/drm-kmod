@@ -17,7 +17,11 @@
 #include <linux/wait.h>
 #endif
 
+#ifdef __linux__
 #include <drm/display/drm_hdcp_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_hdcp.h>
+#endif
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"

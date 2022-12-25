@@ -115,19 +115,24 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 {
 	struct drm_connector_state *new_state =
 		drm_atomic_get_new_connector_state(state, conn);
+#ifdef __linux__
 	struct intel_digital_connector_state *new_conn_state =
 		to_intel_digital_connector_state(new_state);
+#endif
 	struct drm_connector_state *old_state =
 		drm_atomic_get_old_connector_state(state, conn);
+#ifdef __linux__
 	struct intel_digital_connector_state *old_conn_state =
 		to_intel_digital_connector_state(old_state);
 	struct drm_crtc_state *crtc_state;
+#endif
 
 	intel_hdcp_atomic_check(conn, old_state, new_state);
 
 	if (!new_state->crtc)
 		return 0;
 
+#ifdef __linux__
 	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 
 	/*
@@ -141,8 +146,11 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
 	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode ||
 	    new_conn_state->base.privacy_screen_sw_state != old_conn_state->base.privacy_screen_sw_state ||
-	    !drm_connector_atomic_hdr_metadata_equal(old_state, new_state))
+		!drm_connector_atomic_hdr_metadata_equal(old_state, new_state))
 		crtc_state->mode_changed = true;
+#elif defined(__FreeBSD__)
+	drm_atomic_get_new_crtc_state(state, new_state->crtc);
+#endif	    
 
 	return 0;
 }

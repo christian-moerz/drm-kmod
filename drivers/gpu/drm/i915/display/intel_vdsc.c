@@ -7,7 +7,11 @@
  */
 #include <linux/limits.h>
 
+#ifdef __linux__
 #include <drm/display/drm_dsc_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dsc_helper.h>
+#endif
 
 #include "i915_drv.h"
 #include "intel_crtc.h"

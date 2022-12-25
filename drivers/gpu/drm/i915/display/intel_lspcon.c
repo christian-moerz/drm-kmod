@@ -23,8 +23,13 @@
  *
  */
 
+
+#ifdef __linux__
 #include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
+#elif defined(__FreeBSD__)
+#include <drm/drm_dp_dual_mode_helper.h>
+#endif
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 
