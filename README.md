@@ -1,4 +1,4 @@
 # drm-kmod
 Alder Lake drm-kmod / i915
 
-This does not compile yet. Maybe one day... one may dream. At the moment this is a pile of crap, unfortunately.
+Check out intel-drm-full branch; it compiles, but module i915kms is still giving issues. Testing/troubleshooting help welcome.
