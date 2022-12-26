@@ -170,9 +170,7 @@ MODULE_AUTHOR("Thomas Hellstrom, Jerome Glisse");
 MODULE_DESCRIPTION("TTM memory manager subsystem (for DRM device)");
 MODULE_LICENSE("GPL and additional rights");
 #elif defined(__FreeBSD__)
-#ifndef BSDTNG
 LKPI_DRIVER_MODULE(ttm, ttm_init, ttm_exit);
-#endif
 MODULE_VERSION(ttm, 1);
 #ifdef CONFIG_AGP
 MODULE_DEPEND(ttm, agp, 1, 1, 1);
