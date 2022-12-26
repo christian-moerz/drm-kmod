@@ -69,6 +69,20 @@
 /* BSD: Make sure we get out[bwl] redefines */
 #include <linux/compiler.h>
 #include <linux/shrinker.h>
+
+/* FIXME BSD */
+/* FIXME LINUXKPI */
+__printf(2, 3)
+static inline int sysfs_emit(char *buf, const char *fmt, ...)
+{
+	return 0;
+}
+
+__printf(3, 4)
+static inline int sysfs_emit_at(char *buf, int at, const char *fmt, ...)
+{
+	return 0;
+}
 #endif
 
 struct drm_i915_clock_gating_funcs;

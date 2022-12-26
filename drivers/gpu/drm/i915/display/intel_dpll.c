@@ -1758,13 +1758,21 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 loopfilter, tribuf_calcntr;
+#if !defined(__FreeBSD__)
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
+#else
+	u32 bestm2, bestp1, bestp2, bestm2_frac;
+#endif
 	u32 dpio_val;
 	int vco;
 
+#if !defined(__FreeBSD__)
 	bestn = crtc_state->dpll.n;
+#endif
 	bestm2_frac = crtc_state->dpll.m2 & 0x3fffff;
+#if !defined(__FreeBSD__)	
 	bestm1 = crtc_state->dpll.m1;
+#endif
 	bestm2 = crtc_state->dpll.m2 >> 22;
 	bestp1 = crtc_state->dpll.p1;
 	bestp2 = crtc_state->dpll.p2;

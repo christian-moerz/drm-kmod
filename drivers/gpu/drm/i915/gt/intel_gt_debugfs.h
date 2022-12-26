@@ -26,6 +26,7 @@ static int __name ## _open(struct inode *inode, struct file *file)	\
 }									\
 __GT_DEBUGFS_ATTRIBUTE_FOPS(__name)
 
+#ifdef __linux__
 #define DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(__name, __size_vf)		\
 static int __name ## _open(struct inode *inode, struct file *file)		\
 {										\
@@ -33,6 +34,7 @@ static int __name ## _open(struct inode *inode, struct file *file)		\
 			    __size_vf(inode->i_private));			\
 }										\
 __GT_DEBUGFS_ATTRIBUTE_FOPS(__name)
+#endif
 
 void intel_gt_debugfs_register(struct intel_gt *gt);
 

@@ -3,6 +3,10 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#if defined(__FreeBSD__)
+#include <linux/types.h>
+#endif
+
 /* Just a quick and causal check of the shmem_utils API */
 
 static int igt_shmem_basic(void *ignored)

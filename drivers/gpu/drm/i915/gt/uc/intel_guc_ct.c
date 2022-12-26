@@ -5,11 +5,17 @@
 
 #include <linux/circ_buf.h>
 #include <linux/ktime.h>
+#ifdef __linux__
 #include <linux/time64.h>
+#endif
 #include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
 #if defined(__FreeBSD__)
 #include <linux/interrupt.h>
+#include <linux/time.h>
+
+#define SZ_2K				0x00000800
+#define ENOKEY            126
 #endif
 
 #include "i915_drv.h"

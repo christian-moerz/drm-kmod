@@ -11,6 +11,7 @@
 #include "i915_gemfs.h"
 #include "i915_utils.h"
 
+#ifdef __linux__
 void i915_gemfs_init(struct drm_i915_private *i915)
 {
 	char huge_opt[] = "huge=within_size"; /* r/w */
@@ -58,3 +59,4 @@ void i915_gemfs_fini(struct drm_i915_private *i915)
 {
 	kern_unmount(i915->mm.gemfs);
 }
+#endif /* __linux__ */

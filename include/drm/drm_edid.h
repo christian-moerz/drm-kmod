@@ -414,6 +414,12 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range);
 
+#ifdef BSDTNG
+void
+drm_hdmi_avi_infoframe_colorimetry(struct hdmi_avi_infoframe *frame,
+				   const struct drm_connector_state *conn_state);
+#endif
+
 int
 drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
 				    const struct drm_connector_state *conn_state);

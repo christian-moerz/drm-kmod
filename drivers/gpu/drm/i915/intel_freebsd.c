@@ -59,7 +59,6 @@ intel_enable_gtt(void)
 	u8 __iomem *reg;
 
 	DRM_DEBUG("entering %s\n", __func__);
-#ifdef __notyet__
 	/* too old */
 	if (INTEL_GTT_GEN == 2) {
 		u16 gmch_ctrl;
@@ -79,7 +78,6 @@ intel_enable_gtt(void)
 			return false;
 		}
 	}
-#endif
 
 	/*
 	 * On the resume path we may be adjusting the PGTBL value, so
@@ -90,19 +88,28 @@ intel_enable_gtt(void)
 
 	reg = intel_private.registers + AGP_I810_PGTBL_CTL;
 	writel(intel_private.PGTBL_save, reg);
-#ifdef __notyet__
+
 	if (HAS_PGTBL_EN && (readl(reg) & AGP_I810_PGTBL_ENABLED) == 0) {
 		dev_err(&intel_private.pcidev->dev,
 			"failed to enable the GTT: PGTBL=%x [expected %x]\n",
 			readl(reg), intel_private.PGTBL_save);
 		return false;
 	}
-#endif
 
 	if (INTEL_GTT_GEN >= 3)
 		writel(0, intel_private.registers + GFX_FLSH_CNTL_BSD);
 	DRM_DEBUG("exiting %s\n", __func__);
 #endif
+
+#ifdef BSDTNG
+#ifdef __notyet__
+	if (intel_private.ifp_resource.start)
+		intel_private.i9xx_flush_page = ioremap(intel_private.ifp_resource.start, PAGE_SIZE);
+	if (!intel_private.i9xx_flush_page)
+		dev_err(&intel_private.pcidev->dev,
+			"can't ioremap flush page - no chipset flushing\n");
+#endif
+#endif /* BSDTNG */
 	return (1);
 }
 
@@ -159,6 +166,69 @@ linux_intel_gtt_insert_sg_entries(struct sg_table *st, unsigned int pg_start,
 
 	intel_gtt_read_pte(pg_start + i - 1);
 }
+
+#ifdef BSDTNG
+void intel_gmch_gtt_flush(void)
+{
+#ifdef __linux__
+	if (intel_private.driver->chipset_flush)
+		intel_private.driver->chipset_flush();
+#endif
+/* FIXME BSD nop for the moment? */
+#ifdef __notyet__
+
+	wmb();
+	if (intel_private.i9xx_flush_page)
+		writel(1, intel_private.i9xx_flush_page);
+#endif
+}
+
+bool intel_gmch_enable_gtt(void)
+{
+#ifdef __notyet__
+	u8 __iomem *reg;
+
+	if (INTEL_GTT_GEN == 2) {
+		u16 gmch_ctrl;
+
+		pci_read_config_word(intel_private.bridge_dev,
+				     I830_GMCH_CTRL, &gmch_ctrl);
+		gmch_ctrl |= I830_GMCH_ENABLED;
+		pci_write_config_word(intel_private.bridge_dev,
+				      I830_GMCH_CTRL, gmch_ctrl);
+
+		pci_read_config_word(intel_private.bridge_dev,
+				     I830_GMCH_CTRL, &gmch_ctrl);
+		if ((gmch_ctrl & I830_GMCH_ENABLED) == 0) {
+			dev_err(&intel_private.pcidev->dev,
+				"failed to enable the GTT: GMCH_CTRL=%x\n",
+				gmch_ctrl);
+			return false;
+		}
+	}
+
+	/* On the resume path we may be adjusting the PGTBL value, so
+	 * be paranoid and flush all chipset write buffers...
+	 */
+	if (INTEL_GTT_GEN >= 3)
+		writel(0, intel_private.registers+GFX_FLSH_CNTL);
+
+	reg = intel_private.registers+I810_PGETBL_CTL;
+	writel(intel_private.PGETBL_save, reg);
+	if (HAS_PGTBL_EN && (readl(reg) & I810_PGETBL_ENABLED) == 0) {
+		dev_err(&intel_private.pcidev->dev,
+			"failed to enable the GTT: PGETBL=%x [expected %x]\n",
+			readl(reg), intel_private.PGETBL_save);
+		return false;
+	}
+
+	if (INTEL_GTT_GEN >= 3)
+		writel(0, intel_private.registers+GFX_FLSH_CNTL);
+#endif
+
+	return true;
+}
+#endif
 
 #if defined(__amd64__)
 static void

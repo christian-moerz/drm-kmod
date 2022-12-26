@@ -61,10 +61,10 @@ struct dma_fence_array {
 	struct irq_work work;
 };
 
-#ifndef BSDTAG
+#ifndef BSDTNG
 bool dma_fence_is_array(struct dma_fence *fence);
-#endif
 struct dma_fence_array *to_dma_fence_array(struct dma_fence *fence);
+#endif
 struct dma_fence_array *dma_fence_array_create(int num_fences,
     struct dma_fence **fences, u64 context, unsigned seqno,
     bool signal_on_any);
@@ -72,6 +72,22 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 struct dma_fence *dma_fence_array_first(struct dma_fence *head);
 struct dma_fence *dma_fence_array_next(struct dma_fence *head,
 				       unsigned int index);
+
+/**
+ * to_dma_fence_array - cast a fence to a dma_fence_array
+ * @fence: fence to cast to a dma_fence_array
+ *
+ * Returns NULL if the fence is not a dma_fence_array,
+ * or the dma_fence_array otherwise.
+ */
+static inline struct dma_fence_array *
+to_dma_fence_array(struct dma_fence *fence)
+{
+	if (!fence || !dma_fence_is_array(fence))
+		return NULL;
+
+	return container_of(fence, struct dma_fence_array, base);
+}
 #endif
 
 #endif /* _LINUX_DMA_FENCE_ARRAY_H_ */

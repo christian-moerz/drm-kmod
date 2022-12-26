@@ -42,6 +42,13 @@
 #include "mock_gtt.h"
 #include "igt_flush_test.h"
 
+#if defined(__FreeBSD__)
+/* FIXME LINUXKPI */
+#ifndef EBADSLT
+#define EBADSLT		55	/* Invalid slot */
+#endif
+#endif
+
 static void cleanup_freed_objects(struct drm_i915_private *i915)
 {
 	i915_gem_drain_freed_objects(i915);

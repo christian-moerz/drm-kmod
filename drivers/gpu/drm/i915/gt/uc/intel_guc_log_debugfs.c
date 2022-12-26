@@ -48,13 +48,17 @@ static int guc_log_dump_show(struct seq_file *m, void *data)
 
 	ret = intel_guc_log_dump(m->private, &p, false);
 
+#ifdef __linux__
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && seq_has_overflowed(m))
 		pr_warn_once("preallocated size:%zx for %s exceeded\n",
 			     m->size, __func__);
+#endif
 
 	return ret;
 }
+#ifdef __linux__
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(guc_log_dump, guc_log_dump_size);
+#endif
 
 static u32 guc_load_err_dump_size(struct intel_guc_log *log)
 {
@@ -71,13 +75,17 @@ static int guc_load_err_log_dump_show(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 
+#ifdef __linux__
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && seq_has_overflowed(m))
 		pr_warn_once("preallocated size:%zx for %s exceeded\n",
 			     m->size, __func__);
+#endif
 
 	return intel_guc_log_dump(m->private, &p, true);
 }
+#ifdef __linux__
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(guc_load_err_log_dump, guc_load_err_dump_size);
+#endif
 
 static int guc_log_level_get(void *data, u64 *val)
 {
@@ -162,8 +170,10 @@ void intel_guc_log_debugfs_register(struct intel_guc_log *log,
 				    struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
+#ifdef __linux__
 		{ "guc_log_dump", &guc_log_dump_fops, NULL },
 		{ "guc_load_err_log_dump", &guc_load_err_log_dump_fops, NULL },
+#endif
 		{ "guc_log_level", &guc_log_level_fops, NULL },
 		{ "guc_log_relay", &guc_log_relay_fops, NULL },
 	};

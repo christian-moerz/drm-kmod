@@ -54,6 +54,9 @@ struct drm_vma_offset_node {
 	struct drm_mm_node vm_node;
 	struct rb_root vm_files;
 	bool readonly:1;
+#ifdef BSDTNG
+	void *driver_private;
+#endif
 };
 
 struct drm_vma_offset_manager {

@@ -773,9 +773,19 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	wakeref = intel_display_power_get(i915, POWER_DOMAIN_GMBUS);
 
 	if (bus->force_bit) {
+#ifdef __linux__
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 		if (ret < 0)
 			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
+#elif defined(__FreeBSD__)
+#ifdef I2CNOTYET
+		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
+		if (ret < 0)
+			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
+#else
+		ret = -EOPNOTSUPP;
+#endif
+#endif
 	} else {
 		ret = do_gmbus_xfer(adapter, msgs, num, 0);
 		if (ret == -EAGAIN)
@@ -828,11 +838,26 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 
 static u32 gmbus_func(struct i2c_adapter *adapter)
 {
+#ifdef __linux__
 	return i2c_bit_algo.functionality(adapter) &
 		(I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
 		/* I2C_FUNC_10BIT_ADDR | */
 		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
 		I2C_FUNC_SMBUS_BLOCK_PROC_CALL);
+#elif defined(__FreeBSD__)
+#ifdef I2CNOTYET
+	return i2c_bit_algo.functionality(adapter) &
+		(I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+		/* I2C_FUNC_10BIT_ADDR | */
+		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+		I2C_FUNC_SMBUS_BLOCK_PROC_CALL);
+#else
+	return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+		/* I2C_FUNC_10BIT_ADDR | */
+		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+		I2C_FUNC_SMBUS_BLOCK_PROC_CALL);
+#endif
+#endif
 }
 
 static const struct i2c_algorithm gmbus_algorithm = {

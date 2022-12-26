@@ -16,6 +16,12 @@
 #include "intel_gt_regs.h"
 #include "intel_gt.h"
 
+#ifdef __FreeBSD__
+#include <dev/agp/agpvar.h>
+#include <dev/agp/agp_i810.h>
+#include <linux/fs.h>
+#endif
+
 static void gmch_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
 				  u64 offset,
@@ -25,7 +31,11 @@ static void gmch_ggtt_insert_page(struct i915_address_space *vm,
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
+#ifdef __linux__
 	intel_gmch_gtt_insert_page(addr, offset >> PAGE_SHIFT, flags);
+#elif defined(__FreeBSD__)
+	intel_gtt_insert_page(addr, offset >> PAGE_SHIFT, flags);
+#endif
 }
 
 static void gmch_ggtt_insert_entries(struct i915_address_space *vm,
@@ -40,8 +50,8 @@ static void gmch_ggtt_insert_entries(struct i915_address_space *vm,
 	intel_gmch_gtt_insert_sg_entries(vma_res->bi.pages, vma_res->start >> PAGE_SHIFT,
 					 flags);
 #elif defined(__FreeBSD__)
-	linux_intel_gtt_insert_sg_entries(vma->pages,
-	    vma->node.start >> PAGE_SHIFT, flags);
+	linux_intel_gtt_insert_sg_entries(vma_res->bi.pages,
+	    vma_res->start >> PAGE_SHIFT, flags);
 #endif
 }
 
@@ -139,6 +149,21 @@ int intel_ggtt_gmch_enable_hw(struct drm_i915_private *i915)
 
 	return 0;
 }
+
+#ifdef BSDTNG
+void intel_gmch_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
+{
+#ifdef __notyet__
+	unsigned int i;
+
+	for (i = first_entry; i < (first_entry + num_entries); i++) {
+		intel_private.driver->write_entry(intel_private.scratch_page_dma,
+						  i, 0);
+	}
+	wmb();
+#endif
+}
+#endif /* BSDTNG */
 
 void intel_ggtt_gmch_flush(void)
 {

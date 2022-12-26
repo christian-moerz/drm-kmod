@@ -416,6 +416,7 @@ execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 static void
 execlists_context_status_change(struct i915_request *rq, unsigned long status)
 {
+#ifdef __linux__
 	/*
 	 * Only used when GVT-g is enabled now. When GVT-g is disabled,
 	 * The compiler should eliminate this function as dead-code.
@@ -425,6 +426,7 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 
 	atomic_notifier_call_chain(&rq->engine->context_status_notifier,
 				   status, rq);
+#endif
 }
 
 static void reset_active(struct i915_request *rq,

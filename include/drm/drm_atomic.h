@@ -436,6 +436,10 @@ static inline void drm_crtc_commit_put(struct drm_crtc_commit *commit)
 	kref_put(&commit->ref, __drm_crtc_commit_free);
 }
 
+#ifdef BSDTNG
+int drm_crtc_commit_wait(struct drm_crtc_commit *commit);
+#endif
+
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);

@@ -3,7 +3,9 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#ifdef __linux__
 #include <linux/util_macros.h>
+#endif
 
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"

@@ -23,6 +23,7 @@
 #include "i915_pciids.h"
 #endif
 
+#ifndef BSDTNG
 static int i915_check_nomodeset(void)
 {
 	bool use_kms = true;
@@ -78,8 +79,10 @@ static const struct {
 	  .exit = i915_pmu_exit },
 	{ .init = i915_pci_register_driver,
 	  .exit = i915_pci_unregister_driver },
+#ifdef defined(CONFIG_I915_PERF)
 	{ .init = i915_perf_sysctl_register,
 	  .exit = i915_perf_sysctl_unregister },
+#endif
 };
 static int init_progress;
 
@@ -135,3 +138,4 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
 
 
+#endif /* ! BSDTNG */

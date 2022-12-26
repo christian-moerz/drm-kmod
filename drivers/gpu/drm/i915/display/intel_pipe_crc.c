@@ -442,12 +442,14 @@ display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 void intel_crtc_crc_init(struct intel_crtc *crtc)
 {
 	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 
 	spin_lock_init(&pipe_crc->lock);
 }
+#endif
 
 static int i8xx_crc_source_valid(struct drm_i915_private *dev_priv,
 				 const enum intel_pipe_crc_source source)
@@ -554,6 +556,7 @@ intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 		return skl_crc_source_valid(dev_priv, source);
 }
 
+#ifdef CONFIG_DEBUG_FS
 const char *const *intel_crtc_get_crc_sources(struct drm_crtc *crtc,
 					      size_t *count)
 {
@@ -670,3 +673,4 @@ void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
 	intel_synchronize_irq(dev_priv);
 }
+#endif /* CONFIG_DEBUG_FS */

@@ -817,8 +817,8 @@ static bool drm_dp_sideband_parse_link_address(const struct drm_dp_mst_topology_
 					       struct drm_dp_sideband_msg_rx *raw,
 #else
 static bool drm_dp_sideband_parse_link_address(struct drm_dp_sideband_msg_rx *raw,
-					       struct drm_dp_sideband_msg_reply_body *repmsg)
 #endif
+					       struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
 	int i;
@@ -1047,8 +1047,8 @@ static bool drm_dp_sideband_parse_reply(const struct drm_dp_mst_topology_mgr *mg
 					struct drm_dp_sideband_msg_rx *raw,
 #else
 static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
-					struct drm_dp_sideband_msg_reply_body *msg)
 #endif
+					struct drm_dp_sideband_msg_reply_body *msg)
 {
 	memset(msg, 0, sizeof(*msg));
 	msg->reply_type = (raw->msg[0] & 0x80) >> 7;
@@ -3077,6 +3077,8 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 
 static void
 #ifdef BSDTNG
+drm_dp_dump_link_address(const struct drm_dp_mst_topology_mgr *mgr,
+			 struct drm_dp_link_address_ack_reply *reply)
 #else
 drm_dp_dump_link_address(struct drm_dp_link_address_ack_reply *reply)
 #endif
@@ -3133,7 +3135,7 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 
 	reply = &txmsg->reply.u.link_addr;
 	DRM_DEBUG_KMS("link address reply: %d\n", reply->nports);
-	drm_dp_dump_link_address(reply);
+	drm_dp_dump_link_address(mgr, reply);
 
 	ret = drm_dp_check_mstb_guid(mstb, reply->guid);
 	if (ret) {
@@ -3492,10 +3494,15 @@ static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 #endif
 }
 
+#ifdef BSDTNG
+static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
+				       struct drm_dp_mst_atomic_payload *payload)
+#else
 static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_mst_port *port,
 				       int id,
 				       struct drm_dp_payload *payload)
+#endif
 {
 	int ret;
 
@@ -3679,6 +3686,7 @@ int drm_dp_add_payload_part2(struct drm_dp_mst_topology_mgr *mgr,
 EXPORT_SYMBOL(drm_dp_add_payload_part2);
 #endif /* BSDTNG */
 
+#ifndef BSDTNG
 /**
  * drm_dp_update_payload_part1() - Execute payload update part 1
  * @mgr: manager to use.
@@ -3738,8 +3746,12 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 
 			/* need to push an update for this payload */
 			if (req_payload.num_slots) {
+#ifdef BSDTNG				
+				drm_dp_create_payload_step1(mgr, &req_payload);
+#else
 				drm_dp_create_payload_step1(mgr, vcpi->vcpi,
 							    &req_payload);
+#endif
 				payload->num_slots = req_payload.num_slots;
 				payload->vcpi = req_payload.vcpi;
 
@@ -3815,9 +3827,17 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 
 		DRM_DEBUG_KMS("payload %d %d\n", i, mgr->payloads[i].payload_state);
 		if (mgr->payloads[i].payload_state == DP_PAYLOAD_LOCAL) {
+#ifdef BSDTNG
+			ret = drm_dp_create_payload_step2(mgr, &mgr->payloads[i]);
+#else
 			ret = drm_dp_create_payload_step2(mgr, port, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
+#endif
 		} else if (mgr->payloads[i].payload_state == DP_PAYLOAD_DELETE_LOCAL) {
+#ifdef BSDTNG
 			ret = drm_dp_destroy_payload_step2(mgr, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
+#else
+			ret = drm_dp_destroy_payload_step2(mgr, &mgr->payloads[i]);
+#endif
 		}
 		if (ret) {
 			mutex_unlock(&mgr->payload_lock);
@@ -3828,6 +3848,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_update_payload_part2);
+#endif /* !BSDTNG */
 
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
@@ -4258,7 +4279,11 @@ drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up,
 		return false;
 	}
 
+#ifdef BSDTNG
+	ret = drm_dp_decode_sideband_msg_hdr(mgr, &hdr, replyblock, len, &hdrlen);
+#else
 	ret = drm_dp_decode_sideband_msg_hdr(&hdr, replyblock, len, &hdrlen);
+#endif	
 	if (ret == false) {
 		print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16,
 			       1, replyblock, len, false);
@@ -4343,7 +4368,11 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		goto out_clear_reply;
 	}
 
+#ifdef BSDTNG
+	drm_dp_sideband_parse_reply(mgr, msg, &txmsg->reply);
+#else
 	drm_dp_sideband_parse_reply(msg, &txmsg->reply);
+#endif
 
 	if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
 		DRM_DEBUG_KMS("Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
@@ -6888,23 +6917,24 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 		if (drm_dp_dpcd_read(&port->aux,
 				     DP_FEC_CAPABILITY, &endpoint_fec, 1) != 1)
 			return NULL;
+#ifdef __linux__
 		if (drm_dp_dpcd_read(&immediate_upstream_port->aux,
 				     DP_DSC_SUPPORT, &upstream_dsc, 1) != 1)
 			return NULL;
+#endif
 
+#ifdef BSDTNG
+#ifdef __linux__
 		/* Enpoint decompression with DP-to-DP peer device */
 		if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
 		    (endpoint_fec & DP_FEC_CAPABLE) &&
-#ifdef BSDTNG
 		    (upstream_dsc & DP_DSC_PASSTHROUGH_IS_SUPPORTED)) {
 			port->passthrough_aux = &immediate_upstream_port->aux;
-#else
 		    (upstream_dsc & 0x2) /* DSC passthrough */)
-#endif
 			return &port->aux;
-#ifdef BSDTNG
 		}
-#endif			
+#endif /* __linux__ */
+#endif /* BSDTNG */
 
 		/* Virtual DPCD decompression with DP-to-DP peer device */
 		return &immediate_upstream_port->aux;

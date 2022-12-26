@@ -564,7 +564,11 @@ static inline bool ctx_id_mapped(struct intel_guc *guc, u32 id)
 static inline void set_ctx_id_mapping(struct intel_guc *guc, u32 id,
 				      struct intel_context *ce)
 {
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	/*
 	 * xarray API doesn't have xa_save_irqsave wrapper, so calling the
@@ -577,7 +581,11 @@ static inline void set_ctx_id_mapping(struct intel_guc *guc, u32 id,
 
 static inline void clr_ctx_id_mapping(struct intel_guc *guc, u32 id)
 {
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	if (unlikely(!guc_submission_initialized(guc)))
 		return;
@@ -1031,7 +1039,11 @@ static void guc_submission_tasklet(struct tasklet_struct *t)
 {
 	struct i915_sched_engine *sched_engine =
 		from_tasklet(sched_engine, t, tasklet);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	bool loop;
 
 	spin_lock_irqsave(&sched_engine->lock, flags);
@@ -1060,7 +1072,12 @@ static void guc_blocked_fence_complete(struct intel_context *ce);
 static void scrub_guc_desc_for_outstanding_g2h(struct intel_guc *guc)
 {
 	struct intel_context *ce;
+#ifdef __linux__
 	unsigned long index, flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+	unsigned long index = 0;
+#endif
 	bool pending_disable, pending_enable, deregister, destroyed, banned;
 
 	xa_lock_irqsave(&guc->context_lookup, flags);
@@ -1290,7 +1307,11 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 	struct intel_gt *gt = engine->gt;
 	struct intel_guc *guc = &gt->uc.guc;
 	u64 total, gt_stamp_saved;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	u32 reset_count;
 	bool in_reset;
 
@@ -1348,7 +1369,11 @@ static void __reset_guc_busyness_stats(struct intel_guc *guc)
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	ktime_t unused;
 
 	cancel_delayed_work_sync(&guc->timestamp.work);
@@ -1369,7 +1394,11 @@ static void __update_guc_busyness_stats(struct intel_guc *guc)
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	ktime_t unused;
 
 	guc->timestamp.last_stat_jiffies = jiffies;
@@ -1468,7 +1497,11 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 void intel_guc_busyness_unpark(struct intel_gt *gt)
 {
 	struct intel_guc *guc = &gt->uc.guc;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	ktime_t unused;
 
 	if (!guc_submission_initialized(guc))
@@ -1505,7 +1538,11 @@ static void disable_submission(struct intel_guc *guc)
 static void enable_submission(struct intel_guc *guc)
 {
 	struct i915_sched_engine * const sched_engine = guc->sched_engine;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	spin_lock_irqsave(&guc->sched_engine->lock, flags);
 	sched_engine->tasklet.callback = guc_submission_tasklet;
@@ -1523,7 +1560,11 @@ static void enable_submission(struct intel_guc *guc)
 static void guc_flush_submissions(struct intel_guc *guc)
 {
 	struct i915_sched_engine * const sched_engine = guc->sched_engine;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	spin_lock_irqsave(&sched_engine->lock, flags);
 	spin_unlock_irqrestore(&sched_engine->lock, flags);
@@ -1633,7 +1674,11 @@ __unwind_incomplete_requests(struct intel_context *ce)
 	int prio = I915_PRIORITY_INVALID;
 	struct i915_sched_engine * const sched_engine =
 		ce->engine->sched_engine;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	spin_lock_irqsave(&sched_engine->lock, flags);
 	spin_lock(&ce->guc_state.lock);
@@ -1665,7 +1710,11 @@ static void __guc_reset_context(struct intel_context *ce, intel_engine_mask_t st
 {
 	bool guilty;
 	struct i915_request *rq;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	u32 head;
 	int i, number_children = ce->parallel.number_children;
 	struct intel_context *parent = ce;
@@ -1720,7 +1769,11 @@ void intel_guc_submission_reset(struct intel_guc *guc, intel_engine_mask_t stall
 {
 	struct intel_context *ce;
 	unsigned long index;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	if (unlikely(!guc_submission_initialized(guc))) {
 		/* Reset called during driver load? GuC not yet initialised! */
@@ -1752,7 +1805,11 @@ static void guc_cancel_context_requests(struct intel_context *ce)
 {
 	struct i915_sched_engine *sched_engine = ce_to_guc(ce)->sched_engine;
 	struct i915_request *rq;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	/* Mark all executing requests as skipped. */
 	spin_lock_irqsave(&sched_engine->lock, flags);
@@ -1768,7 +1825,11 @@ guc_cancel_sched_engine_requests(struct i915_sched_engine *sched_engine)
 {
 	struct i915_request *rq, *rn;
 	struct rb_node *rb;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	/* Can be called during boot if GuC fails to load */
 	if (!sched_engine)
@@ -1818,7 +1879,11 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc)
 {
 	struct intel_context *ce;
 	unsigned long index;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	xa_lock_irqsave(&guc->context_lookup, flags);
 	xa_for_each(&guc->context_lookup, index, ce) {
@@ -1968,7 +2033,11 @@ static void guc_submit_request(struct i915_request *rq)
 {
 	struct i915_sched_engine *sched_engine = rq->engine->sched_engine;
 	struct intel_guc *guc = &rq->engine->gt->uc.guc;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&sched_engine->lock, flags);
@@ -2027,7 +2096,11 @@ static void __release_guc_id(struct intel_guc *guc, struct intel_context *ce)
 
 static void release_guc_id(struct intel_guc *guc, struct intel_context *ce)
 {
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	spin_lock_irqsave(&guc->submission_state.lock, flags);
 	__release_guc_id(guc, ce);
@@ -2103,7 +2176,12 @@ static int assign_guc_id(struct intel_guc *guc, struct intel_context *ce)
 static int pin_guc_id(struct intel_guc *guc, struct intel_context *ce)
 {
 	int ret = 0;
+#ifdef __linux__
 	unsigned long flags, tries = PIN_GUC_ID_TRIES;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+	unsigned long tries = PIN_GUC_ID_TRIES;
+#endif
 
 	GEM_BUG_ON(atomic_read(&ce->guc_id.ref));
 
@@ -2152,7 +2230,11 @@ out_unlock:
 
 static void unpin_guc_id(struct intel_guc *guc, struct intel_context *ce)
 {
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	GEM_BUG_ON(atomic_read(&ce->guc_id.ref) < 0);
 	GEM_BUG_ON(intel_context_is_child(ce));
@@ -2321,7 +2403,11 @@ static int register_context(struct intel_context *ce, bool loop)
 		ret = register_context_v69(guc, ce, loop);
 
 	if (likely(!ret)) {
+#ifdef __linux__
 		unsigned long flags;
+#elif defined(__FreeBSD__)
+		unsigned long flags = 0;
+#endif
 
 		spin_lock_irqsave(&ce->guc_state.lock, flags);
 		set_context_registered(ce);
@@ -2432,7 +2518,11 @@ static int guc_context_policy_init_v70(struct intel_context *ce, bool loop)
 	struct context_policy policy;
 	u32 execution_quantum;
 	u32 preemption_timeout;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	int ret;
 
 	/* NB: For both of these, zero means disabled. */
@@ -2650,7 +2740,11 @@ static int try_context_registration(struct intel_context *ce, bool loop)
 	 */
 	if (context_registered) {
 		bool disabled;
+#ifdef __linux__
 		unsigned long flags;
+#elif defined(__FreeBSD__)
+		unsigned long flags = 0;
+#endif
 
 		trace_intel_context_steal_guc_id(ce);
 		GEM_BUG_ON(!loop);
@@ -2820,7 +2914,11 @@ static u16 prep_context_pending_disable(struct intel_context *ce)
 static struct i915_sw_fence *guc_context_block(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	struct intel_runtime_pm *runtime_pm = ce->engine->uncore->rpm;
 	intel_wakeref_t wakeref;
 	u16 guc_id;
@@ -2876,7 +2974,11 @@ static bool context_cant_unblock(struct intel_context *ce)
 static void guc_context_unblock(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	struct intel_runtime_pm *runtime_pm = ce->engine->uncore->rpm;
 	intel_wakeref_t wakeref;
 	bool enable;
@@ -2958,7 +3060,11 @@ guc_context_revoke(struct intel_context *ce, struct i915_request *rq,
 	struct intel_runtime_pm *runtime_pm =
 		&ce->engine->gt->i915->runtime_pm;
 	intel_wakeref_t wakeref;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	GEM_BUG_ON(intel_context_is_child(ce));
 
@@ -3008,7 +3114,11 @@ guc_context_revoke(struct intel_context *ce, struct i915_request *rq,
 static void guc_context_sched_disable(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	struct intel_runtime_pm *runtime_pm = &ce->engine->gt->i915->runtime_pm;
 	intel_wakeref_t wakeref;
 	u16 guc_id;
@@ -3046,7 +3156,11 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 {
 	struct intel_guc *guc = ce_to_guc(ce);
 	struct intel_gt *gt = guc_to_gt(guc);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	bool disabled;
 
 	GEM_BUG_ON(!intel_gt_pm_is_awake(gt));
@@ -3099,7 +3213,11 @@ static void __guc_context_destroy(struct intel_context *ce)
 static void guc_flush_destroyed_contexts(struct intel_guc *guc)
 {
 	struct intel_context *ce;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	GEM_BUG_ON(!submission_disabled(guc) &&
 		   guc_submission_initialized(guc));
@@ -3124,7 +3242,11 @@ static void guc_flush_destroyed_contexts(struct intel_guc *guc)
 static void deregister_destroyed_contexts(struct intel_guc *guc)
 {
 	struct intel_context *ce;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	while (!list_empty(&guc->submission_state.destroyed_contexts)) {
 		spin_lock_irqsave(&guc->submission_state.lock, flags);
@@ -3157,7 +3279,11 @@ static void guc_context_destroy(struct kref *kref)
 {
 	struct intel_context *ce = container_of(kref, typeof(*ce), ref);
 	struct intel_guc *guc = ce_to_guc(ce);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	bool destroy;
 
 	/*
@@ -3411,7 +3537,11 @@ static void __guc_signal_context_fence(struct intel_context *ce)
 
 static void guc_signal_context_fence(struct intel_context *ce)
 {
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	GEM_BUG_ON(intel_context_is_child(ce));
 
@@ -3447,7 +3577,11 @@ static int guc_request_alloc(struct i915_request *rq)
 {
 	struct intel_context *ce = request_to_scheduling_context(rq);
 	struct intel_guc *guc = ce_to_guc(ce);
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	int ret;
 
 	GEM_BUG_ON(!intel_context_is_pinned(rq->context));
@@ -4330,7 +4464,11 @@ int intel_guc_sched_done_process_msg(struct intel_guc *guc,
 				     u32 len)
 {
 	struct intel_context *ce;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	u32 ctx_id;
 
 	if (unlikely(len < 2)) {
@@ -4445,7 +4583,11 @@ int intel_guc_context_reset_process_msg(struct intel_guc *guc,
 					const u32 *msg, u32 len)
 {
 	struct intel_context *ce;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 	int ctx_id;
 
 	if (unlikely(len != 1)) {
@@ -4513,7 +4655,11 @@ static void reset_fail_worker_func(struct work_struct *w)
 					     submission_state.reset_fail_worker);
 	struct intel_gt *gt = guc_to_gt(guc);
 	intel_engine_mask_t reset_fail_mask;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	spin_lock_irqsave(&guc->submission_state.lock, flags);
 	reset_fail_mask = guc->submission_state.reset_fail_mask;
@@ -4534,7 +4680,11 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 	struct intel_gt *gt = guc_to_gt(guc);
 	u8 guc_class, instance;
 	u32 reason;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	if (unlikely(len != 3)) {
 		drm_err(&gt->i915->drm, "Invalid length %u", len);
@@ -4578,7 +4728,11 @@ void intel_guc_find_hung_context(struct intel_engine_cs *engine)
 	struct intel_context *ce;
 	struct i915_request *rq;
 	unsigned long index;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	/* Reset called during driver load? GuC not yet initialised! */
 	if (unlikely(!guc_submission_initialized(guc)))
@@ -4628,7 +4782,11 @@ void intel_guc_dump_active_requests(struct intel_engine_cs *engine,
 	struct intel_guc *guc = &engine->gt->uc.guc;
 	struct intel_context *ce;
 	unsigned long index;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	/* Reset called during driver load? GuC not yet initialised! */
 	if (unlikely(!guc_submission_initialized(guc)))
@@ -4669,7 +4827,11 @@ void intel_guc_submission_print_info(struct intel_guc *guc,
 {
 	struct i915_sched_engine *sched_engine = guc->sched_engine;
 	struct rb_node *rb;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	if (!sched_engine)
 		return;
@@ -4733,7 +4895,11 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 {
 	struct intel_context *ce;
 	unsigned long index;
+#ifdef __linux__
 	unsigned long flags;
+#elif defined(__FreeBSD__)
+	unsigned long flags = 0;
+#endif
 
 	xa_lock_irqsave(&guc->context_lookup, flags);
 	xa_for_each(&guc->context_lookup, index, ce) {

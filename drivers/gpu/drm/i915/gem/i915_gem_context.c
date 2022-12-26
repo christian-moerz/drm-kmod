@@ -310,6 +310,58 @@ proto_close:
 	return err;
 }
 
+#ifdef BSDTNG
+/* FIXME LINUXKPI */
+
+/*
+ * xa_is_internal() - Is the entry an internal entry?
+ * @entry: XArray entry.
+ *
+ * Context: Any context.
+ * Return: %true if the entry is an internal entry.
+ */
+static inline bool xa_is_internal(const void *entry)
+{
+	return ((unsigned long)entry & 3) == 2;
+}
+
+/*
+ * xa_mk_internal() - Create an internal entry.
+ * @v: Value to turn into an internal entry.
+ *
+ * Internal entries are used for a number of purposes.  Entries 0-255 are
+ * used for sibling entries (only 0-62 are used by the current code).  256
+ * is used for the retry entry.  257 is used for the reserved / zero entry.
+ * Negative internal entries are used to represent errnos.  Node pointers
+ * are also tagged as internal entries in some situations.
+ *
+ * Context: Any context.
+ * Return: An XArray internal entry corresponding to this value.
+ */
+static inline void *xa_mk_internal(unsigned long v)
+{
+	return (void *)((v << 2) | 2);
+}
+
+
+/**
+ * xa_is_err() - Report whether an XArray operation returned an error
+ * @entry: Result from calling an XArray function
+ *
+ * If an XArray operation cannot complete an operation, it will return
+ * a special value indicating an error.  This function tells you
+ * whether an error occurred; xa_err() tells you which error occurred.
+ *
+ * Context: Any context.
+ * Return: %true if the entry indicates an error.
+ */
+static inline bool xa_is_err(const void *entry)
+{
+	return unlikely(xa_is_internal(entry) &&
+			entry >= xa_mk_internal(-MAX_ERRNO));
+}
+#endif /* BSDTNG */
+
 static int proto_context_register_locked(struct drm_i915_file_private *fpriv,
 					 struct i915_gem_proto_context *pc,
 					 u32 *id)

@@ -633,7 +633,9 @@ void drm_kms_helper_connector_hotplug_event(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 
 	/* send a uevent + call fbdev */
+#ifdef __linux__
 	drm_sysfs_connector_hotplug_event(connector);
+#endif
 	if (dev->mode_config.funcs->output_poll_changed)
 		dev->mode_config.funcs->output_poll_changed(dev);
 

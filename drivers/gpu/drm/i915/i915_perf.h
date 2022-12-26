@@ -18,11 +18,50 @@ struct i915_oa_config;
 struct intel_context;
 struct intel_engine_cs;
 
+#ifdef CONFIG_I915_PERF // Not yet. i915_perf.c opens a can of worms...
 void i915_perf_init(struct drm_i915_private *i915);
 void i915_perf_fini(struct drm_i915_private *i915);
 void i915_perf_register(struct drm_i915_private *i915);
 void i915_perf_unregister(struct drm_i915_private *i915);
 int i915_perf_ioctl_version(void);
+#else
+static inline void
+i915_perf_init(struct drm_i915_private *dev_priv)
+{
+
+	return;
+}
+
+static inline void
+i915_perf_fini(struct drm_i915_private *dev_priv)
+{
+
+	return;
+}
+
+static inline void
+i915_perf_register(struct drm_i915_private *dev_priv)
+{
+
+	return;
+}
+
+static inline void
+i915_perf_unregister(struct drm_i915_private *dev_priv)
+{
+
+	return;
+}
+
+static inline int i915_perf_ioctl_version(void)
+{
+	return 1;
+}
+
+#endif
+
+
+#if defined(CONFIG_I915_PERF)
 int i915_perf_sysctl_register(void);
 void i915_perf_sysctl_unregister(void);
 
@@ -35,9 +74,43 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 
 void i915_oa_init_reg_state(const struct intel_context *ce,
 			    const struct intel_engine_cs *engine);
+#else
+static inline int
+i915_perf_open_ioctl(struct drm_device *dev, void *data,
+    struct drm_file *file)
+{
 
+	return (0);
+}
+
+static inline int
+i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
+    struct drm_file *file)
+{
+
+	return (0);
+}
+
+static inline int
+i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
+    struct drm_file *file)
+{
+
+	return (0);
+}
+
+static inline void
+i915_oa_init_reg_state(const struct intel_context *ce,
+    const struct intel_engine_cs *engine)
+{
+
+	return;
+}
 struct i915_oa_config *
 i915_perf_get_oa_config(struct i915_perf *perf, int metrics_set);
+void i915_oa_config_release(struct kref *ref);
+
+#endif
 
 static inline struct i915_oa_config *
 i915_oa_config_get(struct i915_oa_config *oa_config)
@@ -48,8 +121,8 @@ i915_oa_config_get(struct i915_oa_config *oa_config)
 		return NULL;
 }
 
-void i915_oa_config_release(struct kref *ref);
-static inline void i915_oa_config_put(struct i915_oa_config *oa_config)
+static inline void
+i915_oa_config_put(struct i915_oa_config *oa_config)
 {
 	if (!oa_config)
 		return;

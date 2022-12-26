@@ -15,6 +15,18 @@
 #include "intel_engine_regs.h"
 #include "intel_gt.h"
 
+#if defined(__FreeBSD__)
+/*
+ * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+ *
+ * Dereferencing ZERO_SIZE_PTR will lead to a distinct access fault.
+ *
+ * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
+ * Both make kfree a no-op.
+ */
+#define ZERO_SIZE_PTR ((void *)16)
+#endif
+
 /* Write pde (index) from the page directory @pd to the page table @pt */
 static void gen6_write_pde(const struct gen6_ppgtt *ppgtt,
 			   const unsigned int pde,

@@ -121,7 +121,11 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 				.ident = "Google Lillipup sku524294",
 				.matches = {DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Google"),
 					    DMI_EXACT_MATCH(DMI_BOARD_NAME, "Lindar"),
+#ifdef __linux__
+/* FIXME BSD */
+/* FIXME LINUXKPI this should be easy to add in linuxkpi */
 					    DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "sku524294"),
+#endif				
 				},
 			},
 			{
@@ -129,7 +133,11 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 				.ident = "Google Lillipup sku524295",
 				.matches = {DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Google"),
 					    DMI_EXACT_MATCH(DMI_BOARD_NAME, "Lindar"),
+#ifdef __linux__
+/* FIXME BSD */
+/* FIXME LINUXKPI this should be easy to add in linuxkpi */
 					    DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "sku524295"),
+#endif
 				},
 			},
 			{ }

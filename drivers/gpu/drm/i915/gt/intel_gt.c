@@ -6,6 +6,10 @@
 #include <drm/drm_managed.h>
 #include <drm/intel-gtt.h>
 
+#if defined(__FreeBSD__)
+#include <asm/barrier.h>
+#endif
+
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "pxp/intel_pxp.h"
@@ -78,12 +82,14 @@ int intel_root_gt_init_early(struct drm_i915_private *i915)
 
 static int intel_gt_probe_lmem(struct intel_gt *gt)
 {
+#ifdef __notyet__
 	struct drm_i915_private *i915 = gt->i915;
 	unsigned int instance = gt->info.id;
 	int id = INTEL_REGION_LMEM_0 + instance;
 	struct intel_memory_region *mem;
 	int err;
 
+	/* FIXME BSD will require rework */
 	mem = intel_gt_setup_lmem(gt);
 	if (IS_ERR(mem)) {
 		err = PTR_ERR(mem);
@@ -106,6 +112,9 @@ static int intel_gt_probe_lmem(struct intel_gt *gt)
 	i915->mm.regions[id] = mem;
 
 	return 0;
+#else
+	return 0;
+#endif
 }
 
 int intel_gt_assign_ggtt(struct intel_gt *gt)
@@ -1081,6 +1090,26 @@ static bool tlb_seqno_passed(const struct intel_gt *gt, u32 seqno)
 	/* Only skip if a *full* TLB invalidate barrier has passed */
 	return (s32)(cur - ALIGN(seqno, 2)) > 0;
 }
+
+#ifdef BSDTNG
+/* FIXME BSD */
+/* FIXME LINUXKPI */
+
+/**
+ * write_seqcount_invalidate() - invalidate in-progress seqcount_t read
+ *                               side operations
+ * @s: Pointer to seqcount_t or any of the seqcount_LOCKNAME_t variants
+ *
+ * After write_seqcount_invalidate, no seqcount_t read side operations
+ * will complete successfully and see data older than this.
+ */
+static inline void write_seqcount_invalidate(seqcount_mutex_t *s)
+{
+	smp_wmb();
+	/* FIXME BSD cannot imagine this not breaking things? */
+	s->seqm_count.seqc += 2;
+}
+#endif
 
 void intel_gt_invalidate_tlb(struct intel_gt *gt, u32 seqno)
 {

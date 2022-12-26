@@ -103,10 +103,14 @@ static ssize_t i915_param_uint_write(struct file *file,
 				     const char __user *ubuf, size_t len,
 				     loff_t *offp)
 {
+#ifdef __linux__
 	struct drm_i915_private *i915;
+#endif	
 	struct seq_file *m = file->private_data;
 	unsigned int *value = m->private;
+#ifdef __linux__
 	unsigned int old = *value;
+#endif
 	int ret;
 
 	ret = kstrtouint_from_user(ubuf, len, 0, value);
@@ -119,6 +123,7 @@ static ssize_t i915_param_uint_write(struct file *file,
 			*value = b;
 	}
 
+#ifdef __linux__
 	if (!ret && MATCH_DEBUGFS_NODE_NAME(file, "reset")) {
 		GET_I915(i915, reset, value);
 
@@ -126,6 +131,7 @@ static ssize_t i915_param_uint_write(struct file *file,
 		if (ret)
 			*value = old;
 	}
+#endif
 
 	return ret ?: len;
 }

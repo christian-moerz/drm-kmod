@@ -32,6 +32,9 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_modes.h>
 
+#ifndef _DRM_DRM_CRTC_HELPER_INTERNAL_H_
+#define _DRM_DRM_CRTC_HELPER_INTERNAL_H_
+
 /* drm_dp_aux_dev.c */
 #ifdef CONFIG_DRM_DP_AUX_CHARDEV
 int drm_dp_aux_dev_init(void);
@@ -71,3 +74,5 @@ drm_connector_mode_valid(struct drm_connector *connector,
 
 struct drm_encoder *
 drm_connector_get_single_encoder(struct drm_connector *connector);
+
+#endif /* _DRM_DRM_CRTC_HELPER_INTERNAL_H_ */

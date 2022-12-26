@@ -10,6 +10,111 @@
 #include "intel_gt_regs.h"
 #include "intel_sseu.h"
 
+#if defined(__FreeBSD__)
+#ifdef BSDTNG
+/* FIXME LINUXKPI */
+#define small_const_nbits(nbits) \
+	(__builtin_constant_p(nbits) && (nbits) <= BITS_PER_LONG && (nbits) > 0)
+
+static bool __bitmap_intersects(const unsigned long *bitmap1,
+			 const unsigned long *bitmap2, unsigned int bits)
+{
+	unsigned int k, lim = bits/BITS_PER_LONG;
+	for (k = 0; k < lim; ++k)
+		if (bitmap1[k] & bitmap2[k])
+			return true;
+
+	if (bits % BITS_PER_LONG)
+		if ((bitmap1[k] & bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
+			return true;
+	return false;
+}
+
+/**
+ * __bitmap_shift_right - logical right shift of the bits in a bitmap
+ *   @dst : destination bitmap
+ *   @src : source bitmap
+ *   @shift : shift by this many bits
+ *   @nbits : bitmap size, in bits
+ *
+ * Shifting right (dividing) means moving bits in the MS -> LS bit
+ * direction.  Zeros are fed into the vacated MS positions and the
+ * LS bits shifted off the bottom are lost.
+ */
+static void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
+			unsigned shift, unsigned nbits)
+{
+	unsigned k, lim = BITS_TO_LONGS(nbits);
+	unsigned off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
+	unsigned long mask = BITMAP_LAST_WORD_MASK(nbits);
+	for (k = 0; off + k < lim; ++k) {
+		unsigned long upper, lower;
+
+		/*
+		 * If shift is not word aligned, take lower rem bits of
+		 * word above and make them the top rem bits of result.
+		 */
+		if (!rem || off + k + 1 >= lim)
+			upper = 0;
+		else {
+			upper = src[off + k + 1];
+			if (off + k + 1 == lim - 1)
+				upper &= mask;
+			upper <<= (BITS_PER_LONG - rem);
+		}
+		lower = src[off + k];
+		if (off + k == lim - 1)
+			lower &= mask;
+		lower >>= rem;
+		dst[k] = lower | upper;
+	}
+	if (off)
+		memset(&dst[lim - off], 0, off*sizeof(unsigned long));
+}
+
+/**
+ * bitmap_from_arr32 - copy the contents of u32 array of bits to bitmap
+ *	@bitmap: array of unsigned longs, the destination bitmap
+ *	@buf: array of u32 (in host byte order), the source bitmap
+ *	@nbits: number of bits in @bitmap
+ */
+static void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf, unsigned int nbits)
+{
+	unsigned int i, halfwords;
+
+	halfwords = DIV_ROUND_UP(nbits, 32);
+	for (i = 0; i < halfwords; i++) {
+		bitmap[i/2] = (unsigned long) buf[i];
+		if (++i < halfwords)
+			bitmap[i/2] |= ((unsigned long) buf[i]) << 32;
+	}
+
+	/* Clear tail bits in last word beyond nbits. */
+	if (nbits % BITS_PER_LONG)
+		bitmap[(halfwords - 1) / 2] &= BITMAP_LAST_WORD_MASK(nbits);
+}
+
+static inline bool bitmap_intersects(const unsigned long *src1,
+				     const unsigned long *src2,
+				     unsigned int nbits)
+{
+	if (small_const_nbits(nbits))
+		return ((*src1 & *src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
+	else
+		return __bitmap_intersects(src1, src2, nbits);
+}
+
+static inline void bitmap_shift_right(unsigned long *dst, const unsigned long *src,
+				unsigned int shift, unsigned int nbits)
+{
+	if (small_const_nbits(nbits))
+		*dst = (*src & BITMAP_LAST_WORD_MASK(nbits)) >> shift;
+	else
+		__bitmap_shift_right(dst, src, shift, nbits);
+}
+#endif /* BSDTNG */
+#endif
+
 void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
 			 u8 max_subslices, u8 max_eus_per_subslice)
 {
@@ -24,7 +129,7 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 	unsigned int i, total = 0;
 
 	if (sseu->has_xehp_dss)
-		return bitmap_weight(sseu->subslice_mask.xehp,
+		return bitmap_weight((unsigned long*) sseu->subslice_mask.xehp,
 				     XEHP_BITMAP_BITS(sseu->subslice_mask));
 
 	for (i = 0; i < ARRAY_SIZE(sseu->subslice_mask.hsw); i++)
@@ -865,10 +970,10 @@ void intel_sseu_print_ss_info(const char *type,
 
 	if (sseu->has_xehp_dss) {
 		seq_printf(m, "  %s Geometry DSS: %u\n", type,
-			   bitmap_weight(sseu->geometry_subslice_mask.xehp,
+			   bitmap_weight((unsigned long *) sseu->geometry_subslice_mask.xehp,
 					 XEHP_BITMAP_BITS(sseu->geometry_subslice_mask)));
 		seq_printf(m, "  %s Compute DSS: %u\n", type,
-			   bitmap_weight(sseu->compute_subslice_mask.xehp,
+			   bitmap_weight((unsigned long *) sseu->compute_subslice_mask.xehp,
 					 XEHP_BITMAP_BITS(sseu->compute_subslice_mask)));
 	} else {
 		for (s = 0; s < fls(sseu->slice_mask); s++)

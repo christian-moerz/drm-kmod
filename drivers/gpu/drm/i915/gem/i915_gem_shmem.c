@@ -100,7 +100,6 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 	 * Fail silently without starting the shrinker
 	 */
 #ifdef __FreeBSD__
-	mapping = obj->base.filp->f_shmem;
 	noreclaim = 0;
 #else
 	mapping_set_unevictable(mapping);
@@ -321,7 +320,7 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 
 void __shmem_writeback(size_t size, 
 #if defined(__FreeBSD__)
-	vm_object_t mapping;
+	vm_object_t mapping
 #else
 	struct address_space *mapping
 #endif
@@ -374,7 +373,11 @@ put:
 static void
 shmem_writeback(struct drm_i915_gem_object *obj)
 {
+#ifdef __linux__
 	__shmem_writeback(obj->base.size, obj->base.filp->f_mapping);
+#elif defined(__FreeBSD__)
+	__shmem_writeback(obj->base.size, obj->base.filp->f_shmem);
+#endif
 }
 
 static int shmem_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
@@ -431,7 +434,11 @@ void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj, struct sg_
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
+#ifdef __linux__
 	shmem_sg_free_table(pages, file_inode(obj->base.filp)->i_mapping,
+#elif defined(__FreeBSD__)	
+	shmem_sg_free_table(pages, obj->base.filp->f_shmem,
+#endif
 			    obj->mm.dirty, obj->mm.madv == I915_MADV_WILLNEED);
 	kfree(pages);
 	obj->mm.dirty = false;
@@ -454,8 +461,8 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	vm_object_t mapping = obj->base.filp->f_shmem;
 #else
 	struct address_space *mapping = obj->base.filp->f_mapping;
-#endif
 	const struct address_space_operations *aops = mapping->a_ops;
+#endif
 	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
 	u64 remain, offset;
 	unsigned int pg;
@@ -691,7 +698,9 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 {
 	struct drm_i915_gem_object *obj;
 	struct file *file;
+#ifdef __linux__
 	const struct address_space_operations *aops;
+#endif
 	resource_size_t offset;
 	int err;
 
@@ -703,7 +712,9 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 
 	file = obj->base.filp;
+#ifdef __linux__
 	aops = file->f_mapping->a_ops;
+#endif
 	offset = 0;
 	do {
 		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);

@@ -4,7 +4,9 @@
  */
 
 #include <linux/irq.h>
+#ifdef __linux__
 #include <linux/mei_aux.h>
+#endif
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "gem/i915_gem_region.h"

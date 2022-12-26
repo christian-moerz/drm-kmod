@@ -26,6 +26,12 @@
 #include "intel_gtt.h"
 #include "gen8_ppgtt.h"
 
+#if defined(__FreeBSD__)
+/* FIXME BSD */
+/* FIXME LINUXKPI - needs to go into linux/sizes.h */
+#define SZ_4M				0x00400000
+#endif
+
 static inline bool suspend_retains_ptes(struct i915_address_space *vm)
 {
 	return GRAPHICS_VER(vm->i915) >= 8 &&

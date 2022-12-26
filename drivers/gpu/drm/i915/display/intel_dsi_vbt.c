@@ -468,12 +468,10 @@ static void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
 	acpi_dev_free_resource_list(&resource_list);
 }
 #else
-#ifdef __linux__
 static inline void i2c_acpi_find_adapter(struct intel_dsi *intel_dsi,
 					 const u16 slave_addr)
 {
 }
-#endif
 #endif
 
 static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)

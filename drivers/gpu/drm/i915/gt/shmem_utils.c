@@ -148,7 +148,11 @@ int shmem_read_to_iosys_map(struct file *file, loff_t off,
 		struct page *page;
 		void *vaddr;
 
+#ifdef __linux__
 		page = shmem_read_mapping_page_gfp(file->f_mapping, pfn,
+#elif defined(__FreeBSD__)
+		page = shmem_read_mapping_page_gfp(file->f_shmem, pfn,
+#endif
 						   GFP_KERNEL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);

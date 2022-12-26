@@ -437,6 +437,7 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 
 #endif
 
+#ifdef __linux__
 static int
 probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 {
@@ -461,6 +462,7 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 		return -EFAULT;
 	return 0;
 }
+#endif /* __linux__ */
 
 /*
  * Creates a new mm object that wraps some normal memory from the process
@@ -545,6 +547,10 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			return -ENODEV;
 	}
 
+#ifdef __linux__
+	/* FIXME BSD */
+	/* might have to put this back in again later? */
+
 	if (args->flags & I915_USERPTR_PROBE) {
 		/*
 		 * Check that the range pointed to represents real struct
@@ -554,6 +560,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
+#endif
 
 #ifdef CONFIG_MMU_NOTIFIER
 	obj = i915_gem_object_alloc();

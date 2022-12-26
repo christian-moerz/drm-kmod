@@ -517,6 +517,7 @@ static void intel_fbdev_suspend_worker(struct work_struct *work)
 				true);
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 int intel_fbdev_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -547,6 +548,7 @@ int intel_fbdev_init(struct drm_device *dev)
 
 	return 0;
 }
+#endif
 
 #ifdef __linux__
 static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
@@ -560,6 +562,7 @@ static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 }
 #endif
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->display.fbdev.fbdev;
@@ -575,6 +578,7 @@ void intel_fbdev_initial_config_async(struct drm_device *dev)
 		intel_fbdev_unregister(to_i915(ifbdev->helper.dev));
 #endif
 }
+#endif
 
 static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
 {
@@ -588,6 +592,7 @@ static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
 #endif
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbdev *ifbdev = dev_priv->display.fbdev.fbdev;
@@ -604,7 +609,9 @@ void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
 
 	drm_fb_helper_unregister_fbi(&ifbdev->helper);
 }
+#endif
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void intel_fbdev_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbdev *ifbdev = fetch_and_zero(&dev_priv->display.fbdev.fbdev);
@@ -614,6 +621,7 @@ void intel_fbdev_fini(struct drm_i915_private *dev_priv)
 
 	intel_fbdev_destroy(ifbdev);
 }
+#endif
 
 /* Suspends/resumes fbdev processing of incoming HPD events. When resuming HPD
  * processing, fbdev will perform a full connector reprobe if a hotplug event
@@ -636,6 +644,7 @@ static void intel_fbdev_hpd_set_suspend(struct drm_i915_private *i915, int state
 	}
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -689,7 +698,9 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 set_suspend:
 	intel_fbdev_hpd_set_suspend(dev_priv, state);
 }
+#endif
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->display.fbdev.fbdev;
@@ -708,7 +719,9 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 	if (send_hpd && (ifbdev->vma || ifbdev->helper.deferred_setup))
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
+#endif
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 void intel_fbdev_restore_mode(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->display.fbdev.fbdev;
@@ -723,6 +736,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)
 		intel_fbdev_invalidate(ifbdev);
 }
+#endif
 
 struct intel_framebuffer *intel_fbdev_framebuffer(struct intel_fbdev *fbdev)
 {

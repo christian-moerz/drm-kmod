@@ -17,6 +17,63 @@
 #include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 
+#ifdef BSDTNG
+/* FIXME BSD */
+/* FIXME LINUXKPI */
+#define PCI_STD_NUM_BARS	6	/* Number of standard BARs */
+#define IORESOURCE_MEM_64	0x00100000
+#define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
+#define SZ_1G				0x40000000
+
+/* FIXME BSD */
+/* FIXME LINUXKPI */
+#define pci_bus_for_each_resource(bus, res, i)				\
+	for (i = 0;							\
+	    (res = pci_bus_resource_n(bus, i)) || i < PCI_BRIDGE_RESOURCE_NUM; \
+	     i++)
+
+/* For PCI devices, the region numbers are assigned this way: */
+enum {
+	/* #0-5: standard PCI resources */
+	PCI_STD_RESOURCES,
+	PCI_STD_RESOURCE_END = PCI_STD_RESOURCES + PCI_STD_NUM_BARS - 1,
+
+	/* #6: expansion ROM resource */
+	PCI_ROM_RESOURCE,
+
+	/* Device-specific resources */
+#ifdef CONFIG_PCI_IOV
+	PCI_IOV_RESOURCES,
+	PCI_IOV_RESOURCE_END = PCI_IOV_RESOURCES + PCI_SRIOV_NUM_BARS - 1,
+#endif
+
+/* PCI-to-PCI (P2P) bridge windows */
+#define PCI_BRIDGE_IO_WINDOW		(PCI_BRIDGE_RESOURCES + 0)
+#define PCI_BRIDGE_MEM_WINDOW		(PCI_BRIDGE_RESOURCES + 1)
+#define PCI_BRIDGE_PREF_MEM_WINDOW	(PCI_BRIDGE_RESOURCES + 2)
+
+/* CardBus bridge windows */
+#define PCI_CB_BRIDGE_IO_0_WINDOW	(PCI_BRIDGE_RESOURCES + 0)
+#define PCI_CB_BRIDGE_IO_1_WINDOW	(PCI_BRIDGE_RESOURCES + 1)
+#define PCI_CB_BRIDGE_MEM_0_WINDOW	(PCI_BRIDGE_RESOURCES + 2)
+#define PCI_CB_BRIDGE_MEM_1_WINDOW	(PCI_BRIDGE_RESOURCES + 3)
+
+/* Total number of bridge resources for P2P and CardBus */
+#define PCI_BRIDGE_RESOURCE_NUM 4
+
+	/* Resources assigned to buses behind the bridge */
+	PCI_BRIDGE_RESOURCES,
+	PCI_BRIDGE_RESOURCE_END = PCI_BRIDGE_RESOURCES +
+				  PCI_BRIDGE_RESOURCE_NUM - 1,
+
+	/* Total resources associated with a PCI device */
+	PCI_NUM_RESOURCES,
+
+	/* Preserve this for compatibility */
+	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
+};
+#endif /* BSDTNG */
+
 #ifdef CONFIG_64BIT
 static void _release_bars(struct pci_dev *pdev)
 {

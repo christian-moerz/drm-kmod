@@ -37,6 +37,15 @@
 
 #include <drm/drm_cache.h>
 
+#ifdef BSDTNG
+#include <asm/fpu/api.h>
+#include <linux/preempt.h>
+#include <linux/jump_label.h>
+
+/* A small bounce buffer that fits on the stack. */
+#define MEMCPY_BOUNCE_SIZE 128
+#endif
+
 #if defined(CONFIG_X86)
 #include <asm/smp.h>
 
@@ -260,6 +269,45 @@ static void memcpy_fallback(struct iosys_map *dst,
 		}
 	}
 }
+
+#ifdef BSDTNG
+#ifdef CONFIG_X86
+
+/* FIXME LINUXKPI */
+#define JUMP_TYPE_FALSE		0UL
+
+static DEFINE_STATIC_KEY_FALSE(has_movntdqa);
+
+static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
+{
+	kernel_fpu_begin();
+
+	while (len >= 4) {
+		asm("movntdqa	(%0), %%xmm0\n"
+		    "movntdqa 16(%0), %%xmm1\n"
+		    "movntdqa 32(%0), %%xmm2\n"
+		    "movntdqa 48(%0), %%xmm3\n"
+		    "movaps %%xmm0,   (%1)\n"
+		    "movaps %%xmm1, 16(%1)\n"
+		    "movaps %%xmm2, 32(%1)\n"
+		    "movaps %%xmm3, 48(%1)\n"
+		    :: "r" (src), "r" (dst) : "memory");
+		src += 64;
+		dst += 64;
+		len -= 4;
+	}
+	while (len--) {
+		asm("movntdqa (%0), %%xmm0\n"
+		    "movaps %%xmm0, (%1)\n"
+		    :: "r" (src), "r" (dst) : "memory");
+		src += 16;
+		dst += 16;
+	}
+
+	kernel_fpu_end();
+}
+#endif
+#endif /* BSDTNG */
 
 /*
  * __drm_memcpy_from_wc copies @len bytes from @src to @dst using

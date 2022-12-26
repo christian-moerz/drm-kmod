@@ -27,8 +27,15 @@
 #include <linux/i2c.h>
 #include <linux/types.h>
 #include <drm/drm_connector.h>
+#ifdef BSDTNG
+#include <drm/drm_panel.h>
+#endif
 
 struct drm_device;
+#ifdef BSDTNG
+struct drm_dp_aux;
+struct drm_panel;
+#endif
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -238,6 +245,9 @@ struct drm_device;
 
 #define DP_DSC_SUPPORT                      0x060   /* DP 1.4 */
 # define DP_DSC_DECOMPRESSION_IS_SUPPORTED  (1 << 0)
+#ifdef BSDTNG
+# define DP_DSC_PASSTHROUGH_IS_SUPPORTED    (1 << 1)
+#endif
 
 #define DP_DSC_REV                          0x061
 # define DP_DSC_MAJOR_MASK                  (0xf << 0)
@@ -545,6 +555,9 @@ struct drm_device;
 # define DP_TRAINING_PATTERN_DISABLE	    0
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
+#ifdef BSDTNG
+# define DP_TRAINING_PATTERN_2_CDS	    3	    /* 2.0 E11 */
+#endif
 # define DP_TRAINING_PATTERN_3		    3	    /* 1.2 */
 # define DP_TRAINING_PATTERN_4              7       /* 1.4 */
 # define DP_TRAINING_PATTERN_MASK	    0x3
@@ -599,6 +612,9 @@ struct drm_device;
 
 #define DP_MAIN_LINK_CHANNEL_CODING_SET	    0x108
 # define DP_SET_ANSI_8B10B		    (1 << 0)
+#ifdef BSDTNG
+# define DP_SET_ANSI_128B132B               (1 << 1)
+#endif
 
 #define DP_I2C_SPEED_CONTROL_STATUS	    0x109   /* DPI */
 /* bitmask as for DP_I2C_SPEED_CAP */
@@ -675,6 +691,9 @@ struct drm_device;
 # define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
 # define DP_PSR_CRC_VERIFICATION	    (1 << 2)
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
+#ifdef BSDTNG
+# define DP_PSR_SU_REGION_SCANLINE_CAPTURE	BIT(4) /* eDP 1.4a */
+#endif
 # define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
 # define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
 # define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
@@ -714,12 +733,26 @@ struct drm_device;
 			    DP_LANE_SYMBOL_LOCKED)
 
 #define DP_LANE_ALIGN_STATUS_UPDATED	    0x204
+#ifdef BSDTNG
+#define  DP_INTERLANE_ALIGN_DONE                        (1 << 0)
+#define  DP_128B132B_DPRX_EQ_INTERLANE_ALIGN_DONE       (1 << 2) /* 2.0 E11 */
+#define  DP_128B132B_DPRX_CDS_INTERLANE_ALIGN_DONE      (1 << 3) /* 2.0 E11 */
+#define  DP_128B132B_LT_FAILED                          (1 << 4) /* 2.0 E11 */
+#define  DP_DOWNSTREAM_PORT_STATUS_CHANGED              (1 << 6)
+#define  DP_LINK_STATUS_UPDATED                         (1 << 7)
+#endif
 
 #define DP_INTERLANE_ALIGN_DONE		    (1 << 0)
 #define DP_DOWNSTREAM_PORT_STATUS_CHANGED   (1 << 6)
 #define DP_LINK_STATUS_UPDATED		    (1 << 7)
 
 #define DP_SINK_STATUS			    0x205
+#ifdef BSDTNG
+# define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
+# define DP_RECEIVE_PORT_1_STATUS	    (1 << 1)
+# define DP_STREAM_REGENERATION_STATUS      (1 << 2) /* 2.0 */
+# define DP_INTRA_HOP_AUX_REPLY_INDICATION	(1 << 3) /* 2.0 */
+#endif
 
 #define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
 #define DP_RECEIVE_PORT_1_STATUS	    (1 << 1)
@@ -734,6 +767,14 @@ struct drm_device;
 # define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
+
+#ifdef BSDTNG
+/* DP 2.0 128b/132b Link Layer */
+# define DP_ADJUST_TX_FFE_PRESET_LANE0_MASK  (0xf << 0)
+# define DP_ADJUST_TX_FFE_PRESET_LANE0_SHIFT 0
+# define DP_ADJUST_TX_FFE_PRESET_LANE1_MASK  (0xf << 4)
+# define DP_ADJUST_TX_FFE_PRESET_LANE1_SHIFT 4
+#endif
 
 #define DP_ADJUST_REQUEST_POST_CURSOR2      0x20c
 # define DP_ADJUST_POST_CURSOR2_LANE0_MASK  0x03
@@ -1364,6 +1405,13 @@ enum drm_dp_phy {
 # define DP_VOLTAGE_SWING_LEVEL_3_SUPPORTED		    BIT(0)
 # define DP_PRE_EMPHASIS_LEVEL_3_SUPPORTED		    BIT(1)
 
+#ifdef BSDTNG
+#define DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1  0xf0022 /* 2.0 */
+#define DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy)	\
+	DP_LTTPR_REG(dp_phy, DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1)
+/* see DP_128B132B_TRAINING_AUX_RD_INTERVAL for values */
+#endif
+
 #define DP_LANE0_1_STATUS_PHY_REPEATER1			    0xf0030 /* 1.3 */
 #define DP_LANE0_1_STATUS_PHY_REPEATER(dp_phy) \
 	DP_LTTPR_REG(dp_phy, DP_LANE0_1_STATUS_PHY_REPEATER1)
@@ -1475,9 +1523,22 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
 					 unsigned int lane);
 
+#define DP_BRANCH_OUI_HEADER_SIZE	0xc
+#define DP_RECEIVER_CAP_SIZE		0xf
+#define DP_DSC_RECEIVER_CAP_SIZE        0xf
+#define EDP_PSR_RECEIVER_CAP_SIZE	2
+#define EDP_DISPLAY_CTL_CAP_SIZE	3
+#define DP_LTTPR_COMMON_CAP_SIZE	8
+#define DP_LTTPR_PHY_CAP_SIZE		3
+
 #ifdef BSDTNG
 u8 drm_dp_get_adjust_tx_ffe_preset(const u8 link_status[DP_LINK_STATUS_SIZE],
 				   int lane);
+
+int drm_dp_read_clock_recovery_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     enum drm_dp_phy dp_phy, bool uhbr);
+int drm_dp_read_channel_eq_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				 enum drm_dp_phy dp_phy, bool uhbr);
 
 bool drm_dp_128b132b_lane_channel_eq_done(const u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane_count);
@@ -1488,21 +1549,21 @@ bool drm_dp_128b132b_cds_interlane_align_done(const u8 link_status[DP_LINK_STATU
 bool drm_dp_128b132b_link_training_failed(const u8 link_status[DP_LINK_STATUS_SIZE]);
 #endif
 
-#define DP_BRANCH_OUI_HEADER_SIZE	0xc
-#define DP_RECEIVER_CAP_SIZE		0xf
-#define DP_DSC_RECEIVER_CAP_SIZE        0xf
-#define EDP_PSR_RECEIVER_CAP_SIZE	2
-#define EDP_DISPLAY_CTL_CAP_SIZE	3
-#define DP_LTTPR_COMMON_CAP_SIZE	8
-#define DP_LTTPR_PHY_CAP_SIZE		3
-
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 void drm_dp_lttpr_link_train_clock_recovery_delay(void);
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 void drm_dp_lttpr_link_train_channel_eq_delay(const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 
+#ifdef BSDTNG
+int drm_dp_128b132b_read_aux_rd_interval(struct drm_dp_aux *aux);
+#endif
+
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
+
+#ifdef BSDTNG
+const char *drm_dp_phy_name(enum drm_dp_phy dp_phy);
+#endif
 
 #define DP_SDP_AUDIO_TIMESTAMP		0x01
 #define DP_SDP_AUDIO_STREAM		0x02
@@ -1811,6 +1872,25 @@ drm_dp_sink_can_do_video_without_timing_msa(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		DP_MSA_TIMING_PAR_IGNORED;
 }
 
+#ifdef BSDTNG
+/**
+ * drm_edp_backlight_supported() - Check an eDP DPCD for VESA backlight support
+ * @edp_dpcd: The DPCD to check
+ *
+ * Note that currently this function will return %false for panels which support various DPCD
+ * backlight features but which require the brightness be set through PWM, and don't support setting
+ * the brightness level via the DPCD.
+ *
+ * Returns: %True if @edp_dpcd indicates that VESA backlight controls are supported, %false
+ * otherwise
+ */
+static inline bool
+drm_edp_backlight_supported(const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE])
+{
+	return !!(edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP);
+}
+#endif
+
 /*
  * DisplayPort AUX channel
  */
@@ -1931,6 +2011,9 @@ struct drm_dp_aux {
 	bool is_remote;
 };
 
+#ifdef BSDTNG
+int drm_dp_dpcd_probe(struct drm_dp_aux *aux, unsigned int offset);
+#endif
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
@@ -2026,8 +2109,14 @@ bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
 int drm_dp_read_sink_count(struct drm_dp_aux *aux);
 
 int drm_dp_read_lttpr_common_caps(struct drm_dp_aux *aux,
+#ifdef BSDTNG
+				  const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+#endif
 				  u8 caps[DP_LTTPR_COMMON_CAP_SIZE]);
 int drm_dp_read_lttpr_phy_caps(struct drm_dp_aux *aux,
+#ifdef BSDTNG
+			       const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+#endif
 			       enum drm_dp_phy dp_phy,
 			       u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 int drm_dp_lttpr_count(const u8 cap[DP_LTTPR_COMMON_CAP_SIZE]);
@@ -2147,6 +2236,36 @@ struct drm_edp_backlight_info {
 	bool aux_set : 1;
 };
 #endif
+
+#ifdef BSDTNG
+int
+drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
+		       u16 driver_pwm_freq_hz, const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE],
+		       u16 *current_level, u8 *current_mode);
+int drm_edp_backlight_set_level(struct drm_dp_aux *aux, const struct drm_edp_backlight_info *bl,
+				u16 level);
+int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backlight_info *bl,
+			     u16 level);
+int drm_edp_backlight_disable(struct drm_dp_aux *aux, const struct drm_edp_backlight_info *bl);
+
+#if IS_ENABLED(CONFIG_DRM_KMS_HELPER) && (IS_BUILTIN(CONFIG_BACKLIGHT_CLASS_DEVICE) || \
+	(IS_MODULE(CONFIG_DRM_KMS_HELPER) && IS_MODULE(CONFIG_BACKLIGHT_CLASS_DEVICE)))
+
+int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux);
+
+#else
+
+static inline int drm_panel_dp_aux_backlight(struct drm_panel *panel,
+					     struct drm_dp_aux *aux)
+{
+	return 0;
+}
+
+#endif /* IS_ENABLED(CONFIG_DRM_KMS_HELPER) && 
+			(IS_BUILTIN(CONFIG_BACKLIGHT_CLASS_DEVICE) || \
+			(IS_MODULE(CONFIG_DRM_KMS_HELPER) && 
+			IS_MODULE(CONFIG_BACKLIGHT_CLASS_DEVICE))) */
+#endif /* BSDTNG */
 
 #ifdef CONFIG_DRM_DP_CEC
 void drm_dp_cec_irq(struct drm_dp_aux *aux);

@@ -526,7 +526,18 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 	ewma__engine_latency_init(&engine->latency);
 	seqcount_init(&engine->stats.execlists.lock);
 
+#ifdef __linux__
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
+#elif defined(__FreeBSD__)
+#ifdef CONFIG_DRM_I915_GVT
+	/* FIXME BSD */
+	/* FIXME LINUXKPI should be in linuxkpi */
+	do {
+		spin_lock_init(&(&engine->context_status_notifier)->lock);
+		(&engine->context_status_notifier)->head = NULL;
+	} while (0)
+#endif /* CONFIG_DRM_I915_GVT */
+#endif /* __FreeBSD__ */
 
 	/* Scrub mmio state on takeover */
 	intel_engine_sanitize_mmio(engine);

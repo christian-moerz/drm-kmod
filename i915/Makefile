@@ -20,8 +20,6 @@ SRCS=	\
 	i915_gem_gtt.c \
 	i915_gem_ww.c \
 	i915_getparam.c \
-	i915_gpu_error.c \
-	i915_ioc32.c \
 	i915_ioctl.c \
 	i915_irq.c \
 	i915_memcpy.c \
@@ -125,7 +123,6 @@ SRCS+=	\
 	intel_fb.c \
 	intel_fb_pin.c \
 	intel_fbc.c \
-	intel_fbdev.c \
 	intel_fdi.c \
 	intel_fifo_underrun.c \
 	intel_frontbuffer.c \
@@ -134,7 +131,6 @@ SRCS+=	\
 	intel_hdcp.c \
 	intel_hdmi.c \
 	intel_hotplug.c \
-	intel_lpe_audio.c \
 	intel_lspcon.c \
 	intel_lvds.c \
 	intel_modeset_setup.c \
@@ -144,7 +140,6 @@ SRCS+=	\
 	intel_panel.c \
 	intel_pch_display.c \
 	intel_pch_refclk.c \
-	intel_pipe_crc.c \
 	intel_plane_initial.c \
 	intel_pps.c \
 	intel_psr.c \
@@ -176,7 +171,6 @@ gen2_engine_cs.c \
 	gen8_ppgtt.c \
 	gen8_renderstate.c \
 	gen9_renderstate.c \
-	hsw_clear_kernel.c \
 	intel_breadcrumbs.c \
 	intel_context.c \
 	intel_context_sseu.c \
@@ -188,7 +182,6 @@ gen2_engine_cs.c \
 	intel_ggtt.c \
 	intel_ggtt_fencing.c \
 	intel_ggtt_gmch.c \
-	intel_gsc.c \
 	intel_gt.c \
 	intel_gt_buffer_pool.c \
 	intel_gt_clock_utils.c \
@@ -197,8 +190,6 @@ gen2_engine_cs.c \
 	intel_gt_pm.c \
 	intel_gt_pm_irq.c \
 	intel_gt_requests.c \
-	intel_gt_sysfs.c \
-	intel_gt_sysfs_pm.c \
 	intel_gtt.c \
 	intel_llc.c \
 	intel_lrc.c \
@@ -206,7 +197,6 @@ gen2_engine_cs.c \
 	intel_mocs.c \
 	intel_ppgtt.c \
 	intel_rc6.c \
-	intel_region_lmem.c \
 	intel_renderstate.c \
 	intel_reset.c \
 	intel_ring.c \
@@ -216,10 +206,7 @@ gen2_engine_cs.c \
 	intel_sseu.c \
 	intel_timeline.c \
 	intel_workarounds.c \
-	ivb_clear_kernel.c \
-	mock_engine.c \
 	shmem_utils.c \
-	st_shmem_utils.c \
 	sysfs_engines.c
 
 # gt/uc*
@@ -269,13 +256,13 @@ SRCS+= \
 	i915_gemfs.c
 
 # pxp/*
-SRCS+=	\
-	intel_pxp.c \
-	intel_pxp_cmd.c \
-	intel_pxp_irq.c \
-	intel_pxp_pm.c \
-	intel_pxp_session.c \
-	intel_pxp_tee.c
+#SRCS+=	\
+#	intel_pxp.c \
+#	intel_pxp_cmd.c \
+#	intel_pxp_irq.c \
+#	intel_pxp_pm.c \
+#	intel_pxp_session.c \
+#	intel_pxp_tee.c
 
 .if !empty(KCONFIG:MCOMPAT)
 SRCS+=	i915_ioc32.c
@@ -283,7 +270,6 @@ SRCS+=	i915_ioc32.c
 
 .if !empty(KCONFIG:MDEBUG_FS)
 SRCS+=	intel_gt_engines_debugfs.c \
-	intel_pxp_debugfs.c \
 	i915_debugfs.c \
 	i915_debugfs_params.c \
 	intel_display_debugfs.c \
@@ -297,6 +283,9 @@ SRCS+=	intel_gt_engines_debugfs.c \
 	intel_uc_debugfs.c
 .endif
 
+# pxp later
+#	intel_pxp_debugfs.c \
+
 .if !empty(KCONFIG:MDRM_FBDEV_EMULATION)
 SRCS+=	intel_fbdev.c
 .endif
@@ -307,6 +296,15 @@ SRCS+=	i915_gpu_error.c
 
 # i915_perf.c         # This one opens a can of worms. Hold off for now.
 # intel_lpe_audio.c   # Need platform and irq_chip support
+# hsw_clear_kernel.c  # not used?
+# intel_gsc.c		  # auxiliary is another can of worms
+# intel_gt_sysfs.c    # please, oh my lawd, no sysfs!
+# intel_gt_sysfs_pm.c
+# intel_region_lmem.c # will require some rework first
+# ivb_clear_kernel.c  # not sure why that's even there
+# mock_engine.c 
+# st_shmem_utils.c	  # testing only
+
 
 CLEANFILES+= ${KMOD}.ko.full ${KMOD}.ko.debug
 

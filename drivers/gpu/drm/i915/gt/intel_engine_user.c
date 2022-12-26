@@ -50,8 +50,13 @@ static const u8 uabi_classes[] = {
 	[COMPUTE_CLASS] = I915_ENGINE_CLASS_COMPUTE,
 };
 
+#ifdef __linux__
 static int engine_cmp(void *priv, const struct list_head *A,
 		      const struct list_head *B)
+#elif defined(__FreeBSD__)
+static int engine_cmp(void *priv, struct list_head *A,
+		      struct list_head *B)
+#endif
 {
 	const struct intel_engine_cs *a =
 		container_of((struct rb_node *)A, typeof(*a), uabi_node);

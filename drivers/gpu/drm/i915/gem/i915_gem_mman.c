@@ -97,8 +97,10 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & ~(I915_MMAP_WC))
 		return -EINVAL;
 
+#ifdef __linux__
 	if (args->flags & I915_MMAP_WC && !pat_enabled())
 		return -ENODEV;
+#endif
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
@@ -850,8 +852,10 @@ i915_gem_dumb_mmap_offset(struct drm_file *file,
 
 	if (HAS_LMEM(to_i915(dev)))
 		mmap_type = I915_MMAP_TYPE_FIXED;
+#ifdef __linux__
 	else if (pat_enabled())
 		mmap_type = I915_MMAP_TYPE_WC;
+#endif
 	else if (!i915_ggtt_has_aperture(to_gt(i915)->ggtt))
 		return -ENODEV;
 	else
@@ -906,8 +910,10 @@ i915_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 		break;
 
 	case I915_MMAP_OFFSET_WC:
+#ifdef __linux__	
 		if (!pat_enabled())
 			return -ENODEV;
+#endif
 		type = I915_MMAP_TYPE_WC;
 		break;
 
@@ -916,8 +922,10 @@ i915_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 		break;
 
 	case I915_MMAP_OFFSET_UC:
+#ifdef __linux__
 		if (!pat_enabled())
 			return -ENODEV;
+#endif
 		type = I915_MMAP_TYPE_UC;
 		break;
 

@@ -1544,7 +1544,11 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 	for (i = 0; i < num_planes; i++) {
 		struct fb_plane_view_dims view_dims;
 		unsigned int width, height;
+#if defined(__FreeBSD__)
+		unsigned int size;
+#else
 		unsigned int cpp, size;
+#endif		
 		u32 offset;
 		int x, y;
 		int ret;
@@ -1561,7 +1565,9 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 				return -EINVAL;
 		}
 
+#if !defined(__FreeBSD__)
 		cpp = fb->base.format->cpp[i];
+#endif
 		intel_fb_plane_dims(fb, i, &width, &height);
 
 		ret = convert_plane_offset_to_xy(fb, i, width, &x, &y);

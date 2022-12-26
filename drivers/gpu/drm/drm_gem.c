@@ -40,6 +40,8 @@
 #include <linux/mem_encrypt.h>
 #ifdef __linux__
 #include <linux/pagevec.h>
+#elif defined(__FreeBSD__)
+#include <linux/dma-resv.h>
 #endif
 
 #include <drm/drm.h>
@@ -1369,6 +1371,7 @@ int drm_gem_fence_array_add(struct xarray *fence_array,
 }
 EXPORT_SYMBOL(drm_gem_fence_array_add);
 
+#ifndef BSDTNG
 /**
  * drm_gem_fence_array_add_implicit - Adds the implicit dependencies tracked
  * in the GEM object's reservation object to an array of dma_fences for use in
@@ -1415,3 +1418,4 @@ int drm_gem_fence_array_add_implicit(struct xarray *fence_array,
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_fence_array_add_implicit);
+#endif

@@ -16,6 +16,17 @@
 #include "i915_drv.h"
 #include "i915_irq.h"
 
+#if defined(__FreeBSD__)
+#ifdef BSDTNG
+#include <linux/types.h>
+#include <linux/errno.h>
+
+#ifndef ENOKEY
+#define ENOKEY            126
+#endif
+#endif /* BSDTNG */
+#endif
+
 /**
  * DOC: GuC
  *

@@ -527,7 +527,8 @@ dma_resv_get_excl_rcu(struct dma_resv *obj)
 
 	return fence;
 }
-#endif /* BSDTNG */
+#endif /* !BSDTNG */
+
 
 void dma_resv_init(struct dma_resv *obj);
 void dma_resv_fini(struct dma_resv *obj);

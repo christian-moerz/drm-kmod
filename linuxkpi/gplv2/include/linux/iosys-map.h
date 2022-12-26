@@ -9,6 +9,9 @@
 #ifdef __linux__
 #include <linux/compiler_types.h>
 #endif
+#if defined(__FreeBSD__)
+#include <linux/dma-buf-map.h>
+#endif
 #include <linux/io.h>
 #include <linux/string.h>
 
@@ -112,13 +115,16 @@
  * @is_iomem:		True if the buffer is located in I/O memory, or false
  *			otherwise.
  */
-struct iosys_map {
+#ifdef BSDTNG
+#define iosys_map dma_buf_map
+#endif
+/* struct iosys_map {
 	union {
 		void __iomem *vaddr_iomem;
 		void *vaddr;
 	};
 	bool is_iomem;
-};
+}; */
 
 /**
  * IOSYS_MAP_INIT_VADDR - Initializes struct iosys_map to an address in system memory

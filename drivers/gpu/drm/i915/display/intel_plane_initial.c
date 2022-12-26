@@ -64,7 +64,11 @@ initial_plane_vma(struct drm_i915_private *i915,
 
 		gte += base / I915_GTT_PAGE_SIZE;
 
+#ifdef __linux__
 		pte = ioread64(gte);
+#elif defined(__FreeBSD__)
+		__ioread64_copy(&pte, gte, sizeof(gen8_pte_t));
+#endif
 		if (!(pte & GEN12_GGTT_PTE_LM)) {
 			drm_err(&i915->drm,
 				"Initial plane programming missing PTE_LM bit\n");

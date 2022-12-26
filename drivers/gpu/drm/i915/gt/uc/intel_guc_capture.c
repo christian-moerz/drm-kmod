@@ -286,7 +286,9 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 	const struct __guc_mmio_reg_descr_group *list;
 	struct __guc_mmio_reg_descr_group *extlists;
 	struct __guc_mmio_reg_descr *extarray;
+#ifdef __linux__
 	struct sseu_dev_info *sseu;
+#endif
 
 	/* In XE_LPD we only have steered registers for the render-class */
 	list = guc_capture_get_one_list(lists, GUC_CAPTURE_LIST_INDEX_PF,
@@ -297,7 +299,9 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 
 	num_steer_regs = ARRAY_SIZE(xe_extregs);
 
+#ifdef __linux__
 	sseu = &gt->info.sseu;
+#endif
 	for_each_ss_steering(iter, gt, slice, subslice)
 		num_tot_regs += num_steer_regs;
 
@@ -341,7 +345,9 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+#ifdef __linux__
 	struct sseu_dev_info *sseu;
+#endif
 	int slice, subslice, i, iter, num_steer_regs, num_tot_regs = 0;
 	const struct __guc_mmio_reg_descr_group *list;
 	struct __guc_mmio_reg_descr_group *extlists;
@@ -358,7 +364,9 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 	if (__has_xehpg_extregs(ipver))
 		num_steer_regs += ARRAY_SIZE(xehpg_extregs);
 
+#ifdef __linux__
 	sseu = &gt->info.sseu;
+#endif
 	for_each_ss_steering(iter, gt, slice, subslice)
 		num_tot_regs += num_steer_regs;
 

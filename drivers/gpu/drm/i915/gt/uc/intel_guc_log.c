@@ -368,7 +368,11 @@ unsigned int intel_guc_get_log_buffer_size(struct intel_guc_log *log,
 	case GUC_CAPTURE_LOG_BUFFER:
 		return intel_guc_log_section_size_capture(log);
 	default:
+#ifdef __linux__
 		MISSING_CASE(type);
+#elif defined(__FreeBSD__)
+		DRM_WARN("intel_guc_get_log_buffer_size unknown type");
+#endif
 	}
 
 	return 0;

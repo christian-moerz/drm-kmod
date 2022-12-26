@@ -2373,7 +2373,11 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe;
+#ifdef __linux__
 	u32 val, base, offset, stride_mult, tiling, alpha;
+#elif defined(__FreeBSD__)
+	u32 val, base, stride_mult, tiling, alpha;
+#endif	
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
@@ -2498,7 +2502,11 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & PLANE_SURF_ADDR_MASK;
 	plane_config->base = base;
 
+#ifdef __linux__
 	offset = intel_de_read(dev_priv, PLANE_OFFSET(pipe, plane_id));
+#elif defined(__FreeBSD__)
+	intel_de_read(dev_priv, PLANE_OFFSET(pipe, plane_id));
+#endif
 
 	val = intel_de_read(dev_priv, PLANE_SIZE(pipe, plane_id));
 	fb->height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;

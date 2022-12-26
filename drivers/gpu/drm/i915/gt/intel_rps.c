@@ -350,11 +350,9 @@ static unsigned long ips_mch_val(struct intel_uncore *uncore)
 	u32 tsfs;
 
 	tsfs = intel_uncore_read(uncore, TSFS);
-#ifdef __linux__
+#undef TR1
+#define TR1					_MMIO(MCHBAR_MIRROR_BASE + 0x1006)
 	x = intel_uncore_read8(uncore, TR1);
-#elif defined(__FreeBSD__)
-	x = intel_uncore_read8(uncore, I915_TR1);
-#endif
 
 	b = tsfs & TSFS_INTR_MASK;
 	m = (tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT;

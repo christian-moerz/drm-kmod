@@ -751,4 +751,248 @@ struct psr_caps {
 	bool psr_exit_link_training_required;
 };
 
+#ifdef BSDTNG
+/* Length of router topology ID read from DPCD in bytes. */
+#define DPCD_USB4_TOPOLOGY_ID_LEN 5
+
+/* DPCD[0xE000D] DP_TUNNELING_CAPABILITIES SUPPORT register. */
+union dp_tun_cap_support {
+	struct {
+		uint8_t dp_tunneling :1;
+		uint8_t rsvd :5;
+		uint8_t panel_replay_tun_opt :1;
+		uint8_t dpia_bw_alloc :1;
+	} bits;
+	uint8_t raw;
+};
+
+/* DPCD[0xE000E] DP_IN_ADAPTER_INFO register. */
+union dpia_info {
+	struct {
+		uint8_t dpia_num :5;
+		uint8_t rsvd :3;
+	} bits;
+	uint8_t raw;
+};
+
+/* DP Tunneling over USB4 */
+struct dpcd_usb4_dp_tunneling_info {
+	union dp_tun_cap_support dp_tun_cap;
+	union dpia_info dpia_info;
+	uint8_t usb4_driver_id;
+	uint8_t usb4_topology_id[DPCD_USB4_TOPOLOGY_ID_LEN];
+};
+
+#ifndef DP_MAIN_LINK_CHANNEL_CODING_CAP
+#define DP_MAIN_LINK_CHANNEL_CODING_CAP			0x006
+#endif
+#ifndef DP_SINK_VIDEO_FALLBACK_FORMATS
+#define DP_SINK_VIDEO_FALLBACK_FORMATS			0x020
+#endif
+#ifndef DP_FEC_CAPABILITY_1
+#define DP_FEC_CAPABILITY_1				0x091
+#endif
+#ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
+#define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
+#endif
+#ifndef DP_LINK_SQUARE_PATTERN
+#define DP_LINK_SQUARE_PATTERN				0x10F
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
+#endif
+#ifndef DP_DSC_CONFIGURATION
+#define DP_DSC_CONFIGURATION				0x161
+#endif
+#ifndef DP_PHY_SQUARE_PATTERN
+#define DP_PHY_SQUARE_PATTERN				0x249
+#endif
+#ifndef DP_128b_132b_SUPPORTED_LINK_RATES
+#define DP_128b_132b_SUPPORTED_LINK_RATES		0x2215
+#endif
+#ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL
+#define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217
+#endif
+#ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
+#define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
+#endif
+#ifndef DP_TEST_264BIT_CUSTOM_PATTERN_263_256
+#define DP_TEST_264BIT_CUSTOM_PATTERN_263_256		0X2250
+#endif
+#ifndef DP_DSC_SUPPORT_AND_DECODER_COUNT
+#define DP_DSC_SUPPORT_AND_DECODER_COUNT		0x2260
+#endif
+#ifndef DP_DSC_MAX_SLICE_COUNT_AND_AGGREGATION_0
+#define DP_DSC_MAX_SLICE_COUNT_AND_AGGREGATION_0	0x2270
+#endif
+#ifndef DP_DSC_DECODER_0_MAXIMUM_SLICE_COUNT_MASK
+#define DP_DSC_DECODER_0_MAXIMUM_SLICE_COUNT_MASK	(1 << 0)
+#endif
+#ifndef DP_DSC_DECODER_0_AGGREGATION_SUPPORT_MASK
+#define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_MASK	(0b111 << 1)
+#endif
+#ifndef DP_DSC_DECODER_0_AGGREGATION_SUPPORT_SHIFT
+#define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_SHIFT	1
+#endif
+#ifndef DP_DSC_DECODER_COUNT_MASK
+#define DP_DSC_DECODER_COUNT_MASK			(0b111 << 5)
+#endif
+#ifndef DP_DSC_DECODER_COUNT_SHIFT
+#define DP_DSC_DECODER_COUNT_SHIFT			5
+#endif
+#ifndef DP_MAIN_LINK_CHANNEL_CODING_SET
+#define DP_MAIN_LINK_CHANNEL_CODING_SET			0x108
+#endif
+#ifndef DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER
+#define DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER	0xF0006
+#endif
+#ifndef DP_PHY_REPEATER_128b_132b_RATES
+#define DP_PHY_REPEATER_128b_132b_RATES			0xF0007
+#endif
+#ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1
+#define DP_128b_132b_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1	0xF0022
+#endif
+#ifndef DP_INTRA_HOP_AUX_REPLY_INDICATION
+#define DP_INTRA_HOP_AUX_REPLY_INDICATION		(1 << 3)
+/* TODO - Use DRM header to replace above once available */
+#endif // DP_INTRA_HOP_AUX_REPLY_INDICATION
+
+union dp_main_line_channel_coding_cap {
+	struct {
+		uint8_t DP_8b_10b_SUPPORTED	:1;
+		uint8_t DP_128b_132b_SUPPORTED	:1;
+		uint8_t RESERVED		:6;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_main_link_channel_coding_lttpr_cap {
+	struct {
+		uint8_t DP_128b_132b_SUPPORTED	:1;
+		uint8_t RESERVED		:7;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_128b_132b_supported_link_rates {
+	struct {
+		uint8_t UHBR10	:1;
+		uint8_t UHBR20	:1;
+		uint8_t UHBR13_5:1;
+		uint8_t RESERVED:5;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_128b_132b_supported_lttpr_link_rates {
+	struct {
+		uint8_t UHBR10	:1;
+		uint8_t UHBR20	:1;
+		uint8_t UHBR13_5:1;
+		uint8_t RESERVED:5;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_sink_video_fallback_formats {
+	struct {
+		uint8_t dp_1024x768_60Hz_24bpp_support	:1;
+		uint8_t dp_1280x720_60Hz_24bpp_support	:1;
+		uint8_t dp_1920x1080_60Hz_24bpp_support	:1;
+		uint8_t RESERVED			:5;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_fec_capability1 {
+	struct {
+		uint8_t AGGREGATED_ERROR_COUNTERS_CAPABLE	:1;
+		uint8_t RESERVED				:7;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_cable_id {
+	struct {
+		uint8_t UHBR10_20_CAPABILITY	:2;
+		uint8_t UHBR13_5_CAPABILITY	:1;
+		uint8_t CABLE_TYPE		:3;
+		uint8_t RESERVED		:2;
+	} bits;
+	uint8_t raw;
+};
+
+struct dp_color_depth_caps {
+	uint8_t support_6bpc	:1;
+	uint8_t support_8bpc	:1;
+	uint8_t support_10bpc	:1;
+	uint8_t support_12bpc	:1;
+	uint8_t support_16bpc	:1;
+	uint8_t RESERVED	:3;
+};
+
+struct dp_encoding_format_caps {
+	uint8_t support_rgb	:1;
+	uint8_t support_ycbcr444:1;
+	uint8_t support_ycbcr422:1;
+	uint8_t support_ycbcr420:1;
+	uint8_t RESERVED	:4;
+};
+
+union dp_dfp_cap_ext {
+	struct {
+		uint8_t supported;
+		uint8_t max_pixel_rate_in_mps[2];
+		uint8_t max_video_h_active_width[2];
+		uint8_t max_video_v_active_height[2];
+		struct dp_encoding_format_caps encoding_format_caps;
+		struct dp_color_depth_caps rgb_color_depth_caps;
+		struct dp_color_depth_caps ycbcr444_color_depth_caps;
+		struct dp_color_depth_caps ycbcr422_color_depth_caps;
+		struct dp_color_depth_caps ycbcr420_color_depth_caps;
+	} fields;
+	uint8_t raw[12];
+};
+
+union dp_128b_132b_training_aux_rd_interval {
+	struct {
+		uint8_t VALUE	:7;
+		uint8_t UNIT	:1;
+	} bits;
+	uint8_t raw;
+};
+
+union edp_alpm_caps {
+	struct {
+		uint8_t AUX_WAKE_ALPM_CAP       :1;
+		uint8_t PM_STATE_2A_SUPPORT     :1;
+		uint8_t AUX_LESS_ALPM_CAP       :1;
+		uint8_t RESERVED                :5;
+	} bits;
+	uint8_t raw;
+};
+
+union edp_psr_dpcd_caps {
+	struct {
+		uint8_t LINK_TRAINING_ON_EXIT_NOT_REQUIRED      :1;
+		uint8_t PSR_SETUP_TIME  :3;
+		uint8_t Y_COORDINATE_REQUIRED   :1;
+		uint8_t SU_GRANULARITY_REQUIRED :1;
+		uint8_t FRAME_SYNC_IS_NOT_NEEDED_FOR_SU :1;
+		uint8_t RESERVED                :1;
+	} bits;
+	uint8_t raw;
+};
+
+struct edp_psr_info {
+	uint8_t psr_version;
+	union edp_psr_dpcd_caps psr_dpcd_caps;
+	uint8_t psr2_su_y_granularity_cap;
+	uint8_t force_psrsu_cap;
+};
+#endif /* BSDTNG */
+
 #endif /* DC_DP_TYPES_H */
