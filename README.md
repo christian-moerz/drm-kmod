@@ -4,7 +4,7 @@ The DRM drivers ported from Linux to FreeBSD using LinuxKPI
 This is work in progress. This merged drm-intel commit 830b3c68c1fb1e9176028d02ef86f3cf76aa2476 (drm-intel-fixes)
 into drm-kmod, but focused only on i915.
 
-I will probably take out amd et al code at a later point, if they no longer compile properly.
+amd, radeon and virtual gpus are all excluded from this build.
 
 For the moment:
 * i915 driver code is updated
@@ -14,6 +14,11 @@ For the moment:
 * everything is based on freebsd/drm-kmod and freedesktop/drm-intel
 * I've flagged questionable or controversial code parts with FIXME BSD, intentionally differnet from BSDFIXME;
   this way, we can revisit ported issue and newly introduced issues separately
+* there are some sections, I've flagged with FIXME LINUXKPI - particularly in some non-public branches
+* it compiles, finally (as of December 27, 2022)
+* it might work for your GPU, on my 12th gen Intel it unfortunately freezes - I've started to add a bunch
+  of debug code. Maybe someone with some kernel debugging experiences is willing to chime in and give me
+  some pointers on how to better troubleshoot this.
 
 This is one attempt to give back to FreeBSD. You're invited to join in the effort, if you have time.
 
