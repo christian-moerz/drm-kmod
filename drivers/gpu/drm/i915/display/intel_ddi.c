@@ -4245,6 +4245,11 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	bool init_hdmi, init_dp;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
+#ifdef DEBUG
+	printk("intel_ddi_init - begin\n");
+	printk("intel_ddi_init - calling hti_uses_phy\n");
+#endif
+
 	/*
 	 * On platforms with HTI (aka HDPORT), if it's enabled at boot it may
 	 * have taken over some of the PHYs and made them unavailable to the
@@ -4257,19 +4262,39 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		return;
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_bios_encoder_data_lookup\n");
+#endif
+
 	devdata = intel_bios_encoder_data_lookup(dev_priv, port);
 	if (!devdata) {
+#ifdef DEBUG
+		printk("intel_ddi_init - intel_bios_encoder_data_lookup ret failure\n");
+#endif
+
 		drm_dbg_kms(&dev_priv->drm,
 			    "VBT says port %c is not present\n",
 			    port_name(port));
 		return;
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_bios_encoder_supports_dvi\n");
+#endif
 	init_hdmi = intel_bios_encoder_supports_dvi(devdata) ||
 		intel_bios_encoder_supports_hdmi(devdata);
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_bios_encoder_supports_dp\n");
+#endif
 	init_dp = intel_bios_encoder_supports_dp(devdata);
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_bios_is_lspcon_present\n");
+#endif
 	if (intel_bios_is_lspcon_present(dev_priv, port)) {
+#ifdef DEBUG
+		printk("intel_ddi_init - intel_bios_is_lspcon_present branches\n");
+#endif
 		/*
 		 * Lspcon device needs to be driven with DP connector
 		 * with special detection sequence. So make sure DP
@@ -4281,13 +4306,22 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			    port_name(port));
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - checking !init_dp & !init_hdmi\n");
+#endif
 	if (!init_dp && !init_hdmi) {
+#ifdef DEBUG
+		printk("intel_ddi_init - !init_dp & !init_hdmi\n");
+#endif
 		drm_dbg_kms(&dev_priv->drm,
 			    "VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
 			    port_name(port));
 		return;
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_phy_is_snps\n");
+#endif
 	if (intel_phy_is_snps(dev_priv, phy) &&
 	    dev_priv->snps_phy_failed_calibration & BIT(phy)) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -4295,12 +4329,20 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			    phy_name(phy));
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling kzalloc\n");
+#endif
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
 		return;
 
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
+
+#ifdef DEBUG
+	printk("intel_ddi_init - checking DISPLAY_VER [%d]\n",
+			DISPLAY_VER(dev_priv));
+#endif
 
 	if (DISPLAY_VER(dev_priv) >= 13 && port >= PORT_D_XELPD) {
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
@@ -4309,7 +4351,14 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				 port_name(port - PORT_D_XELPD + PORT_D),
 				 phy_name(phy));
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_port_to_tc\n");
+#endif
 		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+
+#ifdef DEBUG
+		printk("intel_ddi_init - calling drm_encoder_init\n");
+#endif
 
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
@@ -4334,6 +4383,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				 "DDI %c/PHY %c", port_name(port),  phy_name(phy));
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling mutex_init\n");
+#endif
 	mutex_init(&dig_port->hdcp_mutex);
 	dig_port->num_hdcp_streams = 0;
 
@@ -4355,6 +4407,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->get_power_domains = intel_ddi_get_power_domains;
 
 	encoder->type = INTEL_OUTPUT_DDI;
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_display_power_ddi_lanes_domain\n");
+#endif	
 	encoder->power_domain = intel_display_power_ddi_lanes_domain(dev_priv, port);
 	encoder->port = port;
 	encoder->cloneable = 0;
@@ -4392,6 +4447,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			encoder->get_config = icl_ddi_combo_get_config;
 		}
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
+
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_ddi_is_tc\n");
+#endif
 		if (intel_ddi_is_tc(dev_priv, port)) {
 			encoder->enable_clock = icl_ddi_tc_enable_clock;
 			encoder->disable_clock = icl_ddi_tc_disable_clock;
@@ -4426,6 +4485,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		else
 			encoder->set_signal_levels = tgl_dkl_phy_set_signal_levels;
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_phy_is_combo\n");
+#endif
 		if (intel_phy_is_combo(dev_priv, phy))
 			encoder->set_signal_levels = icl_combo_phy_set_signal_levels;
 		else
@@ -4436,6 +4498,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		encoder->set_signal_levels = hsw_set_signal_levels;
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_ddi_buf_trans_init\n");
+#endif
 	intel_ddi_buf_trans_init(encoder);
 
 	if (DISPLAY_VER(dev_priv) >= 13)
@@ -4444,9 +4509,12 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		encoder->hpd_pin = dg1_hpd_pin(dev_priv, port);
 	else if (IS_ROCKETLAKE(dev_priv))
 		encoder->hpd_pin = rkl_hpd_pin(dev_priv, port);
-	else if (DISPLAY_VER(dev_priv) >= 12)
+	else if (DISPLAY_VER(dev_priv) >= 12) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling tgl_hpd_pin\n");
+#endif
 		encoder->hpd_pin = tgl_hpd_pin(dev_priv, port);
-	else if (IS_JSL_EHL(dev_priv))
+	} else if (IS_JSL_EHL(dev_priv))
 		encoder->hpd_pin = ehl_hpd_pin(dev_priv, port);
 	else if (DISPLAY_VER(dev_priv) == 11)
 		encoder->hpd_pin = icl_hpd_pin(dev_priv, port);
@@ -4455,27 +4523,48 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	else
 		encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
-	if (DISPLAY_VER(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_de_read\n");
+#endif
 		dig_port->saved_port_bits =
 			intel_de_read(dev_priv, DDI_BUF_CTL(port))
 			& DDI_BUF_PORT_REVERSAL;
-	else
+	} else
 		dig_port->saved_port_bits =
 			intel_de_read(dev_priv, DDI_BUF_CTL(port))
 			& (DDI_BUF_PORT_REVERSAL | DDI_A_4_LANES);
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_bios_is_lane_reversal_needed\n");
+#endif
 	if (intel_bios_is_lane_reversal_needed(dev_priv, port))
 		dig_port->saved_port_bits |= DDI_BUF_PORT_REVERSAL;
 
 	dig_port->dp.output_reg = INVALID_MMIO_REG;
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_ddi_max_lanes\n");
+#endif
 	dig_port->max_lanes = intel_ddi_max_lanes(dig_port);
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_bios_port_aux_ch\n");
+#endif
 	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_phy_is_tc\n");
+#endif
 	if (intel_phy_is_tc(dev_priv, phy)) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_bios_encoder_supports_typec_usb\n");
+#endif
 		bool is_legacy =
 			!intel_bios_encoder_supports_typec_usb(devdata) &&
 			!intel_bios_encoder_supports_tbt(devdata);
 
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_tc_port_init\n");
+#endif
 		intel_tc_port_init(dig_port, is_legacy);
 
 		encoder->update_prepare = intel_ddi_update_prepare;
@@ -4483,26 +4572,46 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	drm_WARN_ON(&dev_priv->drm, port > PORT_I);
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_display_power_ddi_io_domain\n");
+#endif
 	dig_port->ddi_io_power_domain = intel_display_power_ddi_io_domain(dev_priv, port);
 
 	if (init_dp) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_ddi_init_dp_connector\n");
+#endif
 		if (!intel_ddi_init_dp_connector(dig_port))
 			goto err;
 
 		dig_port->hpd_pulse = intel_dp_hpd_pulse;
 
-		if (dig_port->dp.mso_link_count)
+		if (dig_port->dp.mso_link_count) {
+#ifdef DEBUG
+			printk("intel_ddi_init - calling intel_ddi_splitter_pipe_mask\n");
+#endif			
 			encoder->pipe_mask = intel_ddi_splitter_pipe_mask(dev_priv);
+		}
+	} else {
+#ifdef DEBUG
+		printk("intel_ddi_init - not init_dp \n");
+#endif		
 	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in
 	 * case we have some really bad VBTs... */
 	if (encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_ddi_init_hdmi_connector\n");
+#endif			
 		if (!intel_ddi_init_hdmi_connector(dig_port))
 			goto err;
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
+#ifdef DEBUG
+		printk("intel_ddi_init - calling intel_phy_is_tc\n");
+#endif
 		if (intel_phy_is_tc(dev_priv, phy))
 			dig_port->connected = intel_tc_port_connected;
 		else
@@ -4520,11 +4629,26 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			dig_port->connected = lpt_digital_port_connected;
 	}
 
+#ifdef DEBUG
+	printk("intel_ddi_init - calling intel_infoframe_init\n");
+#endif
 	intel_infoframe_init(dig_port);
+
+#ifdef DEBUG
+	printk("intel_ddi_init - end success\n");
+#endif
 
 	return;
 
 err:
+#ifdef DEBUG
+	printk("intel_ddi_init - end failure, call drm_encoder_cleanup, kfree\n");
+#endif
+
 	drm_encoder_cleanup(&encoder->base);
 	kfree(dig_port);
+
+#ifdef DEBUG
+	printk("intel_ddi_init - end failure\n");
+#endif
 }

@@ -8889,7 +8889,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 
 	if (i915->display.cdclk.max_cdclk_freq == 0)
 #ifdef DEBUG
-		printk("intel_modeset_init_nogem - calling intel_update_max_cdclkn");
+		printk("intel_modeset_init_nogem - calling intel_update_max_cdclkn\n");
 #endif
 		intel_update_max_cdclk(i915);
 
