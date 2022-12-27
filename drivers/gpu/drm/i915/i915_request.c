@@ -2276,6 +2276,9 @@ void i915_request_module_exit(void)
 
 int __init i915_request_module_init(void)
 {
+#ifdef DEBUG
+	printk("i915_request_module_init - begin\n");
+#endif
 	slab_requests =
 		kmem_cache_create("i915_request",
 				  sizeof(struct i915_request),

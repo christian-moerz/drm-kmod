@@ -189,9 +189,20 @@ int intel_connector_update_modes(struct drm_connector *connector,
 {
 	int ret;
 
+#ifdef DEBUG
+	printk("intel_connector_update_modes - begin\n");
+#endif
+
 	drm_connector_update_edid_property(connector, edid);
+
+#ifdef DEBUG
+	printk("intel_connector_update_modes - calling drm_add_edid_modes\n");
+#endif
 	ret = drm_add_edid_modes(connector, edid);
 
+#ifdef DEBUG
+	printk("intel_connector_update_modes - end\n");
+#endif
 	return ret;
 }
 
@@ -208,12 +219,25 @@ int intel_ddc_get_modes(struct drm_connector *connector,
 	struct edid *edid;
 	int ret;
 
+#ifdef DEBUG
+	printk("intel_ddc_get_modes - begin\n");
+	printk("intel_ddc_get_modes - calling drm_get_edid\n");
+#endif
+
 	edid = drm_get_edid(connector, adapter);
 	if (!edid)
 		return 0;
 
+#ifdef DEBUG
+	printk("intel_ddc_get_modes - calling intel_connector_update_modes\n");
+#endif
+
 	ret = intel_connector_update_modes(connector, edid);
 	kfree(edid);
+
+#ifdef DEBUG
+	printk("intel_ddc_get_modes - end\n");
+#endif
 
 	return ret;
 }

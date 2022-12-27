@@ -28,6 +28,8 @@ static int i915_check_nomodeset(void)
 {
 	bool use_kms = true;
 
+	printk("i915_check_nomodeset - begin\n");
+
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
 	 * either the i915.modeset parameter or by the
@@ -39,16 +41,17 @@ static int i915_check_nomodeset(void)
 
 #ifdef __linux__
 	if (drm_firmware_drivers_only() && i915_modparams.modeset == -1)
-#elif defined(__FreeBSD__)
-	if (i915_modparams.modeset == -1)
-#endif
 		use_kms = false;
+#endif
 
 	if (!use_kms) {
 		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
+		printk("i915_check_nomodeset - no kms\n");
 		return 1;
 	}
+
+	printk("i915_check_nomodeset - end\n");
 
 	return 0;
 }
@@ -90,7 +93,10 @@ static int __init i915_init(void)
 {
 	int err, i;
 
+printk("i915_init begin\n");
+
 	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
+		printk("i915_init - calling init [%d]\n", i);
 		err = init_funcs[i].init();
 		if (err < 0) {
 			while (i--) {
@@ -111,6 +117,8 @@ static int __init i915_init(void)
 	}
 
 	init_progress = i;
+
+printk("i915_init end\n");
 
 	return 0;
 }

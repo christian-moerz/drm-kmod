@@ -12,6 +12,7 @@
 #include "i915_gem.h" /* GEM_BUG_ON() */
 #include "intel_gt_types.h"
 
+#ifdef __notyet__
 struct intel_gt;
 
 bool is_object_gt(struct kobject *kobj);
@@ -32,5 +33,6 @@ void intel_gt_sysfs_register(struct intel_gt *gt);
 void intel_gt_sysfs_unregister(struct intel_gt *gt);
 struct intel_gt *intel_gt_sysfs_get_drvdata(struct device *dev,
 					    const char *name);
+#endif
 
 #endif /* SYSFS_GT_H */

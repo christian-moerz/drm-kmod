@@ -413,12 +413,16 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 
 void intel_gt_driver_register(struct intel_gt *gt)
 {
+#ifdef __notyet__
 	intel_gsc_init(&gt->gsc, gt->i915);
+#endif
 
 	intel_rps_driver_register(&gt->rps);
 
 	intel_gt_debugfs_register(gt);
+#ifdef __notyet__
 	intel_gt_sysfs_register(gt);
+#endif
 }
 
 static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
@@ -747,9 +751,13 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
 
+#ifdef __notyet__
 	intel_gt_sysfs_unregister(gt);
+#endif
 	intel_rps_driver_unregister(&gt->rps);
+#ifdef __notyet__
 	intel_gsc_fini(&gt->gsc);
+#endif
 
 	intel_pxp_fini(&gt->pxp);
 

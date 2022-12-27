@@ -7914,6 +7914,10 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
+#ifdef DEBUG
+	printk("intel_setup_outputs - begin\n");
+#endif
+
 	intel_pps_unlock_regs_wa(dev_priv);
 
 	if (!HAS_DISPLAY(dev_priv))
@@ -7945,14 +7949,49 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_TC1);
 		intel_ddi_init(dev_priv, PORT_TC2);
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
+#ifdef DEBUG
+		printk("intel_setup_outputs - DISPLAY_VER >=12\n");
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_A\n");
+#endif
+
 		intel_ddi_init(dev_priv, PORT_A);
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_B\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_B);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_TC1\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_TC1);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_TC2\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_TC2);
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_TC3\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_TC3);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_TC4\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_TC4);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_TC5\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_TC5);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_ddi_init PORT_TC6\n");
+#endif
 		intel_ddi_init(dev_priv, PORT_TC6);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling icl_dsi_init\n");
+#endif
 		icl_dsi_init(dev_priv);
 	} else if (IS_JSL_EHL(dev_priv)) {
 		intel_ddi_init(dev_priv, PORT_A);
@@ -8138,16 +8177,41 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_dvo_init(dev_priv);
 	}
 
+#ifdef DEBUG
+	printk("intel_setup_outputs - calling for_each_intel_encoder\n");
+#endif
+
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_encoder_possible_crtcs\n");
+#endif
+
 		encoder->base.possible_crtcs =
 			intel_encoder_possible_crtcs(encoder);
+
+#ifdef DEBUG
+		printk("intel_setup_outputs - calling intel_encoder_possible_clones\n");
+#endif
+
 		encoder->base.possible_clones =
 			intel_encoder_possible_clones(encoder);
 	}
 
+#ifdef DEBUG
+	printk("intel_setup_outputs - calling intel_init_pch_refclk\n");
+#endif
+
 	intel_init_pch_refclk(dev_priv);
 
+#ifdef DEBUG
+	printk("intel_setup_outputs - calling drm_helper_move_panel_connectors_to_head\n");
+#endif
+
 	drm_helper_move_panel_connectors_to_head(&dev_priv->drm);
+
+#ifdef DEBUG
+	printk("intel_setup_outputs - end\n");
+#endif
 }
 
 static int max_dotclock(struct drm_i915_private *i915)
@@ -8734,14 +8798,35 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	struct intel_crtc *crtc;
 	int ret;
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - begin\n");
+	printk("intel_modeset_init_nogem - calling HAS_DISPLAY\n");
+#endif
+
 	if (!HAS_DISPLAY(i915))
 		return 0;
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_init_pm\n");
+#endif
+
 	intel_init_pm(i915);
+
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_panel_sanitize_ssc\n");
+#endif
 
 	intel_panel_sanitize_ssc(i915);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_pps_setup\n");
+#endif
+
 	intel_pps_setup(i915);
+
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_gmbus_setup\n");
+#endif
 
 	intel_gmbus_setup(i915);
 
@@ -8749,27 +8834,68 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 		    INTEL_NUM_PIPES(i915),
 		    INTEL_NUM_PIPES(i915) > 1 ? "s" : "");
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling for_each_pipe\n");
+#endif
+
 	for_each_pipe(i915, pipe) {
+#ifdef DEBUG
+		printk("intel_modeset_init_nogem - calling intel_crtc_init\n");
+#endif
+
 		ret = intel_crtc_init(i915, pipe);
 		if (ret) {
+#ifdef DEBUG
+			printk("intel_modeset_init_nogem - calling intel_mode_config_cleanup\n");
+#endif
+
 			intel_mode_config_cleanup(i915);
 			return ret;
 		}
 	}
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_plane_possible_crtcs_init\n");
+#endif
 	intel_plane_possible_crtcs_init(i915);
+
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_shared_dpll_init\n");
+#endif
 	intel_shared_dpll_init(i915);
+
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_fdi_pll_freq_update\n");
+#endif
 	intel_fdi_pll_freq_update(i915);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_update_czclk\n");
+#endif
 	intel_update_czclk(i915);
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_modeset_init_hw\n");
+#endif
 	intel_modeset_init_hw(i915);
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_dpll_update_ref_clks\n");
+#endif
 	intel_dpll_update_ref_clks(i915);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_hdcp_component_init\n");
+#endif
 	intel_hdcp_component_init(i915);
 
 	if (i915->display.cdclk.max_cdclk_freq == 0)
+#ifdef DEBUG
+		printk("intel_modeset_init_nogem - calling intel_update_max_cdclkn");
+#endif
 		intel_update_max_cdclk(i915);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling INTEL_INFO/intel_de_read\n");
+#endif
 	/*
 	 * If the platform has HTI, we need to find out whether it has reserved
 	 * any display resources before we create our display outputs.
@@ -8777,21 +8903,53 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	if (INTEL_INFO(i915)->display.has_hti)
 		i915->hti_state = intel_de_read(i915, HDPORT_STATE);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_vga_disable\n");
+#endif
+
 	/* Just disable it once at startup */
 	intel_vga_disable(i915);
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_setup_outputs\n");
+#endif
 	intel_setup_outputs(i915);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling drm_modeset_lock_all\n");
+#endif
 	drm_modeset_lock_all(dev);
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_modeset_setup_hw_state\n");
+#endif
 	intel_modeset_setup_hw_state(i915, dev->mode_config.acquire_ctx);
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling intel_acpi_assign_connector_fwnodes\n");
+#endif
 	intel_acpi_assign_connector_fwnodes(i915);
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling drm_modeset_unlock_all\n");
+#endif
 	drm_modeset_unlock_all(dev);
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling for_each_intel_crtc\n");
+#endif
 	for_each_intel_crtc(dev, crtc) {
+#ifdef DEBUG
+		printk("intel_modeset_init_nogem - calling to_intel_crtc_state\n");
+#endif
 		if (!to_intel_crtc_state(crtc->base.state)->uapi.active)
 			continue;
+
+#ifdef DEBUG
+		printk("intel_modeset_init_nogem - calling intel_crtc_initial_plane_config\n");
+#endif
 		intel_crtc_initial_plane_config(crtc);
 	}
 
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - calling HAS_GMCH/sanitize_watermarks\n");
+#endif
 	/*
 	 * Make sure hardware watermarks really match the state we read out.
 	 * Note that we need to do this after reconstructing the BIOS fb's
@@ -8799,6 +8957,10 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	 */
 	if (!HAS_GMCH(i915))
 		sanitize_watermarks(i915);
+
+#ifdef DEBUG
+	printk("intel_modeset_init_nogem - end\n");
+#endif
 
 	return 0;
 }

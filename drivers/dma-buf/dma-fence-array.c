@@ -130,6 +130,9 @@ const struct dma_fence_ops dma_fence_array_ops = {
 	.signaled = dma_fence_array_signaled,
 	.release = dma_fence_array_release,
 };
+#ifdef BSDTNG
+EXPORT_SYMBOL(dma_fence_array_ops);
+#endif
 
 /*
  * Create a custom fence array
@@ -183,35 +186,4 @@ to_dma_fence_array(struct dma_fence *fence)
 }
 #endif
 
-static struct dma_fence *
-dma_fence_array_first(struct dma_fence *head)
-{
-	struct dma_fence_array *array;
-
-	if (!head)
-		return NULL;
-
-	array = to_dma_fence_array(head);
-	if (!array)
-		return head;
-
-	if (!array->num_fences)
-		return NULL;
-
-	return array->fences[0];
-}
-EXPORT_SYMBOL(dma_fence_array_first);
-
-static struct dma_fence *
-dma_fence_array_next(struct dma_fence *head,
-				       unsigned int index)
-{
-	struct dma_fence_array *array = to_dma_fence_array(head);
-
-	if (!array || index >= array->num_fences)
-		return NULL;
-
-	return array->fences[index];
-}
-EXPORT_SYMBOL(dma_fence_array_next);
 #endif

@@ -33,8 +33,10 @@ struct intel_gsc {
 	} intf[INTEL_GSC_NUM_INTERFACES];
 };
 
+#ifdef __linux__
 void intel_gsc_init(struct intel_gsc *gsc, struct drm_i915_private *dev_priv);
 void intel_gsc_fini(struct intel_gsc *gsc);
 void intel_gsc_irq_handler(struct intel_gt *gt, u32 iir);
+#endif
 
 #endif /* __INTEL_GSC_DEV_H__ */

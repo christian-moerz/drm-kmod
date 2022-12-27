@@ -444,6 +444,9 @@ void i915_context_module_exit(void)
 
 int __init i915_context_module_init(void)
 {
+#ifdef DEBUG
+	printk("i915_context_module_init - begin\n");
+#endif
 	slab_ce = KMEM_CACHE(intel_context, SLAB_HWCACHE_ALIGN);
 	if (!slab_ce)
 		return -ENOMEM;

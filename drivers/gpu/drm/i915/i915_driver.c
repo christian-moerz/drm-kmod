@@ -962,6 +962,12 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *i915;
 	int ret;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - begin\n");
+	printk("i915_driver_probe - calling i915_driver_create\n");
+#endif
+
+
 	i915 = i915_driver_create(pdev, ent);
 	if (IS_ERR(i915))
 		return PTR_ERR(i915);
@@ -970,57 +976,121 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!i915->params.nuclear_pageflip && DISPLAY_VER(i915) < 5)
 		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling pci_enable_device\n");
+#endif
+
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling i915_driver_early_probe\n");
+#endif
 
 	ret = i915_driver_early_probe(i915);
 	if (ret < 0)
 		goto out_pci_disable;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling disable_rpm_wakeref_asserts\n");
+#endif
+
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling intel_vgpu_detect\n");
+#endif
 
 	intel_vgpu_detect(i915);
 
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling intel_gt_probe_all\n");
+#endif
 	ret = intel_gt_probe_all(i915);
 	if (ret < 0)
 		goto out_runtime_pm_put;
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling i915_driver_mmio_probe\n");
+#endif
 
 	ret = i915_driver_mmio_probe(i915);
 	if (ret < 0)
 		goto out_tiles_cleanup;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling i915_driver_hw_probe\n");
+#endif
+
 	ret = i915_driver_hw_probe(i915);
 	if (ret < 0)
 		goto out_cleanup_mmio;
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling intel_modeset_init_noirq\n");
+#endif
 
 	ret = intel_modeset_init_noirq(i915);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling intel_irq_install\n");
+#endif
+
 	ret = intel_irq_install(i915);
 	if (ret)
 		goto out_cleanup_modeset;
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling intel_modeset_init_nogem\n");
+#endif
 
 	ret = intel_modeset_init_nogem(i915);
 	if (ret)
 		goto out_cleanup_irq;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling i915_gem_init\n");
+#endif
+
 	ret = i915_gem_init(i915);
 	if (ret)
 		goto out_cleanup_modeset2;
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling intel_modeset_init\n");
+#endif
 
 	ret = intel_modeset_init(i915);
 	if (ret)
 		goto out_cleanup_gem;
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling i915_driver_register\n");
+#endif
+
 	i915_driver_register(i915);
 
+#ifdef DEBUG
+	printk("i915_driver_probe - calling enable_rpm_wakeref_asserts\n");
+#endif
+
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
+
+#ifdef DEBUG
+	printk("i915_driver_probe - calling i915_welcome_messages\n");
+#endif
 
 	i915_welcome_messages(i915);
 
 	i915->do_release = true;
+
+#ifdef DEBUG
+	printk("i915_driver_probe - end\n");
+#endif
 
 	return 0;
 
