@@ -1,0 +1,16 @@
+TODOS
+=====
+
+* ensure no local_irq_save
+* ensure no local_irq_restore
+* ensure no local_irq_enable
+* ensure no local_irq_disable
+* ensure no static_assert
+* replace address_space with vm_object_t
+
+possible candidates:
+* spin_lock_irqsave
+* spin_unlock_irqrestore
+
+notes to myself
+* consider taking out kvm code (kvmgt)?
