@@ -464,6 +464,14 @@ static void ttm_kmap_iter_tt_map_local(struct ttm_kmap_iter *iter,
 	iosys_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
 						       iter_tt->prot));
 #elif defined(__FreeBSD__)
+	/* FIXME BSD
+		initially tried kmap_atomic_prot, but I think this isn't right
+		because it locks the page
+		
+		kmap_local_page_prot is supposed to be thread and cpu local
+		
+		FreeBSD seems to have something equivalent with sf_buf, but
+		that's not (yet?) available in linuxkpi */
 	iosys_map_set_vaddr(dmap, kmap_atomic_prot(iter_tt->tt->pages[i],
 						       iter_tt->prot));
 #endif
