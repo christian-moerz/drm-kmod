@@ -209,6 +209,9 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		return ret;
 
 	err = ttm_mem_io_reserve(bdev, bo->resource);
+#if defined(__FreeBSD__)
+	VM_OBJECT_WLOCK(vma->vm_obj);
+#endif
 	if (unlikely(err != 0))
 		return VM_FAULT_SIGBUS;
 
@@ -250,6 +253,9 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 			} else if (unlikely(!page)) {
 				break;
 			}
+#if defined(__FreeBSD__)
+			page->oflags &= ~VPO_UNMANAGED;
+#endif
 			pfn = page_to_pfn(page);
 		}
 
@@ -279,6 +285,9 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		if (unlikely(++page_offset >= page_last))
 			break;
 	}
+#ifdef __FreeBSD__
+	VM_OBJECT_WUNLOCK(vma->vm_obj);
+#endif
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_vm_fault_reserved);
