@@ -6917,14 +6917,11 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 		if (drm_dp_dpcd_read(&port->aux,
 				     DP_FEC_CAPABILITY, &endpoint_fec, 1) != 1)
 			return NULL;
-#ifdef __linux__
 		if (drm_dp_dpcd_read(&immediate_upstream_port->aux,
 				     DP_DSC_SUPPORT, &upstream_dsc, 1) != 1)
 			return NULL;
-#endif
 
 #ifdef BSDTNG
-#ifdef __linux__
 		/* Enpoint decompression with DP-to-DP peer device */
 		if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
 		    (endpoint_fec & DP_FEC_CAPABLE) &&
@@ -6933,7 +6930,6 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 		    (upstream_dsc & 0x2) /* DSC passthrough */)
 			return &port->aux;
 		}
-#endif /* __linux__ */
 #endif /* BSDTNG */
 
 		/* Virtual DPCD decompression with DP-to-DP peer device */
