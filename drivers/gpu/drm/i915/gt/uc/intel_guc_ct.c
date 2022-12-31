@@ -959,9 +959,11 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 
 	/* FIXME BSD */
 	/* original 5.12 method had a bunch of other exclusions */
-	/* not sure, if this is required */
+	/* not sure, if this is sufficient; on BSD, spin locks should disable irq? */
 #ifdef __linux__
 	spin_lock_irqsave(&ct->requests.lock, flags);
+#elif defined(__FreeBSD__)
+	spin_lock(&ct->requests.lock);
 #endif
 	list_for_each_entry(req, &ct->requests.pending, link) {
 		if (unlikely(fence != req->fence)) {
@@ -993,6 +995,8 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 	}
 #ifdef __linux__
 	spin_unlock_irqrestore(&ct->requests.lock, flags);
+#elif defined(__FreeBSD__)
+	spin_unlock(&ct->requests.lock);
 #endif
 
 	if (unlikely(err))

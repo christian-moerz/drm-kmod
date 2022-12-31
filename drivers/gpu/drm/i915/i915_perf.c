@@ -484,6 +484,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 #ifdef __linux__
 	now = ktime_get_mono_fast_ns();
 #elif defined(__FreeBSD__)
+	/* FIXME BSD - unsure, whether this is reqlly equivalent? */
 	now = ktime_get_raw_ns();
 #endif
 
@@ -4552,6 +4553,7 @@ i915_perf_init(struct drm_i915_private *i915)
 #ifdef __linux__
 		idr_init_base(&perf->metrics_idr, 1);
 #elif defined(__FreeBSD__)
+		/* FIXME BSD does this initialize with base 1? */
 		idr_init(&perf->metrics_idr);
 #endif
 

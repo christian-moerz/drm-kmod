@@ -1103,6 +1103,18 @@ static bool tlb_seqno_passed(const struct intel_gt *gt, u32 seqno)
 /* FIXME BSD */
 /* FIXME LINUXKPI */
 
+#ifdef __linux__
+#define write_seqcount_invalidate(s)					\
+	do_write_seqcount_invalidate(seqprop_ptr(s))
+
+static inline void do_write_seqcount_invalidate(seqcount_t *s)
+{
+	smp_wmb();
+	kcsan_nestable_atomic_begin();
+	s->sequence+=2;
+	kcsan_nestable_atomic_end();
+}
+#elif defined(__FreeBSD__)
 /**
  * write_seqcount_invalidate() - invalidate in-progress seqcount_t read
  *                               side operations
@@ -1115,8 +1127,12 @@ static inline void write_seqcount_invalidate(seqcount_mutex_t *s)
 {
 	smp_wmb();
 	/* FIXME BSD cannot imagine this not breaking things? */
+	/* NOTE cm 2022/12/30 added write_seqcount_begin/end */
+	seqc_write_begin(&s->seqc);
 	s->seqc += 2;
+	seqc_write_end(&s->seqc);
 }
+#endif /* __FreeBSD__ */
 #endif
 
 void intel_gt_invalidate_tlb(struct intel_gt *gt, u32 seqno)

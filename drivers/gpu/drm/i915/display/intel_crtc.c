@@ -522,6 +522,7 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	intel_psr_wait_for_idle_locked(new_crtc_state);
 
 #ifdef __linux__
+	/* NOTE cm 2022/12/30 was already like this in 5.12 version */
 	local_irq_disable();
 #endif
 

@@ -717,6 +717,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 * quickly as possible to minimize the race window.
 	 */
 #ifdef __linux__
+	/* NOTE cm 2022/12/30 unsure, whether this works on FreeBSD? */
+	/* NOTE cm 2022/12/30 confirmed: not available on FreeBSD */
 	local_irq_disable();
 #endif
 
@@ -728,8 +730,9 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	}
 
 #ifdef __linux__
+	/* NOTE cm 2022/12/30 had this disabled, reenabled now; not available */
 	local_irq_enable();
-#endif	
+#endif
 
 	intel_plane_unpin_fb(old_plane_state);
 
