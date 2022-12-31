@@ -1115,7 +1115,7 @@ static inline void write_seqcount_invalidate(seqcount_mutex_t *s)
 {
 	smp_wmb();
 	/* FIXME BSD cannot imagine this not breaking things? */
-	s->seqm_count.seqc += 2;
+	s->seqc += 2;
 }
 #endif
 
