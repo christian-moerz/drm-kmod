@@ -110,7 +110,7 @@ static inline u32 intel_gt_tlb_seqno(const struct intel_gt *gt)
 #ifdef __linux__
 	return seqprop_sequence(&gt->tlb.seqno);
 #elif (__FreeBSD__)
-	u32 ret = READ_ONCE(gt->tlb.seqno.seqm_count.seqc);
+	u32 ret = READ_ONCE(gt->tlb.seqno.seqc);
 	return ret;
 #endif
 }
