@@ -16,9 +16,11 @@ For the moment:
   this way, we can revisit ported issue and newly introduced issues separately
 * there are some sections, I've flagged with FIXME LINUXKPI - particularly in some non-public branches
 * it compiles, finally (as of December 27, 2022)
-* it might work for your GPU, on my 12th gen Intel it unfortunately freezes - I've started to add a bunch
-  of debug code. Maybe someone with some kernel debugging experiences is willing to chime in and give me
-  some pointers on how to better troubleshoot this.
+* it might work for your GPU, on my 12th gen Intel it unfortunately does not work completely yet;
+  as of January 1, 2023 I seem to have identified the culprit: linuxkpi is handling xarrays with
+  sleep mutexes, while linux' drm apparently expects spin mutexes to lock out interrupt handling.
+  For the moment, the driver module can be loaded and unloaded but the screen appears to not work
+  right yet. Need to check, whether this has to do with missing privacy screen functions?
 
 This is one attempt to give back to FreeBSD. You're invited to join in the effort, if you have time.
 
