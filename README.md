@@ -21,7 +21,7 @@ For the moment:
   sleep mutexes, while linux' drm apparently expects spin mutexes to lock out interrupt handling.
   For the moment, the driver module can be loaded and unloaded but the screen appears to not work
   right yet. Need to check, whether this has to do with missing privacy screen functions?
-* there is a lock reversal, identified by wittness; might be originating from xarrays again,
+* there is a lock reversal, identified by witness; might be originating from xarrays again,
   though it does involve the Giant lock (?)
 * loading Xorg leads to a page fault, which leads me to believe there's more issues beneath the
   surface.
