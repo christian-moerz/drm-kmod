@@ -140,6 +140,9 @@ struct drm_dp_mst_port {
 	 */
 	struct drm_dp_mst_branch *mstb;
 	struct drm_dp_aux aux; /* i2c bus for this port? */
+#ifdef BSDTNG
+	struct drm_dp_aux *passthrough_aux;
+#endif
 	struct drm_dp_mst_branch *parent;
 
 	struct drm_dp_vcpi vcpi;
