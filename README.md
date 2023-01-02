@@ -21,6 +21,13 @@ For the moment:
   sleep mutexes, while linux' drm apparently expects spin mutexes to lock out interrupt handling.
   For the moment, the driver module can be loaded and unloaded but the screen appears to not work
   right yet. Need to check, whether this has to do with missing privacy screen functions?
+* there is a lock reversal, identified by wittness; might be originating from xarrays again,
+  though it does involve the Giant lock (?)
+* loading Xorg leads to a page fault, which leads me to believe there's more issues beneath the
+  surface.
+* firmware needs to be loaded as a kernel module; I've got one working already and checked into a
+  private branch. Since I'm not clear about the licensing terms of the binary blobs, I'll attempt
+  to set up a sample Makefile with directions instead of directly putting them into the repo.
 
 This is one attempt to give back to FreeBSD. You're invited to join in the effort, if you have time.
 
