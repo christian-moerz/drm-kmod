@@ -2,6 +2,7 @@
 *.ko.debug
 *.ko.full
 *.ko
+i915kmsfw/.depend*
 drivers/gpu/drm/i915/i915
 TAGS
 amd/amdgpu/*.h

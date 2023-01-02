@@ -921,7 +921,6 @@ replace:
 #endif
 	dma_fence_put(old);
 #else /* BSDTNG */
-	/* FIXME BSD might also require additional write fence? */
 	dma_resv_add_fence(obj, fence, DMA_RESV_USAGE_READ);
 #endif /* BSDTNG */
 }
@@ -937,7 +936,6 @@ EXPORT_SYMBOL(dma_resv_add_shared_fence);
 void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 {
 #ifdef BSDTNG
-	/* FIXME BSD this might be insufficient? */
 	dma_resv_add_fence(obj, fence, DMA_RESV_USAGE_WRITE);
 #else
 	struct dma_fence *old_fence = dma_resv_get_excl(obj);

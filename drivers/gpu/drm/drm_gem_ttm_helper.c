@@ -131,13 +131,8 @@ EXPORT_SYMBOL(drm_gem_ttm_vunmap);
  * This function can be used as &drm_gem_object_funcs.mmap
  * callback.
  */
-#ifdef BSDTNG
 int drm_gem_ttm_mmap(struct drm_gem_object *gem,
 		     struct vm_area_struct *vma)
-#else
-int drm_gem_ttm_mmap(struct drm_gem_object *gem,
-		     struct vm_area_struct *vma)
-#endif
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
 	int ret;
