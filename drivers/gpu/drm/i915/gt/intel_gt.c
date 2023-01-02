@@ -83,6 +83,9 @@ int intel_root_gt_init_early(struct drm_i915_private *i915)
 static int intel_gt_probe_lmem(struct intel_gt *gt)
 {
 #ifdef __notyet__
+	/* NOTE cm 20223/01/01 requires adding intel_region_lmem.c
+		breaks a bunch of stuff
+		i.e. differences in pci_dev structures */
 	struct drm_i915_private *i915 = gt->i915;
 	unsigned int instance = gt->info.id;
 	int id = INTEL_REGION_LMEM_0 + instance;
