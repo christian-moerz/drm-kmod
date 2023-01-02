@@ -222,6 +222,7 @@ dma_fence_chain_walk(struct dma_fence *fence)
 	return (prev);
 }
 
+#ifndef BSDTNG
 struct dma_fence_chain *
 to_dma_fence_chain(struct dma_fence *fence)
 {
@@ -231,3 +232,4 @@ to_dma_fence_chain(struct dma_fence *fence)
 
 	return (container_of(fence, struct dma_fence_chain, base));
 }
+#endif

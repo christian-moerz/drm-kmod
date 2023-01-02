@@ -1244,8 +1244,13 @@ struct drm_plane_helper_funcs {
 	 * attempt to obtain another state object ran into a &drm_modeset_lock
 	 * deadlock.
 	 */
+#ifdef BSDTNG
+	int (*atomic_check)(struct drm_plane *plane,
+			    struct drm_atomic_state *state);
+#else
 	int (*atomic_check)(struct drm_plane *plane,
 			    struct drm_plane_state *state);
+#endif
 
 	/**
 	 * @atomic_update:
@@ -1263,7 +1268,11 @@ struct drm_plane_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_update)(struct drm_plane *plane,
+#ifdef BSDTNG
+			      struct drm_atomic_state *state);
+#else
 			      struct drm_plane_state *old_state);
+#endif
 	/**
 	 * @atomic_disable:
 	 *
@@ -1287,7 +1296,11 @@ struct drm_plane_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_disable)(struct drm_plane *plane,
+#ifdef BSDTNG
+			       struct drm_atomic_state *state);
+#else
 			       struct drm_plane_state *old_state);
+#endif
 
 	/**
 	 * @atomic_async_check:
@@ -1306,7 +1319,11 @@ struct drm_plane_helper_funcs {
 	 * can not be applied in asynchronous manner.
 	 */
 	int (*atomic_async_check)(struct drm_plane *plane,
+#ifdef BSDTNG
+				  struct drm_atomic_state *state);
+#else
 				  struct drm_plane_state *state);
+#endif
 
 	/**
 	 * @atomic_async_update:
@@ -1345,7 +1362,11 @@ struct drm_plane_helper_funcs {
 	 *    for deferring if needed, until a common solution is created.
 	 */
 	void (*atomic_async_update)(struct drm_plane *plane,
+#ifdef BSDTNG
+				    struct drm_atomic_state *state);
+#else
 				    struct drm_plane_state *new_state);
+#endif
 };
 
 /**

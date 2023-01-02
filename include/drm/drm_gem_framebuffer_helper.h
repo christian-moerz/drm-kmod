@@ -1,6 +1,11 @@
 #ifndef __DRM_GEM_FB_HELPER_H__
 #define __DRM_GEM_FB_HELPER_H__
 
+#if defined(__FreeBSD__)
+#include <linux/types.h>
+#include <linux/iosys-map.h>
+#endif
+
 struct drm_afbc_framebuffer;
 struct drm_device;
 struct drm_fb_helper_surface_size;
@@ -36,6 +41,12 @@ drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 struct drm_framebuffer *
 drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
 			     const struct drm_mode_fb_cmd2 *mode_cmd);
+
+#ifdef BSDTNG
+int drm_gem_fb_vmap(struct drm_framebuffer *fb, struct iosys_map *map,
+		    struct iosys_map *data);
+void drm_gem_fb_vunmap(struct drm_framebuffer *fb, struct iosys_map *map);
+#endif
 
 #define drm_is_afbc(modifier) \
 	(((modifier) & AFBC_VENDOR_AND_TYPE_MASK) == DRM_FORMAT_MOD_ARM_AFBC(0))

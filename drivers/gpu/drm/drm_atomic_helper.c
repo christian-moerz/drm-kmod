@@ -35,6 +35,10 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#ifdef BSDTNG
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_atomic_helper.h>
+#endif
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_self_refresh_helper.h>
@@ -106,7 +110,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct drm_encoder *encoder;
-	unsigned encoder_mask = 0;
+	unsigned int encoder_mask = 0;
 	int i, ret = 0;
 
 	/*
@@ -610,7 +614,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	struct drm_connector *connector;
 	struct drm_connector_state *old_connector_state, *new_connector_state;
 	int i, ret;
-	unsigned connectors_mask = 0;
+	unsigned int connectors_mask = 0;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		bool has_connectors =
@@ -902,7 +906,11 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_check)
 			continue;
 
+#ifdef BSDTNG
+		ret = funcs->atomic_check(plane, state);
+#else
 		ret = funcs->atomic_check(plane, new_plane_state);
+#endif
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] atomic driver check failed\n",
 					 plane->base.id, plane->name);
@@ -995,13 +1003,29 @@ crtc_needs_disable(struct drm_crtc_state *old_state,
 	if (!new_state)
 		return drm_atomic_crtc_effectively_active(old_state);
 
+#ifdef BSDTNG
 	/*
-	 * We need to run through the crtc_funcs->disable() function if the CRTC
-	 * is currently on, if it's transitioning to self refresh mode, or if
-	 * it's in self refresh mode and needs to be fully disabled.
+	 * We need to disable bridge(s) and CRTC if we're transitioning out of
+	 * self-refresh and changing CRTCs at the same time, because the
+	 * bridge tracks self-refresh status via CRTC state.
+	 */
+	if (old_state->self_refresh_active &&
+	    old_state->crtc != new_state->crtc)
+		return true;
+#endif
+
+	/*
+	 * We also need to run through the crtc_funcs->disable() function if
+	 * the CRTC is currently on, if it's transitioning to self refresh
+	 * mode, or if it's in self refresh mode and needs to be fully
+	 * disabled.
 	 */
 	return old_state->active ||
+#ifdef BSDTNG
+	       (old_state->self_refresh_active && !new_state->active) ||
+#else
 	       (old_state->self_refresh_active && !new_state->enable) ||
+#endif
 	       new_state->self_refresh_active;
 }
 
@@ -1479,7 +1503,7 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int i, ret;
-	unsigned crtc_mask = 0;
+	unsigned int crtc_mask = 0;
 
 	 /*
 	  * Legacy cursor ioctls are completely unsynced, and userspace
@@ -1705,7 +1729,7 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	struct drm_plane_state *old_plane_state = NULL;
 	struct drm_plane_state *new_plane_state = NULL;
 	const struct drm_plane_helper_funcs *funcs;
-	int i, n_planes = 0;
+	int i, ret, n_planes = 0;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
@@ -1742,7 +1766,16 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 		return -EBUSY;
 	}
 
+#ifdef BSDTNG
+	ret = funcs->atomic_async_check(plane, state);
+	if (ret != 0)
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] driver async check failed\n",
+			       plane->base.id, plane->name);
+	return ret;
+#else
 	return funcs->atomic_async_check(plane, new_plane_state);
+#endif
 }
 EXPORT_SYMBOL(drm_atomic_helper_async_check);
 
@@ -1772,7 +1805,11 @@ void drm_atomic_helper_async_commit(struct drm_device *dev,
 		struct drm_framebuffer *old_fb = plane->state->fb;
 
 		funcs = plane->helper_private;
+#ifdef BSDTNG
+		funcs->atomic_async_update(plane, state);
+#else
 		funcs->atomic_async_update(plane, plane_state);
+#endif
 
 		/*
 		 * ->atomic_async_update() is supposed to update the
@@ -2207,6 +2244,12 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 	long ret;
 
 	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+#ifdef BSDTNG
+		ret = drm_crtc_commit_wait(old_crtc_state->commit);
+		if (ret)
+			drm_err(crtc->dev,
+				"[CRTC:%d:%s] commit wait timed out\n",
+#else
 		commit = old_crtc_state->commit;
 
 		if (!commit)
@@ -2224,10 +2267,17 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 						  10*HZ);
 		if (ret == 0)
 			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
+#endif
 				  crtc->base.id, crtc->name);
 	}
 
 	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
+#ifdef BSDTNG
+		ret = drm_crtc_commit_wait(old_conn_state->commit);
+		if (ret)
+			drm_err(conn->dev,
+				"[CONNECTOR:%d:%s] commit wait timed out\n",
+#else
 		commit = old_conn_state->commit;
 
 		if (!commit)
@@ -2245,10 +2295,17 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 						  10*HZ);
 		if (ret == 0)
 			DRM_ERROR("[CONNECTOR:%d:%s] flip_done timed out\n",
+#endif
 				  conn->base.id, conn->name);
 	}
 
 	for_each_old_plane_in_state(old_state, plane, old_plane_state, i) {
+#ifdef BSDTNG
+		ret = drm_crtc_commit_wait(old_plane_state->commit);
+		if (ret)
+			drm_err(plane->dev,
+				"[PLANE:%d:%s] commit wait timed out\n",
+#else
 		commit = old_plane_state->commit;
 
 		if (!commit)
@@ -2266,6 +2323,7 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 						  10*HZ);
 		if (ret == 0)
 			DRM_ERROR("[PLANE:%d:%s] flip_done timed out\n",
+#endif
 				  plane->base.id, plane->name);
 	}
 }
@@ -2439,6 +2497,17 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 			ret = funcs->prepare_fb(plane, new_plane_state);
 			if (ret)
 				goto fail;
+#ifdef BSDTNG
+		} else {
+			WARN_ON_ONCE(funcs->cleanup_fb);
+
+			if (!drm_core_check_feature(dev, DRIVER_GEM))
+				continue;
+
+			ret = drm_gem_plane_helper_prepare_fb(plane, new_plane_state);
+			if (ret)
+				goto fail;
+#endif /* BSDTNG */
 		}
 	}
 
@@ -2571,9 +2640,17 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 			    no_disable)
 				continue;
 
+#ifdef BSDTNG
+			funcs->atomic_disable(plane, old_state);
+#else
 			funcs->atomic_disable(plane, old_plane_state);
+#endif
 		} else if (new_plane_state->crtc || disabling) {
+#ifdef BSDTNG
+			funcs->atomic_update(plane, old_state);
+#else
 			funcs->atomic_update(plane, old_plane_state);
+#endif
 		}
 	}
 
@@ -2619,7 +2696,7 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 	struct drm_crtc_state *new_crtc_state =
 		drm_atomic_get_new_crtc_state(old_state, crtc);
 	struct drm_plane *plane;
-	unsigned plane_mask;
+	unsigned int plane_mask;
 
 	plane_mask = old_crtc_state->plane_mask;
 	plane_mask |= new_crtc_state->plane_mask;
@@ -2645,10 +2722,18 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 
 		if (drm_atomic_plane_disabling(old_plane_state, new_plane_state) &&
 		    plane_funcs->atomic_disable)
+#ifdef BSDTNG
+			plane_funcs->atomic_disable(plane, old_state);
+#else
 			plane_funcs->atomic_disable(plane, old_plane_state);
+#endif
 		else if (new_plane_state->crtc ||
 			 drm_atomic_plane_disabling(old_plane_state, new_plane_state))
+#ifdef BSDTNG
+			plane_funcs->atomic_update(plane, old_state);
+#else
 			plane_funcs->atomic_update(plane, old_plane_state);
+#endif
 	}
 
 	if (crtc_funcs && crtc_funcs->atomic_flush)
