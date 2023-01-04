@@ -37,9 +37,12 @@
 #include <linux/rcupdate.h>
 #ifdef BSDTNG
 #include <linux/seq_file.h>
-#endif
 
+
+struct dma_fence;
+#endif
 struct dma_fence_ops;
+struct dma_fence_cb;
 
 struct dma_fence {
 	spinlock_t *lock;
@@ -56,7 +59,12 @@ struct dma_fence {
 	int error;
 };
 
-struct dma_fence_cb;
+enum dma_fence_flag_bits {
+	DMA_FENCE_FLAG_SIGNALED_BIT,
+	DMA_FENCE_FLAG_TIMESTAMP_BIT,
+	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
+};
 
 typedef void (*dma_fence_func_t)(struct dma_fence *fence,
 				 struct dma_fence_cb *cb);
@@ -81,20 +89,13 @@ struct dma_fence_ops {
 				   char *str, int size);
 };
 
-enum dma_fence_flag_bits {
-	DMA_FENCE_FLAG_SIGNALED_BIT,
-	DMA_FENCE_FLAG_TIMESTAMP_BIT,
-	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
-};
-
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
     spinlock_t *lock, u64 context, u64 seqno);
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
 #ifdef BSDTNG
 void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq);
-#endif
+#endif /* BSDTNG */
 
 int dma_fence_signal(struct dma_fence *fence);
 int dma_fence_signal_locked(struct dma_fence *fence);
@@ -108,7 +109,11 @@ int dma_fence_add_callback(struct dma_fence *fence,
 bool dma_fence_remove_callback(struct dma_fence *fence,
     struct dma_fence_cb *cb);
 void dma_fence_enable_sw_signaling(struct dma_fence *fence);
+
+
 int dma_fence_get_status(struct dma_fence *fence);
+
+
 signed long dma_fence_wait_timeout(struct dma_fence *,
     bool intr, signed long timeout);
 signed long dma_fence_wait_any_timeout(struct dma_fence **fences,
@@ -153,6 +158,7 @@ static inline bool dma_fence_begin_signalling(void)
 }
 static inline void dma_fence_end_signalling(bool cookie) {}
 static inline void __dma_fence_might_wait(void) {}
+struct dma_fence *dma_fence_allocate_private_stub(void);
 #endif
 
 extern const struct dma_fence_ops dma_fence_array_ops;

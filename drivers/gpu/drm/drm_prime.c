@@ -79,7 +79,7 @@
  * Thus the chain of references always flows in one direction, avoiding loops:
  * importing GEM object -> dma-buf -> exported GEM bo. A further complication
  * are the lookup caches for import and export. These are required to guarantee
- * that any given object will always have only one uniqe userspace handle. This
+ * that any given object will always have only one unique userspace handle. This
  * is required to allow userspace to detect duplicated imports, since some GEM
  * drivers do fail command submissions if a given buffer object is listed more
  * than once. These import and export caches in &drm_prime_file_private only
@@ -192,6 +192,37 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 
 	return -ENOENT;
 }
+
+#ifdef BSDTNG
+void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv,
+				 uint32_t handle)
+{
+	struct rb_node *rb;
+
+	mutex_lock(&prime_fpriv->lock);
+
+	rb = prime_fpriv->handles.rb_node;
+	while (rb) {
+		struct drm_prime_member *member;
+
+		member = rb_entry(rb, struct drm_prime_member, handle_rb);
+		if (member->handle == handle) {
+			rb_erase(&member->handle_rb, &prime_fpriv->handles);
+			rb_erase(&member->dmabuf_rb, &prime_fpriv->dmabufs);
+
+			dma_buf_put(member->dma_buf);
+			kfree(member);
+			break;
+		} else if (member->handle < handle) {
+			rb = rb->rb_right;
+		} else {
+			rb = rb->rb_left;
+		}
+	}
+
+	mutex_unlock(&prime_fpriv->lock);
+}
+#endif /* BSDTNG */
 
 void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv,
 					struct dma_buf *dma_buf)
@@ -566,7 +597,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  *
  * FIXME: The underlying helper functions are named rather inconsistently.
  *
- * Exporting buffers
+ * Importing buffers
  * ~~~~~~~~~~~~~~~~~
  *
  * Importing dma-bufs using drm_gem_prime_import() relies on
@@ -736,9 +767,16 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	if (obj->funcs && obj->funcs->mmap) {
 		vma->vm_ops = obj->funcs->vm_ops;
 
+#ifdef BSDTNG
+		drm_gem_object_get(obj);
+#endif
 		ret = obj->funcs->mmap(obj, vma);
-		if (ret)
+		if (ret) {
+#ifdef BSDTNG
+			drm_gem_object_put(obj);
+#endif
 			return ret;
+		}
 		vma->vm_private_data = obj;
 		drm_gem_object_get(obj);
 		return 0;
@@ -837,7 +875,11 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 		max_segment = dma_max_mapping_size(dev->dev);
 	if (max_segment == 0)
 		max_segment = UINT_MAX;
+#ifdef BSDTNG
+	ret = sg_alloc_table_from_pages_segment(sg, pages, nr_pages, 0,
+#else
 	ret = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
+#endif
 					  nr_pages << PAGE_SHIFT,
 					  max_segment, GFP_KERNEL);
 	if (ret)
@@ -855,7 +897,7 @@ EXPORT_SYMBOL(drm_prime_pages_to_sg);
  * @sgt: sg_table describing the buffer to check
  *
  * This helper calculates the contiguous size in the DMA address space
- * of the the buffer described by the provided sg_table.
+ * of the buffer described by the provided sg_table.
  *
  * This is useful for implementing
  * &drm_gem_object_funcs.gem_prime_import_sg_table.

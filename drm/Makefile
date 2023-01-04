@@ -33,6 +33,7 @@ SRCS=	drm_atomic.c \
 	drm_encoder.c \
 	drm_file.c \
 	drm_flip_work.c \
+	drm_format_helper.c \
 	drm_fourcc.c \
 	drm_framebuffer.c \
 	drm_gem.c \

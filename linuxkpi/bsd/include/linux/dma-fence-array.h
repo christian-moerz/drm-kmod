@@ -67,15 +67,12 @@ struct dma_fence_array {
 bool dma_fence_is_array(struct dma_fence *fence);
 struct dma_fence_array *to_dma_fence_array(struct dma_fence *fence);
 #endif
+
 struct dma_fence_array *dma_fence_array_create(int num_fences,
     struct dma_fence **fences, u64 context, unsigned seqno,
     bool signal_on_any);
-#ifdef BSDTNG
-/* FIXME BSD had to static inline because module did not load */
-/* struct dma_fence *dma_fence_array_first(struct dma_fence *head);
-struct dma_fence *dma_fence_array_next(struct dma_fence *head,
-				       unsigned int index); */
 
+#ifdef BSDTNG
 /**
  * to_dma_fence_array - cast a fence to a dma_fence_array
  * @fence: fence to cast to a dma_fence_array
@@ -92,38 +89,16 @@ to_dma_fence_array(struct dma_fence *fence)
 	return container_of(fence, struct dma_fence_array, base);
 }
 
-static struct dma_fence *
-dma_fence_array_first(struct dma_fence *head)
-{
-	struct dma_fence_array *array;
+#define dma_fence_array_for_each(fence, index, head)			\
+	for (index = 0, fence = dma_fence_array_first(head); fence;	\
+	     ++(index), fence = dma_fence_array_next(head, index))
 
-	if (!head)
-		return NULL;
 
-	array = to_dma_fence_array(head);
-	if (!array)
-		return head;
+bool dma_fence_match_context(struct dma_fence *fence, u64 context);
 
-	if (!array->num_fences)
-		return NULL;
-
-	return array->fences[0];
-}
-EXPORT_SYMBOL(dma_fence_array_first);
-
-static struct dma_fence *
-dma_fence_array_next(struct dma_fence *head,
-				       unsigned int index)
-{
-	struct dma_fence_array *array = to_dma_fence_array(head);
-
-	if (!array || index >= array->num_fences)
-		return NULL;
-
-	return array->fences[index];
-}
-EXPORT_SYMBOL(dma_fence_array_next);
-
+struct dma_fence *dma_fence_array_first(struct dma_fence *head);
+struct dma_fence *dma_fence_array_next(struct dma_fence *head,
+				       unsigned int index);
 #endif /* BSDTNG */
 
 #endif /* _LINUX_DMA_FENCE_ARRAY_H_ */

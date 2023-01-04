@@ -60,11 +60,44 @@ dma_fence_get_stub(void)
 		    &dma_fence_stub_lock,
 		    0,
 		    0);
+#ifdef BSDTNG
+		set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			&dma_fence_stub.flags);
+#endif
 		dma_fence_signal_locked(&dma_fence_stub);
 	}
 	spin_unlock(&dma_fence_stub_lock);
 	return (dma_fence_get(&dma_fence_stub));
 }
+#ifdef BSDTNG
+
+/**
+ * dma_fence_allocate_private_stub - return a private, signaled fence
+ *
+ * Return a newly allocated and signaled stub fence.
+ */
+struct dma_fence *dma_fence_allocate_private_stub(void)
+{
+	struct dma_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (fence == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	dma_fence_init(fence,
+		       &dma_fence_stub_ops,
+		       &dma_fence_stub_lock,
+		       0, 0);
+
+	set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+		&dma_fence_stub.flags);
+
+	dma_fence_signal(fence);
+
+	return fence;
+}
+EXPORT_SYMBOL(dma_fence_allocate_private_stub);
+#endif /* BSDTNG */
 
 static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
 
@@ -296,13 +329,24 @@ int
 dma_fence_signal(struct dma_fence *fence)
 {
 	int rv;
+#ifdef BSDTNG
+	bool sig;
+#endif
 
 	if (fence == NULL)
 		return (-EINVAL);
 
+#ifdef BSDTNG
+	sig = dma_fence_begin_signalling();
+#endif
+
 	spin_lock(fence->lock);
 	rv = dma_fence_signal_timestamp_locked(fence, ktime_get());
 	spin_unlock(fence->lock);
+
+#ifdef BSDTNG
+	dma_fence_end_signalling(sig);
+#endif
 	return (rv);
 }
 
@@ -316,6 +360,14 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 
 	if (fence == NULL)
 		return (-EINVAL);
+
+#ifdef BSDTNG
+	might_sleep();
+
+	__dma_fence_might_wait();
+
+	dma_fence_enable_sw_signaling(fence);
+#endif
 
 	if (fence->ops && fence->ops->wait != NULL)
 		rv = fence->ops->wait(fence, intr, timeout);
@@ -333,6 +385,28 @@ dma_fence_release(struct kref *kref)
 	struct dma_fence *fence;
 
 	fence = container_of(kref, struct dma_fence, refcount);
+#ifdef BSDTNG
+	if (WARN(!list_empty(&fence->cb_list) &&
+		 !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags),
+		 "Fence %s:%s:%lx:%lx released with pending signals!\n",
+		 fence->ops->get_driver_name(fence),
+		 fence->ops->get_timeline_name(fence),
+		 fence->context, fence->seqno)) {
+
+		/*
+		 * Failed to signal before release, likely a refcounting issue.
+		 *
+		 * This should never happen, but if it does make sure that we
+		 * don't leave chains dangling. We set the error flag first
+		 * so that the callbacks know this signal is due to an error.
+		 */
+		spin_lock(fence->lock);
+		fence->error = -EDEADLK;
+		dma_fence_signal_locked(fence);
+		spin_unlock(fence->lock);
+	}
+#endif
+
 	if (fence->ops && fence->ops->release)
 		fence->ops->release(fence);
 	else
@@ -349,27 +423,40 @@ dma_fence_free(struct dma_fence *fence)
 	kfree_rcu(fence, rcu);
 }
 
+#ifdef BSDTNG
+
+static bool __dma_fence_enable_signaling(struct dma_fence *fence)
+{
+	bool was_enabled;
+
+	lockdep_assert_held(fence->lock);
+
+	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+	    &fence->flags);
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return false;
+
+	if (was_enabled == false &&
+	    fence->ops && fence->ops->enable_signaling) {
+		if (fence->ops->enable_signaling(fence) == false) {
+			dma_fence_signal_locked(fence);
+			return false;
+		}
+	}
+
+	return true;
+}
+#endif /* BSDTNG */
+
 /*
  * enable signaling on fence
  */
 void
 dma_fence_enable_sw_signaling(struct dma_fence *fence)
 {
-	bool was_enabled;
 
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return;
 	spin_lock(fence->lock);
-	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-	    &fence->flags);
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		goto out;
-	if (was_enabled == false &&
-	    fence->ops && fence->ops->enable_signaling) {
-		if (fence->ops->enable_signaling(fence) == false)
-			dma_fence_signal_locked(fence);
-	}
-out:
+	__dma_fence_enable_signaling(fence);
 	spin_unlock(fence->lock);
 }
 
@@ -380,8 +467,7 @@ int
 dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 			   dma_fence_func_t func)
 {
-	int rv = 0;
-	bool was_enabled;
+	int rv = -ENOENT;
 
 	if (fence == NULL || func == NULL)
 		return (-EINVAL);
@@ -392,6 +478,9 @@ dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 	}
 
 	spin_lock(fence->lock);
+#ifndef BSDTNG
+	bool was_enabled;
+
 	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 	    &fence->flags);
 
@@ -406,8 +495,12 @@ dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 	}
 
 	if (!rv) {
+#else
+	if (__dma_fence_enable_signaling(fence)) {
+#endif
 		cb->func = func;
 		list_add_tail(&cb->node, &fence->cb_list);
+		rv = 0;
 	} else
 		INIT_LIST_HEAD(&cb->node);
 	spin_unlock(fence->lock);
@@ -468,25 +561,38 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 {
 	struct default_wait_cb cb;
 	signed long rv = timeout ? timeout : 1;
+
+#ifndef BSDTNG
 	bool was_enabled;
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return (rv);
+#endif
 
 	spin_lock(fence->lock);
 
-	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+#ifndef BSDTNG
+	was_enabled = 
+#endif
+	test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 	    &fence->flags);
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		goto out;
 
+#ifdef BSDTNG
+	if (intr && signal_pending(current)) {
+		rv = -ERESTARTSYS;
+#else
 	if (was_enabled == false && fence->ops &&
 	    fence->ops->enable_signaling) {
 		if (!fence->ops->enable_signaling(fence)) {
 			dma_fence_signal_locked(fence);
+#endif
 			goto out;
+#ifndef BSDTNG
 		}
+#endif
 	}
 
 	if (timeout == 0) {
@@ -515,6 +621,7 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 	if (!list_empty(&cb.base.node))
 		list_del(&cb.base.node);
 	__set_current_state(TASK_RUNNING);
+
 out:
 	spin_unlock(fence->lock);
 	return (rv);
@@ -549,7 +656,11 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 	int i;
 
 	if (timeout == 0) {
+#ifdef BSDTNG
+		for (i = 0; i < count; ++i) {
+#else
 		for (i = 0; i < count; i++) {
+#endif
 			if (dma_fence_is_signaled(fences[i])) {
 				if (idx)
 					*idx = i;
@@ -560,7 +671,11 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 	}
 
 	cb = malloc(sizeof(*cb), M_DMABUF, M_WAITOK | M_ZERO);
+#ifdef BSDTNG
+	for (i = 0; i < count; ++i) {
+#else
 	for (i = 0; i < count; i++) {
+#endif
 		struct dma_fence *fence = fences[i];
 		cb[i].task = current;
 		if (dma_fence_add_callback(fence, &cb[i].base,

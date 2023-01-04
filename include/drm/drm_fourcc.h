@@ -31,7 +31,6 @@
  */
 #define DRM_FORMAT_MAX_PLANES	4u
 #endif
-
 /*
  * DRM formats are little endian.  Define host endian variants for the
  * most common formats here, to reduce the #ifdefs needed in drivers.
@@ -323,6 +322,9 @@ unsigned int drm_format_info_block_width(const struct drm_format_info *info,
 					 int plane);
 unsigned int drm_format_info_block_height(const struct drm_format_info *info,
 					  int plane);
+#ifdef BSDTNG
+unsigned int drm_format_info_bpp(const struct drm_format_info *info, int plane);
+#endif
 uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
 				   int plane, unsigned int buffer_width);
 const char *drm_get_format_name(uint32_t format, struct drm_format_name_buf *buf);

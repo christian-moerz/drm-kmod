@@ -163,7 +163,7 @@ struct dma_resv {
 #ifndef BSDTNG
 	struct dma_fence __rcu *fence_excl;
 #endif
-	struct dma_resv_list __rcu *fence;
+	struct dma_resv_list __rcu *fences;
 };
 
 #ifdef BSDTNG
@@ -338,7 +338,7 @@ static inline void dma_resv_reset_max_fences(struct dma_resv *obj) {}
  */
 static inline struct dma_resv_list *dma_resv_get_list(struct dma_resv *obj)
 {
-	return rcu_dereference_protected(obj->fence,
+	return rcu_dereference_protected(obj->fences,
 					 dma_resv_held(obj));
 }
 
@@ -543,11 +543,12 @@ int dma_resv_get_fences(struct dma_resv *obj, enum dma_resv_usage usage,
 			unsigned int *num_fences, struct dma_fence ***fences);
 int dma_resv_get_singleton(struct dma_resv *obj, enum dma_resv_usage usage,
 			   struct dma_fence **fence);
-#endif
+#else
 int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences);
 void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence);
 
 void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence);
+#endif
 
 #ifndef BSDTNG
 int dma_resv_get_fences_rcu(struct dma_resv *obj,
@@ -561,7 +562,9 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src);
 long dma_resv_wait_timeout_rcu(struct dma_resv *obj, bool wait_all, bool intr,
 			       unsigned long timeout);
 
+#ifndef BSDTNG
 bool dma_resv_test_signaled_rcu(struct dma_resv *obj, bool test_all);
+#endif
 #ifdef BSDTNG
 long dma_resv_wait_timeout(struct dma_resv *obj, enum dma_resv_usage usage,
 			   bool intr, unsigned long timeout);

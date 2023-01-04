@@ -1093,6 +1093,9 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 out_cleanup_gem:
+#ifdef DEBUG
+printk("i915_driver_probe - end failure: out_cleanup_gem\n");
+#endif
 	i915_gem_suspend(i915);
 	i915_gem_driver_remove(i915);
 	i915_gem_driver_release(i915);

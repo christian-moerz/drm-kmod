@@ -752,7 +752,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 * restore the state it wants on VT switch. So if the userspace
 		 * tries to change the link_status from GOOD to BAD, driver
 		 * silently rejects it and returns a 0. This prevents userspace
-		 * from accidently breaking  the display when it restores the
+		 * from accidentally breaking  the display when it restores the
 		 * state.
 		 */
 		if (state->link_status != DRM_LINK_STATUS_GOOD)
@@ -796,6 +796,10 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 						   fence_ptr);
 	} else if (property == connector->max_bpc_property) {
 		state->max_requested_bpc = val;
+#ifdef __notyet__
+	} else if (property == connector->privacy_screen_sw_state_property) {
+		state->privacy_screen_sw_state = val;
+#endif
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -873,6 +877,10 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = 0;
 	} else if (property == connector->max_bpc_property) {
 		*val = state->max_requested_bpc;
+#ifdef __notyet__
+	} else if (property == connector->privacy_screen_sw_state_property) {
+		*val = state->privacy_screen_sw_state;
+#endif
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
@@ -1063,17 +1071,17 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  * DOC: explicit fencing properties
  *
  * Explicit fencing allows userspace to control the buffer synchronization
- * between devices. A Fence or a group of fences are transfered to/from
+ * between devices. A Fence or a group of fences are transferred to/from
  * userspace using Sync File fds and there are two DRM properties for that.
  * IN_FENCE_FD on each DRM Plane to send fences to the kernel and
  * OUT_FENCE_PTR on each DRM CRTC to receive fences from the kernel.
  *
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
- * for any pending rendering to complete. For shared buffers represented with
- * a &struct dma_buf this is tracked in &struct dma_resv.
- * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
- * whereas explicit fencing is what Android wants.
+ * for any pending rendering to complete. This is usually tracked in &struct
+ * dma_resv which can also contain mandatory kernel fences. Implicit syncing
+ * is how Linux traditionally worked (e.g. DRI2/3 on X.org), whereas explicit
+ * fencing is what Android wants.
  *
  * "IN_FENCE_FD”:
  *	Use this property to pass a fence that DRM should wait on before
@@ -1088,7 +1096,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  *
  *	On the driver side the fence is stored on the @fence parameter of
  *	&struct drm_plane_state. Drivers which also support implicit fencing
- *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
+ *	should extract the implicit fence using drm_gem_plane_helper_prepare_fb(),
  *	to make sure there's consistent behaviour between drivers in precedence
  *	of implicit vs. explicit fencing.
  *
