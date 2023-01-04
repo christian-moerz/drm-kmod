@@ -641,13 +641,25 @@ retry:
 	src_list = dma_resv_get_list(dst);
 	old = dma_resv_get_excl(dst);
 
+#ifdef __linux__
 	preempt_disable();
+#elif defined(__FreeBSD__)
+	/*
+	 * Under FreeBSD dma_fence_is_signaled can be blocked. Prevent readers
+	 * from spinning on seqlock in that case with blocking on rwlock.
+	 */
+	rw_wlock(&dst->rw);
+#endif
 	write_seqcount_begin(&dst->seq);
 	/* write_seqcount_begin provides the necessary memory barrier */
 	RCU_INIT_POINTER(dst->fence_excl, new);
 	RCU_INIT_POINTER(dst->fence, dst_list);
 	write_seqcount_end(&dst->seq);
+#ifdef __linux__
 	preempt_enable();
+#elif defined(__FreeBSD__)
+	rw_wunlock(&dst->rw);
+#endif
 
 	dma_resv_list_free(src_list);
 	dma_fence_put(old);

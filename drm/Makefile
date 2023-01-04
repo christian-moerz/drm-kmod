@@ -31,6 +31,7 @@ SRCS=	drm_atomic.c \
 	drm_dumb_buffers.c \
 	drm_edid.c \
 	drm_encoder.c \
+	drm_fb_helper.c \
 	drm_file.c \
 	drm_flip_work.c \
 	drm_format_helper.c \
@@ -71,9 +72,9 @@ SRCS=	drm_atomic.c \
 	drm_vma_manager.c \
 	linux_fb.c
 
-.if !empty(KCONFIG:MDRM_FBDEV_EMULATION)
-SRCS+=	drm_fb_helper.c
-.endif
+#.if !empty(KCONFIG:MDRM_FBDEV_EMULATION)
+#SRCS+=	drm_fb_helper.c
+#.endif
 
 .if !empty(KCONFIG:MAGP)
 SRCS+=	drm_agpsupport.c
@@ -120,7 +121,7 @@ CFLAGS+= -I${SRCDIR:H}
 
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"' -DBSDTNG -DDEBUG -DXARRAY_EXPERIMENTAL
 CFLAGS+= '-DLINUXKPI_PARAM_PREFIX=drm_' -DDRM_SYSCTL_PARAM_PREFIX=_dri \
-			-DLINUXKPI_VERSION=50000
+			-DLINUXKPI_VERSION=50000 -DCONFIG_FB_DEFERRED_IO
 CFLAGS+= ${KCONFIG:C/(.*)/-DCONFIG_\1/}
 
 SRCS+=	device_if.h \

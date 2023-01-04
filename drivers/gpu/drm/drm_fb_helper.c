@@ -700,9 +700,80 @@ static void drm_fb_helper_damage(struct fb_info *info, u32 x, u32 y,
 	schedule_work(&helper->damage_work);
 }
 
+#if defined(BSDTNG) && defined(CONFIG_FB_DEFERRED_IO)
+/*
+ * Convert memory region into area of scanlines and pixels per
+ * scanline. The parameters off and len must not reach beyond
+ * the end of the framebuffer.
+ */
+static void drm_fb_helper_memory_range_to_clip(struct fb_info *info, off_t off, size_t len,
+					       struct drm_rect *clip)
+{
+	off_t end = off + len;
+	u32 x1 = 0;
+	u32 y1 = off / info->fix.line_length;
+	u32 x2 = info->var.xres;
+	u32 y2 = DIV_ROUND_UP(end, info->fix.line_length);
+
+	if ((y2 - y1) == 1) {
+		/*
+		 * We've only written to a single scanline. Try to reduce
+		 * the number of horizontal pixels that need an update.
+		 */
+		off_t bit_off = (off % info->fix.line_length) * 8;
+		off_t bit_end = (end % info->fix.line_length) * 8;
+
+		x1 = bit_off / info->var.bits_per_pixel;
+		x2 = DIV_ROUND_UP(bit_end, info->var.bits_per_pixel);
+	}
+
+	drm_rect_init(clip, x1, y1, x2 - x1, y2 - y1);
+}
+
+/**
+ * drm_fb_helper_deferred_io() - fbdev deferred_io callback function
+ * @info: fb_info struct pointer
+ * @pagereflist: list of mmap framebuffer pages that have to be flushed
+ *
+ * This function is used as the &fb_deferred_io.deferred_io
+ * callback function for flushing the fbdev mmap writes.
+ */
+void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagereflist)
+{
+	unsigned long start, end, min_off, max_off;
+	struct fb_deferred_io_pageref *pageref;
+	struct drm_rect damage_area;
+
+	min_off = ULONG_MAX;
+	max_off = 0;
+	list_for_each_entry(pageref, pagereflist, list) {
+		start = pageref->offset;
+		end = start + PAGE_SIZE;
+		min_off = min(min_off, start);
+		max_off = max(max_off, end);
+	}
+	if (min_off >= max_off)
+		return;
+
+	/*
+	 * As we can only track pages, we might reach beyond the end
+	 * of the screen and account for non-existing scanlines. Hence,
+	 * keep the covered memory area within the screen buffer.
+	 */
+	max_off = min(max_off, info->screen_size);
+
+	drm_fb_helper_memory_range_to_clip(info, min_off, max_off - min_off, &damage_area);
+	drm_fb_helper_damage(info, damage_area.x1, damage_area.y1,
+			     drm_rect_width(&damage_area),
+			     drm_rect_height(&damage_area));
+}
+EXPORT_SYMBOL(drm_fb_helper_deferred_io);
+#endif /* BSDTNG */
+
 #ifdef __linux__
-// ifdef CONFIG_FB_DEFERRED_IO removed upstream
-// Does not compile, FreeBSD vm_page has no field lru
+/* ifdef CONFIG_FB_DEFERRED_IO removed upstream
+ * Does not compile, FreeBSD vm_page has no field lru */
+/* NOTE cm 2023/01/04 I might have, again, f*ed myself here */
 
 /**
  * drm_fb_helper_deferred_io() - fbdev deferred_io callback function

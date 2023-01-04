@@ -226,7 +226,11 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	fb_info->fbio.fb_cmsize = 0;
 	if (fb_info->fbio.fb_bpp == 0) {
 		device_printf(fb_info->fbio.fb_fbd_dev,
+#ifdef __linux__
 		    "fb_bpp not set, setting to 8");
+#elif defined(__FreeBSD__)
+		    "fb_bpp not set, setting to 32");
+#endif
 		fb_info->fbio.fb_bpp = 32;
 	}
 	if ((err = vt_fb_attach(&fb_info->fbio)) != 0)

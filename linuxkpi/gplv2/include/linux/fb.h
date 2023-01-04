@@ -85,6 +85,26 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 	return a;
 }
 
+#if defined(BSDTNG) && defined(CONFIG_FB_DEFERRED_IO)
+struct fb_deferred_io_pageref {
+	struct page *page;
+	unsigned long offset;
+	/* private */
+	struct list_head list;
+};
+
+struct fb_deferred_io {
+	/* delay between mkwrite and deferred handler */
+	unsigned long delay;
+	bool sort_pagereflist; /* sort pagelist by offset */
+	struct mutex lock; /* mutex that protects the pageref list */
+	struct list_head pagereflist; /* list of pagerefs for touched pages */
+	/* callback */
+	void (*first_io)(struct fb_info *info);
+	void (*deferred_io)(struct fb_info *info, struct list_head *pagelist);
+};
+#endif /* BSDTNG && CONFIG_FB_DEFERRED_IO */
+
 int linux_register_framebuffer(struct linux_fb_info *fb_info);
 int linux_unregister_framebuffer(struct linux_fb_info *fb_info);
 int remove_conflicting_framebuffers(struct apertures_struct *a,
