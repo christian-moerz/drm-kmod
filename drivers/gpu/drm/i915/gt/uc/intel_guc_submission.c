@@ -1798,7 +1798,11 @@ void intel_guc_submission_reset(struct intel_guc *guc, intel_engine_mask_t stall
 	xa_unlock_irqrestore(&guc->context_lookup, flags);
 
 	/* GuC is blown away, drop all references to contexts */
+#ifdef __linux__
 	xa_destroy(&guc->context_lookup);
+#elif defined(__FreeBSD__)
+	linuxkpi_xa_destroy(&guc->context_lookup);
+#endif
 }
 
 static void guc_cancel_context_requests(struct intel_context *ce)
@@ -1905,7 +1909,11 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc)
 	guc_cancel_sched_engine_requests(guc->sched_engine);
 
 	/* GuC is blown away, drop all references to contexts */
+#ifdef __linux__
 	xa_destroy(&guc->context_lookup);
+#elif defined(__FreeBSD__)
+	linuxkpi_xa_destroy(&guc->context_lookup);
+#endif
 }
 
 void intel_guc_submission_reset_finish(struct intel_guc *guc)
@@ -4139,14 +4147,22 @@ static inline void guc_kernel_context_pin(struct intel_guc *guc,
 	try_context_registration(ce, true);
 }
 
+#ifdef BSDTNG
+#define mtx_destroyed(m) ((m)->mtx_lock == MTX_DESTROYED)
+#endif
+
 static inline void guc_init_lrc_mapping(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+#ifdef __linux__
 	/* make sure all descriptors are clean... */
 	xa_destroy(&guc->context_lookup);
+#elif defined(__FreeBSD__)
+	linuxkpi_xa_destroy(&guc->context_lookup);
+#endif
 
 	/*
 	 * A reset might have occurred while we had a pending stalled request,

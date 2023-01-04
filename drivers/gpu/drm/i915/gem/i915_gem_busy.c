@@ -158,21 +158,18 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	dma_resv_iter_end(&cursor);
 
 	/* FIXME BSD: need to check whether this works */
+	/* NOTE cm 2023/01/02 adding back in */
+#if defined(__FreeBSD__)
 	/*
-	 * note to myself: see original - was using an rwlock?
-
-	 	*
-		 * On FreeBSD, thread holding reservation object seqcount lock
-		 * for write may be blocked. In that case reader thread should
-		 * be blocked too.
-		 *
-		rcu_read_unlock();
-		rw_rlock(&obj->base.resv->rw);
-		rw_runlock(&obj->base.resv->rw);
-		rcu_read_lock();
-		goto retry;
-
+	 * On FreeBSD, thread holding reservation object seqcount lock
+	 * for write may be blocked. In that case reader thread should
+	 * be blocked too.
 	 */
+	rcu_read_unlock();
+	rw_rlock(&obj->base.resv->rw);
+	rw_runlock(&obj->base.resv->rw);
+	rcu_read_lock();
+#endif	 
 
 	err = 0;
 out:

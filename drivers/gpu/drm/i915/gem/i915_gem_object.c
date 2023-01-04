@@ -785,9 +785,6 @@ void i915_objects_module_exit(void)
 
 int __init i915_objects_module_init(void)
 {
-#ifdef DEBUG
-	printk("i915_objects_module_init - begin\n");
-#endif
 	slab_objects = KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
 	if (!slab_objects)
 		return -ENOMEM;

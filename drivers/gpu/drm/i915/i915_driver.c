@@ -1,3 +1,5 @@
+/* i915_drv.c -- i830,i845,i855,i865,i915 driver -*- linux-c -*-
+ */
 /*
  *
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
@@ -746,6 +748,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 #ifdef __linux__
 	/* FIXME BSD no idea how to transpose this? */
+	/* NOTE cm 2023/01/01 This has to do with D3 cold power state; I assume, 
+		this is not available on FreeBSD? */
 	/*
 	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
 	 * This should be totally removed when we handle the pci states properly
@@ -768,7 +772,10 @@ err_ggtt:
 	i915_gem_drain_freed_objects(dev_priv);
 	i915_ggtt_driver_late_release(dev_priv);
 err_perf:
+#if defined(CONFIG_I915_PERF)
+	/* NOTE cm 2023/01/01 no perf */
 	i915_perf_fini(dev_priv);
+#endif
 	return ret;
 }
 
@@ -783,7 +790,10 @@ static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 	struct pci_dev *root_pdev;
 #endif
 
+#if defined(CONFIG_I915_PERF)
+	/* NOTE cm 2023/01/01 no perf */
 	i915_perf_fini(dev_priv);
+#endif
 
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
@@ -812,7 +822,9 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	i915_gem_driver_register(dev_priv);
 	i915_pmu_register(dev_priv);
 
+#ifdef __linux__
 	intel_vgpu_register(dev_priv);
+#endif
 
 	/* Reveal our presence to userspace */
 	if (drm_dev_register(dev, 0)) {
@@ -824,8 +836,11 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	i915_debugfs_register(dev_priv);
 	i915_setup_sysfs(dev_priv);
 
+#if defined(CONFIG_I915_PERF)
+	/* NOTE cm 2023/01/01 no perf */
 	/* Depends on sysfs having been initialized */
 	i915_perf_register(dev_priv);
+#endif
 
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_driver_register(gt);
@@ -960,12 +975,6 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *i915;
 	int ret;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - begin\n");
-	printk("i915_driver_probe - calling i915_driver_create\n");
-#endif
-
-
 	i915 = i915_driver_create(pdev, ent);
 	if (IS_ERR(i915))
 		return PTR_ERR(i915);
@@ -974,128 +983,62 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!i915->params.nuclear_pageflip && DISPLAY_VER(i915) < 5)
 		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling pci_enable_device\n");
-#endif
-
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling i915_driver_early_probe\n");
-#endif
 
 	ret = i915_driver_early_probe(i915);
 	if (ret < 0)
 		goto out_pci_disable;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling disable_rpm_wakeref_asserts\n");
-#endif
-
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling intel_vgpu_detect\n");
-#endif
 
 	intel_vgpu_detect(i915);
 
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling intel_gt_probe_all\n");
-#endif
 	ret = intel_gt_probe_all(i915);
 	if (ret < 0)
 		goto out_runtime_pm_put;
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling i915_driver_mmio_probe\n");
-#endif
 
 	ret = i915_driver_mmio_probe(i915);
 	if (ret < 0)
 		goto out_tiles_cleanup;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling i915_driver_hw_probe\n");
-#endif
-
 	ret = i915_driver_hw_probe(i915);
 	if (ret < 0)
 		goto out_cleanup_mmio;
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling intel_modeset_init_noirq\n");
-#endif
 
 	ret = intel_modeset_init_noirq(i915);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling intel_irq_install\n");
-#endif
-
 	ret = intel_irq_install(i915);
 	if (ret)
 		goto out_cleanup_modeset;
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling intel_modeset_init_nogem\n");
-#endif
 
 	ret = intel_modeset_init_nogem(i915);
 	if (ret)
 		goto out_cleanup_irq;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling i915_gem_init\n");
-#endif
-
 	ret = i915_gem_init(i915);
 	if (ret)
 		goto out_cleanup_modeset2;
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling intel_modeset_init\n");
-#endif
 
 	ret = intel_modeset_init(i915);
 	if (ret)
 		goto out_cleanup_gem;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling i915_driver_register\n");
-#endif
-
 	i915_driver_register(i915);
 
-#ifdef DEBUG
-	printk("i915_driver_probe - calling enable_rpm_wakeref_asserts\n");
-#endif
-
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
-
-#ifdef DEBUG
-	printk("i915_driver_probe - calling i915_welcome_messages\n");
-#endif
 
 	i915_welcome_messages(i915);
 
 	i915->do_release = true;
 
-#ifdef DEBUG
-	printk("i915_driver_probe - end\n");
-#endif
-
 	return 0;
 
 out_cleanup_gem:
-#ifdef DEBUG
-printk("i915_driver_probe - end failure: out_cleanup_gem\n");
-#endif
 	i915_gem_suspend(i915);
 	i915_gem_driver_remove(i915);
 	i915_gem_driver_release(i915);

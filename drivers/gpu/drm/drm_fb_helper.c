@@ -1931,13 +1931,6 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 	 * register the fbdev emulation instance in kernel_fb_helper_list. */
 	mutex_unlock(&fb_helper->lock);
 
-#ifdef DEBUG
-printk("__drm_fb_helper_initial_config_and_unlock - calling register_framebuffer\n");
-#ifdef DOPANIC
-	/* panic("PANIC - screenbuffer debug"); */
-#endif
-#endif
-
 	ret = register_framebuffer(info);
 	if (ret < 0)
 		return ret;

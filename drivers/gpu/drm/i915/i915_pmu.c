@@ -1093,10 +1093,6 @@ int i915_pmu_init(void)
 {
 	int ret;
 
-#ifdef DEBUG
-	printk("i915_pmu_init - begin\n");
-#endif
-
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
 				      "perf/x86/intel/i915:online",
 				      i915_pmu_cpu_online,

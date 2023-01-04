@@ -87,6 +87,7 @@ static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
 	}
 }
 
+#ifndef BSDTNG
 /**
  * drm_plane_enable_fb_damage_clips - Enables plane fb damage clips property.
  * @plane: Plane on which to enable damage clips property.
@@ -102,6 +103,7 @@ void drm_plane_enable_fb_damage_clips(struct drm_plane *plane)
 				   0);
 }
 EXPORT_SYMBOL(drm_plane_enable_fb_damage_clips);
+#endif /* BSDTNG */
 
 /**
  * drm_atomic_helper_check_plane_damage - Verify plane damage on atomic_check.
@@ -170,7 +172,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	int ret = 0;
 
 	/*
-	 * When called from ioctl, we are interruptable, but not when called
+	 * When called from ioctl, we are interruptible, but not when called
 	 * internally (ie. defio worker)
 	 */
 	drm_modeset_acquire_init(&ctx,
@@ -277,19 +279,35 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 				   const struct drm_plane_state *old_state,
 				   const struct drm_plane_state *state)
 {
+#ifdef BSDTNG
+	struct drm_rect src;
+#endif
 	memset(iter, 0, sizeof(*iter));
 
 	if (!state || !state->crtc || !state->fb || !state->visible)
 		return;
 
+#ifdef BSDTNG
+	iter->clips = (struct drm_rect *)drm_plane_get_damage_clips(state);
+#else
 	iter->clips = drm_helper_get_plane_damage_clips(state);
+#endif
 	iter->num_clips = drm_plane_get_damage_clips_count(state);
 
 	/* Round down for x1/y1 and round up for x2/y2 to catch all pixels */
+#ifdef BSDTNG
+	src = drm_plane_state_src(state);
+
+	iter->plane_src.x1 = src.x1 >> 16;
+	iter->plane_src.y1 = src.y1 >> 16;
+	iter->plane_src.x2 = (src.x2 >> 16) + !!(src.x2 & 0xFFFF);
+	iter->plane_src.y2 = (src.y2 >> 16) + !!(src.y2 & 0xFFFF);
+#else
 	iter->plane_src.x1 = state->src.x1 >> 16;
 	iter->plane_src.y1 = state->src.y1 >> 16;
 	iter->plane_src.x2 = (state->src.x2 >> 16) + !!(state->src.x2 & 0xFFFF);
 	iter->plane_src.y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
+#endif
 
 	if (!iter->clips || !drm_rect_equals(&state->src, &old_state->src)) {
 		iter->clips = NULL;

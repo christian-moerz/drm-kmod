@@ -1324,10 +1324,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(struct intel_device_info *) ent->driver_data;
 	int err;
 
-#ifdef DEBUG
-	printk("i915_pci_probe - begin\n");
-#endif
-
 	if (intel_info->require_force_probe &&
 	    !force_probe(pdev->device, i915_modparams.force_probe)) {
 		dev_info(&pdev->dev,
@@ -1339,10 +1335,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-#ifdef DEBUG
-	printk("i915_pci_probe - calling \n");
-#endif
-
 	/* Only bind to function 0 of the device. Early generations
 	 * used function 1 as a placeholder for multi-head. This causes
 	 * us confusion instead, especially on the systems where both
@@ -1351,41 +1343,21 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-#ifdef DEBUG
-	printk("i915_pci_probe - calling intel_mmio_bar_valid\n");
-#endif
-
 	if (!intel_mmio_bar_valid(pdev, intel_info))
 		return -ENXIO;
-
-#ifdef DEBUG
-	printk("i915_pci_probe - calling intel_modeset_probe_defer\n");
-#endif
 
 	/* Detect if we need to wait for other drivers early on */
 	if (intel_modeset_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
-#ifdef DEBUG
-	printk("i915_pci_probe - calling i915_driver_probe\n");
-#endif
-
 	err = i915_driver_probe(pdev, ent);
 	if (err)
 		return err;
-
-#ifdef DEBUG
-	printk("i915_pci_probe - calling i915_inject_probe_failure\n");
-#endif
 
 	if (i915_inject_probe_failure(pci_get_drvdata(pdev))) {
 		i915_pci_remove(pdev);
 		return -ENODEV;
 	}
-
-#ifdef DEBUG
-	printk("i915_pci_probe - calling i915_live_selftests\n");
-#endif
 
 	err = i915_live_selftests(pdev);
 	if (err) {
@@ -1393,19 +1365,11 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err > 0 ? -ENOTTY : err;
 	}
 
-#ifdef DEBUG
-	printk("i915_pci_probe - calling i915_perf_selftests\n");
-#endif
-
 	err = i915_perf_selftests(pdev);
 	if (err) {
 		i915_pci_remove(pdev);
 		return err > 0 ? -ENOTTY : err;
 	}
-
-#ifdef DEBUG
-	printk("i915_pci_probe - end\n");
-#endif
 
 	return 0;
 }
@@ -1431,10 +1395,6 @@ int i915_pci_register_driver(void)
 #ifdef __linux__
 	return pci_register_driver(&i915_pci_driver);
 #elif defined(__FreeBSD__)
-#ifdef DEBUG
-	printk("i915_pci_register_driver - begin\n");
-#endif
-
 	return linux_pci_register_drm_driver(&i915_pci_driver);
 #endif
 }
@@ -1455,10 +1415,6 @@ static int i915_check_nomodeset(void)
 {
 	bool use_kms = true;
 
-#ifdef DEBUG
-	printk("i915_check_nomodeset - begin\n");
-#endif
-
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
 	 * either the i915.modeset parameter or by the
@@ -1475,16 +1431,9 @@ static int i915_check_nomodeset(void)
 
 	if (!use_kms) {
 		/* Silently fail loading to not upset userspace. */
-		DRM_DEBUG_DRIVER("KMS disabled.\n");
-#ifdef DEBUG
-		printk("i915_check_nomodeset - no kms\n");
-#endif
+		DRM_DEBUG_DRIVER("KMS disabled.\n");		
 		return 1;
 	}
-
-#ifdef DEBUG
-	printk("i915_check_nomodeset - end\n");
-#endif
 
 	return 0;
 }
@@ -1528,14 +1477,7 @@ static int __init i915_init(void)
 {
 	int err, i;
 
-#ifdef DEBUG
-	printk("i915_init - begin\n");
-#endif
-
 	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
-#ifdef DEBUG
-		printk("i915_init - calling init funcs [%d]\n", i);
-#endif
 		err = init_funcs[i].init();
 		if (err < 0) {
 			while (i--) {
@@ -1556,10 +1498,6 @@ static int __init i915_init(void)
 	}
 
 	init_progress = i;
-
-#ifdef DEBUG
-	printk("i915_init end\n");
-#endif
 
 	return 0;
 }

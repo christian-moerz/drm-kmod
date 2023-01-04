@@ -202,7 +202,7 @@ i915_param_named(guc_log_level, int, 0400,
 
 #ifdef __linux__
 /* FIXME BSD */
-// XXX: How to we handle char *?
+// XXX: How do we handle char *?
 // Not critical: default kmod dir is fine...
 i915_param_named_unsafe(guc_firmware_path, charp, 0400,
 	"GuC firmware path to use instead of the default one");

@@ -466,9 +466,11 @@ int i915_ttm_purge(struct drm_i915_gem_object *obj)
 		 * aggressive and release the pages immediately.
 		 */
 #ifdef __linux__
-		/* FIXME BSD not sure how to do this */
 		shmem_truncate_range(file_inode(i915_tt->filp),
 				     0, (loff_t)-1);
+#elif defined(__FreeBSD__)
+		/* FIXME BSD not sure, whether this is right */
+		shmem_truncate_range(i915_tt->filp->f_shmem, 0, (loff_t)-1);
 #endif
 		fput(fetch_and_zero(&i915_tt->filp));
 	}

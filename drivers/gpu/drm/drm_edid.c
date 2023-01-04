@@ -2050,31 +2050,15 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 {
 	struct edid *edid;
 
-#ifdef DEBUG
-	printk("drm_get_edid - begin\n");
-#endif
-
 	if (connector->force == DRM_FORCE_OFF)
 		return NULL;
 
 	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
 		return NULL;
 
-#ifdef DEBUG
-	printk("drm_get_edid - calling drm_do_get_edid\n");
-#endif
-
 	edid = drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
 
-#ifdef DEBUG
-	printk("drm_get_edid - calling drm_connector_update_edid_property\n");
-#endif
-
 	drm_connector_update_edid_property(connector, edid);
-
-#ifdef DEBUG
-	printk("drm_get_edid - end\n");
-#endif
 	return edid;
 }
 EXPORT_SYMBOL(drm_get_edid);

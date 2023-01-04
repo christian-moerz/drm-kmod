@@ -17,6 +17,7 @@
 static bool intel_guc_log_relay_enabled(const struct intel_guc_log *log) {
 	return false;
 }
+#define SZ_4M				0x00400000
 #endif
 
 #if defined(CONFIG_DRM_I915_DEBUG_GUC)
@@ -28,9 +29,15 @@ static bool intel_guc_log_relay_enabled(const struct intel_guc_log *log) {
 #define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_2M
 #define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_4M
 #else
+#ifdef __linux__
 #define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_8K
 #define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_64K
 #define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_2M
+#elif defined(__FreeBSD__)
+#define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_8K
+#define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_1M
+#define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_4M
+#endif
 #endif
 
 static void guc_log_copy_debuglogs_for_relay(struct intel_guc_log *log);

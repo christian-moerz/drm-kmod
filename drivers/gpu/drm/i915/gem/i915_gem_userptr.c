@@ -38,6 +38,9 @@
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
+#if defined(__FreeBSD__)
+#include <linux/mm.h>
+#endif
 
 #include "i915_drv.h"
 #include "i915_gem_ioctls.h"
@@ -438,6 +441,8 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 #endif
 
 #ifdef __linux__
+/* FIXME BSD there are no maple trees in FreeBSD */
+/* VMA_ITERATOR opens a completely new can of worms */
 static int
 probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 {
@@ -547,11 +552,12 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			return -ENODEV;
 	}
 
-#ifdef __linux__
 	/* FIXME BSD */
 	/* might have to put this back in again later? */
+	/* NOTE cm 2023/01/02 put back in */
 
 	if (args->flags & I915_USERPTR_PROBE) {
+#ifdef __linux__
 		/*
 		 * Check that the range pointed to represents real struct
 		 * pages and not iomappings (at this moment in time!)
@@ -559,8 +565,12 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		ret = probe_range(current->mm, args->user_ptr, args->user_size);
 		if (ret)
 			return ret;
-	}
+#elif defined(__FreeBSD__)
+		/* FIXME BSD */
+		/* we don't have probe_range on FreeBSD */
+		return -ENODEV;
 #endif
+	}
 
 #ifdef CONFIG_MMU_NOTIFIER
 	obj = i915_gem_object_alloc();

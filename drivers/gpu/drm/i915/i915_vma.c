@@ -2197,9 +2197,6 @@ void i915_vma_module_exit(void)
 
 int __init i915_vma_module_init(void)
 {
-#ifdef DEBUG
-	printk("i915_vma_module_init - begin\n");
-#endif
 	slab_vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
 	if (!slab_vmas)
 		return -ENOMEM;

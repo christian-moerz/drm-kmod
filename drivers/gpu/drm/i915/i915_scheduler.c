@@ -493,9 +493,6 @@ void i915_scheduler_module_exit(void)
 
 int __init i915_scheduler_module_init(void)
 {
-#ifdef DEBUG
-	printk("i915_scheduler_module_init - begin\n");
-#endif
 	slab_dependencies = KMEM_CACHE(i915_dependency,
 					      SLAB_HWCACHE_ALIGN |
 					      SLAB_TYPESAFE_BY_RCU);

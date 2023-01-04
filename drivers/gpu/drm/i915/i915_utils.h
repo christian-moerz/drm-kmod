@@ -229,6 +229,116 @@ static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
 }
 
+#if defined(__FreeBSD__)
+/* FIXME troubleshooting timeout */
+
+static int
+tmp_add_to_sleepqueue(void *wchan, struct task_struct *task,
+    const char *wmesg, int timeout, int state)
+{
+        int flags, ret;
+
+        MPASS((state & ~(TASK_PARKED | TASK_NORMAL)) == 0);
+
+        flags = SLEEPQ_SLEEP | ((state & TASK_INTERRUPTIBLE) != 0 ?
+            SLEEPQ_INTERRUPTIBLE : 0);
+
+		printk("sleepq_add\n");
+        sleepq_add(wchan, NULL, wmesg, flags, 0);
+		printk("timeout=%d\n", timeout);
+        if (timeout != 0) {
+				printk("sleepq_set_timeout(wchan, %d)\n", timeout);
+                sleepq_set_timeout(wchan, timeout);
+		}
+
+		printk("DROP GIANT\n");
+        DROP_GIANT();
+        if ((state & TASK_INTERRUPTIBLE) != 0) {
+                if (timeout == 0)
+                        ret = -sleepq_wait_sig(wchan, 0);
+                else
+                        ret = -sleepq_timedwait_sig(wchan, 0);
+        } else {
+				printk("state not interruptible\n");
+                if (timeout == 0) {
+						printk("sleepq_wait 0\n");
+                        sleepq_wait(wchan, 0);
+                        ret = 0;
+						printk("sleepq_wait 0 returns\n");
+                } else {
+						printk("sleepq_timedwait\n");
+                        ret = -sleepq_timedwait(wchan, 0);
+						printk("...returned\n");
+				}
+        }
+		printk("PICKUP GIANT\n");
+        PICKUP_GIANT();
+
+        /* filter return value */
+        if (ret != 0 && ret != -EWOULDBLOCK) {
+                linux_schedule_save_interrupt_value(task, ret);
+                ret = -ERESTARTSYS;
+        }
+        return (ret);
+}
+
+
+static int tmp_unint_timeout(unsigned int timeout) {
+	struct task_struct *task;
+	int ret;
+    int state;
+    int remainder;
+
+	printk("tmp_unint_timeout set uninterruptible\n");
+	set_current_state(TASK_UNINTERRUPTIBLE);
+
+    task = current;
+
+    /* range check timeout */
+    if (timeout < 1)
+    	timeout = 1;
+	else if (timeout == MAX_SCHEDULE_TIMEOUT)
+    	timeout = 0;
+
+	remainder = ticks + timeout;
+
+	printk("tmp_unint_timeout - sleep lock\n");
+	sleepq_lock(task);
+	printk("tmp_unint_timeout - atomic read\n");
+    state = atomic_read(&task->state);
+    if (state != TASK_WAKING) {
+		printk("tmp_unint_timeout - state not waking\n");
+		printk("tmp_unint_timeout - tmp_add_to_sleepqueue\n");
+    	ret = tmp_add_to_sleepqueue(task, task, "sched", timeout,
+        								state);
+	} else {
+		printk("tmp_unint_timeout - sleepq_release call\n");
+    	sleepq_release(task);
+        ret = 0;
+	}
+	printk("tmp_unint_timeout - setting state to running\n");
+    set_task_state(task, TASK_RUNNING);
+
+    if (timeout == 0)
+    	return (MAX_SCHEDULE_TIMEOUT);
+
+	/* range check return value */
+    remainder -= ticks;
+	printk("tmp_unint_timeout remainder is %d\n", remainder);
+
+    /* range check return value */
+    if (ret == -ERESTARTSYS && remainder < 1)
+    	remainder = 1;
+	else if (remainder < 0)
+    	remainder = 0;
+	else if (remainder > timeout)
+    	remainder = timeout;
+
+	printk("tmp_unint_timeout returning %d\n", remainder);
+	return (remainder);
+}
+#endif
+
 /*
  * If you need to wait X milliseconds between events A and B, but event B
  * doesn't happen exactly after event A, you record the timestamp (jiffies) of
@@ -239,6 +349,15 @@ static inline void
 wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 {
 	unsigned long target_jiffies, tmp_jiffies, remaining_jiffies;
+
+#if defined(__FreeBSD__)
+        if (timestamp_jiffies == 0) {
+                /* FIXME BSD this might need a different approach? */
+                /* in principle this is correct, because time_after should in theory
+                        (but does not in practice...) return false */
+                return;
+        }
+#endif
 
 	/*
 	 * Don't re-read the value of "jiffies" every time since it may change

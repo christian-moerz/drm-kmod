@@ -421,9 +421,6 @@ void i915_vma_resource_module_exit(void)
 
 int __init i915_vma_resource_module_init(void)
 {
-#ifdef DEBUG
-	printk("i915_vma_resource_module_init - begin\n");
-#endif
 	slab_vma_resources = KMEM_CACHE(i915_vma_resource, SLAB_HWCACHE_ALIGN);
 	if (!slab_vma_resources)
 		return -ENOMEM;

@@ -1162,9 +1162,6 @@ void i915_active_module_exit(void)
 
 int __init i915_active_module_init(void)
 {
-#ifdef DEBUG
-	printk("i915_active_module_init - begin\n");
-#endif
 	slab_cache = KMEM_CACHE(active_node, SLAB_HWCACHE_ALIGN);
 	if (!slab_cache)
 		return -ENOMEM;

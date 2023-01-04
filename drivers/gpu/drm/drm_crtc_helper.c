@@ -297,15 +297,24 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		return false;
 	}
 
+#ifdef BSDTNG
+	drm_mode_init(&saved_mode, &crtc->mode);
+	drm_mode_init(&saved_hwmode, &crtc->hwmode);
+#else
 	saved_mode = crtc->mode;
 	saved_hwmode = crtc->hwmode;
+#endif
 	saved_x = crtc->x;
 	saved_y = crtc->y;
 
 	/* Update crtc values up front so the driver can rely on them for mode
 	 * setting.
 	 */
+#ifdef BSDTNG
+	drm_mode_copy(&crtc->mode, mode);
+#else
 	crtc->mode = *mode;
+#endif
 	crtc->x = x;
 	crtc->y = y;
 
@@ -341,7 +350,11 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
+#ifdef BSDTNG
+	drm_mode_copy(&crtc->hwmode, adjusted_mode);
+#else
 	crtc->hwmode = *adjusted_mode;
+#endif
 
 	/* Prepare the encoders and CRTCs before setting the mode. */
 	drm_for_each_encoder(encoder, dev) {
@@ -411,8 +424,13 @@ done:
 	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
 		crtc->enabled = saved_enabled;
+#ifdef BSDTNG
+		drm_mode_copy(&crtc->mode, &saved_mode);
+		drm_mode_copy(&crtc->hwmode, &saved_hwmode);
+#else
 		crtc->mode = saved_mode;
 		crtc->hwmode = saved_hwmode;
+#endif		
 		crtc->x = saved_x;
 		crtc->y = saved_y;
 	}

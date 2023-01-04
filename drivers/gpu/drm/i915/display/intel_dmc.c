@@ -42,11 +42,19 @@
 #define DMC_VERSION_MAJOR(version)	((version) >> 16)
 #define DMC_VERSION_MINOR(version)	((version) & 0xffff)
 
+#ifdef __linux__
 #define DMC_PATH(platform, major, minor) \
 	"i915/"				 \
 	__stringify(platform) "_dmc_ver" \
 	__stringify(major) "_"		 \
 	__stringify(minor) ".bin"
+#elif defined(__FreeBSD__)
+#define DMC_PATH(platform, major, minor) \
+	"i915_"				 \
+	__stringify(platform) "_dmc_ver" \
+	__stringify(major) "_"		 \
+	__stringify(minor) ".bin"
+#endif
 
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
 

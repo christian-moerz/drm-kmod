@@ -2628,9 +2628,6 @@ void i915_gem_context_module_exit(void)
 
 int __init i915_gem_context_module_init(void)
 {
-#ifdef DEBUG
-	printk("i915_gem_context_module_init - begin\n");
-#endif
 	slab_luts = KMEM_CACHE(i915_lut_handle, 0);
 	if (!slab_luts)
 		return -ENOMEM;

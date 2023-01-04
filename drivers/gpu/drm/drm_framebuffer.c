@@ -87,7 +87,7 @@ int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
 	    src_x > fb_width - src_w ||
 	    src_h > fb_height ||
 	    src_y > fb_height - src_h) {
-		DRM_DEBUG_KMS("Invalid source coordinates "
+		drm_dbg_kms(fb->dev, "Invalid source coordinates "
 			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u (fb %ux%u)\n",
 			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
 			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
@@ -407,6 +407,9 @@ static void drm_mode_rmfb_work_fn(struct work_struct *w)
 		struct drm_framebuffer *fb =
 			list_first_entry(&arg->fbs, typeof(*fb), filp_head);
 
+		drm_dbg_kms(fb->dev,
+			    "Removing [FB:%d] from all active usage due to RMFB ioctl\n",
+			    fb->base.id);
 		list_del_init(&fb->filp_head);
 		drm_framebuffer_remove(fb);
 	}
@@ -935,7 +938,7 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  * the id and get back -EINVAL. Obviously no concern at driver unload time.
  *
  * Also, the framebuffer will not be removed from the lookup idr - for
- * user-created framebuffers this will happen in in the rmfb ioctl. For
+ * user-created framebuffers this will happen in the rmfb ioctl. For
  * driver-private objects (e.g. for fbdev) drivers need to explicitly call
  * drm_framebuffer_unregister_private.
  */
@@ -984,6 +987,10 @@ retry:
 		if (plane->state->fb != fb)
 			continue;
 
+		drm_dbg_kms(dev,
+			    "Disabling [PLANE:%d:%s] because [FB:%d] is removed\n",
+			    plane->base.id, plane->name, fb->base.id);
+
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
@@ -992,6 +999,11 @@ retry:
 
 		if (disable_crtcs && plane_state->crtc->primary == plane) {
 			struct drm_crtc_state *crtc_state;
+
+			drm_dbg_kms(dev,
+				    "Disabling [CRTC:%d:%s] because [FB:%d] is removed\n",
+				    plane_state->crtc->base.id,
+				    plane_state->crtc->name, fb->base.id);
 
 			crtc_state = drm_atomic_get_existing_crtc_state(state, plane_state->crtc);
 
@@ -1055,6 +1067,10 @@ static void legacy_remove_fb(struct drm_framebuffer *fb)
 	/* remove from any CRTC */
 	drm_for_each_crtc(crtc, dev) {
 		if (crtc->primary->fb == fb) {
+						drm_dbg_kms(dev,
+				    "Disabling [CRTC:%d:%s] because [FB:%d] is removed\n",
+				    crtc->base.id, crtc->name, fb->base.id);
+
 			/* should turn off the crtc */
 			if (drm_crtc_force_disable(crtc))
 				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
@@ -1062,8 +1078,12 @@ static void legacy_remove_fb(struct drm_framebuffer *fb)
 	}
 
 	drm_for_each_plane(plane, dev) {
-		if (plane->fb == fb)
+		if (plane->fb == fb) {
+			drm_dbg_kms(dev,
+				    "Disabling [PLANE:%d:%s] because [FB:%d] is removed\n",
+				    plane->base.id, plane->name, fb->base.id);
 			drm_plane_force_disable(plane);
+		}
 	}
 	drm_modeset_unlock_all(dev);
 }
@@ -1093,7 +1113,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 
 	/*
 	 * drm ABI mandates that we remove any deleted framebuffers from active
-	 * useage. But since most sane clients only remove framebuffers they no
+	 * usage. But since most sane clients only remove framebuffers they no
 	 * longer need, try to optimize this away.
 	 *
 	 * Since we're holding a reference ourselves, observing a refcount of 1

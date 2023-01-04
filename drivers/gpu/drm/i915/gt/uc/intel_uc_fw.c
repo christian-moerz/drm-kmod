@@ -112,10 +112,10 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	fw_def(BROXTON,      0, huc_mmp(bxt,  2, 0, 0)) \
 	fw_def(SKYLAKE,      0, huc_mmp(skl,  2, 0, 0))
 
-#ifdef __linux__
 /*
  * Set of macros for producing a list of filenames from the above table.
  */
+#ifdef __linux__
 #define __MAKE_UC_FW_PATH_BLANK(prefix_, name_) \
 	"i915/" \
 	__stringify(prefix_) name_ ".bin"
@@ -131,23 +131,23 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	__stringify(major_) "." \
 	__stringify(minor_) "." \
 	__stringify(patch_) ".bin"
-#elif defined(__FreeBSD__)
+#else
 #define __MAKE_UC_FW_PATH_BLANK(prefix_, name_) \
-	"/var/db/" \
+	"i915_" \
 	__stringify(prefix_) name_ ".bin"
 
 #define __MAKE_UC_FW_PATH_MAJOR(prefix_, name_, major_) \
-	"/var/db/" \
+	"i915_" \
 	__stringify(prefix_) name_ \
 	__stringify(major_) ".bin"
 
 #define __MAKE_UC_FW_PATH_MMP(prefix_, name_, major_, minor_, patch_) \
-	"/var/db/" \
+	"i915_" \
 	__stringify(prefix_) name_ \
 	__stringify(major_) "." \
 	__stringify(minor_) "." \
 	__stringify(patch_) ".bin"
-#endif
+#endif /* __linux__ */
 
 /* Minor for internal driver use, not part of file name */
 #define MAKE_GUC_FW_PATH_MAJOR(prefix_, major_, minor_) \

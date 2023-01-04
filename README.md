@@ -23,11 +23,23 @@ For the moment:
   right yet. Need to check, whether this has to do with missing privacy screen functions?
 * there is a lock reversal, identified by witness; might be originating from xarrays again,
   though it does involve the Giant lock (?)
-* loading Xorg leads to a page fault, which leads me to believe there's more issues beneath the
-  surface.
 * firmware needs to be loaded as a kernel module; I've got one working already and checked into a
   private branch. Since I'm not clear about the licensing terms of the binary blobs, I'll attempt
   to set up a sample Makefile with directions instead of directly putting them into the repo.
+* backlight controls are confirmed working (use /usr/local/bin/backlight to adjust)
+
+### Open/Known Issues
+
+* framebuffer is not being set up correctly; the screen gets updated, if you switch to another tty
+  and back; this tells me, there's still something broken with the basics
+* the aforementioned witness lock reversion might be a false positive, because it's actually caused
+  by vt(4).
+* loading Xorg leads to a page fault, which confirms that there's more issues beneath the surface.
+  I suspect it might have to do with xarray handling in linuxkpi, but it's only a hunch at the moment
+* another supect part is the use of "atomic" instead of "local" page locks due to linuxkpi missing
+  equivalent functionality
+
+### Why I'm doing this
 
 This is one attempt to give back to FreeBSD. You're invited to join in the effort, if you have time.
 
