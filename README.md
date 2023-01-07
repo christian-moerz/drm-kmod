@@ -39,6 +39,13 @@ For the moment:
 * another supect part is the use of "atomic" instead of "local" page locks due to linuxkpi missing
   equivalent functionality
 
+Update 2023/01/07: dumbbell@ is working on drm-kmod as well; I'll attempt to merge my results into
+his so we are all staying on the official track.
+
+For the moment, I believe this is close but something is not yet working right in regards to double
+buffering - at least, that's my interpretation. I probably won't be able to fix this on my own for
+the moment. I've got a few possible avenues left, which I first want to discuss with others.
+
 ### Why I'm doing this
 
 This is one attempt to give back to FreeBSD. You're invited to join in the effort, if you have time.
@@ -54,3 +61,19 @@ added in FreeBSD base.
 
 (Note: this is a tough one; from what I can tell, there might be stuff we need to add to get this working. Never thought I'd be writing "kernel"
 code any time soon. Yet, here we are...)
+
+### Resources
+
+I collected a bunch of links, I'd like to recommend reading up; they were pretty valuable to me during this
+work. Unfortunately, git swallowed some of those original links, so this is an attempt at reproducing my
+original list. I'll write up my curses towards git in an internal branch...
+
+* https://bwidawsk.net/blog/2014/6/the-global-gtt-part-1/
+* https://docs.freebsd.org/en/books/developers-handbook/kerneldebug/
+* https://docs.freebsd.org/doc/3.1-RELEASE/usr/share/doc/zh/FAQ/FAQ245.html
+* https://docs.kernel.org/core-api/xarray.html
+* https://www.kernel.org/doc/gorman/html/understand/understand013.html
+* https://docs.kernel.org/driver-api/firmware/request_firmware.html
+* https://papers.freebsd.org/2008/BSDCan/baldwin-Introduction_to_Debugging_the_FreeBSD_Kernel.files/slides.pdf
+* https://blog.ffwll.ch/2013/01/i915gem-crashcourse-overview.html
+* https://lwn.net/Articles/263343/
