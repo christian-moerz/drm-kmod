@@ -38,9 +38,17 @@ For the moment:
   I suspect it might have to do with xarray handling in linuxkpi, but it's only a hunch at the moment
 * another supect part is the use of "atomic" instead of "local" page locks due to linuxkpi missing
   equivalent functionality
+* Unloading module does not properly restore screen state (I get a black/blank screen)
 
 Update 2023/01/07: dumbbell@ is working on drm-kmod as well; I'll attempt to merge my results into
 his so we are all staying on the official track.
+
+Update 2023/01/18: check your junk folders, people. I failed to read dumbbell@'s emails because my
+mailbox sent them straight to nirvana. Finally managed to connect today. Got a hint about PSR, which
+I'll check out further while starting to also look at Jean-Sébastien's work to understand where we
+stand for now.
+
+See https://github.com/freebsd/drm-kmod/pull/224.
 
 For the moment, I believe this is close but something is not yet working right in regards to double
 buffering - at least, that's my interpretation. I probably won't be able to fix this on my own for
@@ -77,3 +85,5 @@ original list. I'll write up my curses towards git in an internal branch...
 * https://papers.freebsd.org/2008/BSDCan/baldwin-Introduction_to_Debugging_the_FreeBSD_Kernel.files/slides.pdf
 * https://blog.ffwll.ch/2013/01/i915gem-crashcourse-overview.html
 * https://lwn.net/Articles/263343/
+* https://www.kernel.org/doc/html/v4.20/gpu/i915.html
+* https://wiki.archlinux.org/title/intel_graphics
