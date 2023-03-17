@@ -25,9 +25,6 @@
  */
 
 #include <linux/dma-fence.h>
-#ifdef BSDTNG
-#include <linux/export.h>
-#endif
 
 MALLOC_DECLARE(M_DMABUF);
 
@@ -60,44 +57,26 @@ dma_fence_get_stub(void)
 		    &dma_fence_stub_lock,
 		    0,
 		    0);
-#ifdef BSDTNG
-		set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			&dma_fence_stub.flags);
-#endif
 		dma_fence_signal_locked(&dma_fence_stub);
 	}
 	spin_unlock(&dma_fence_stub_lock);
 	return (dma_fence_get(&dma_fence_stub));
 }
-#ifdef BSDTNG
 
-/**
- * dma_fence_allocate_private_stub - return a private, signaled fence
- *
- * Return a newly allocated and signaled stub fence.
- */
 struct dma_fence *dma_fence_allocate_private_stub(void)
 {
 	struct dma_fence *fence;
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (fence == NULL)
-		return ERR_PTR(-ENOMEM);
+		return (ERR_PTR(-ENOMEM));
 
 	dma_fence_init(fence,
-		       &dma_fence_stub_ops,
-		       &dma_fence_stub_lock,
-		       0, 0);
-
-	set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-		&dma_fence_stub.flags);
-
+	    &dma_fence_stub_ops, &dma_fence_stub_lock, 0, 0);
 	dma_fence_signal(fence);
 
-	return fence;
+	return (fence);
 }
-EXPORT_SYMBOL(dma_fence_allocate_private_stub);
-#endif /* BSDTNG */
 
 static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
 
@@ -110,162 +89,6 @@ dma_fence_context_alloc(unsigned num)
 
 	return (atomic64_fetch_add(num, &dma_fence_context_counter));
 }
-
-/**
- * DOC: fence signalling annotation
- *
- * Proving correctness of all the kernel code around &dma_fence through code
- * review and testing is tricky for a few reasons:
- *
- * * It is a cross-driver contract, and therefore all drivers must follow the
- *   same rules for lock nesting order, calling contexts for various functions
- *   and anything else significant for in-kernel interfaces. But it is also
- *   impossible to test all drivers in a single machine, hence brute-force N vs.
- *   N testing of all combinations is impossible. Even just limiting to the
- *   possible combinations is infeasible.
- *
- * * There is an enormous amount of driver code involved. For render drivers
- *   there's the tail of command submission, after fences are published,
- *   scheduler code, interrupt and workers to process job completion,
- *   and timeout, gpu reset and gpu hang recovery code. Plus for integration
- *   with core mm with have &mmu_notifier, respectively &mmu_interval_notifier,
- *   and &shrinker. For modesetting drivers there's the commit tail functions
- *   between when fences for an atomic modeset are published, and when the
- *   corresponding vblank completes, including any interrupt processing and
- *   related workers. Auditing all that code, across all drivers, is not
- *   feasible.
- *
- * * Due to how many other subsystems are involved and the locking hierarchies
- *   this pulls in there is extremely thin wiggle-room for driver-specific
- *   differences. &dma_fence interacts with almost all of the core memory
- *   handling through page fault handlers via &dma_resv, dma_resv_lock() and
- *   dma_resv_unlock(). On the other side it also interacts through all
- *   allocation sites through &mmu_notifier and &shrinker.
- *
- * Furthermore lockdep does not handle cross-release dependencies, which means
- * any deadlocks between dma_fence_wait() and dma_fence_signal() can't be caught
- * at runtime with some quick testing. The simplest example is one thread
- * waiting on a &dma_fence while holding a lock::
- *
- *     lock(A);
- *     dma_fence_wait(B);
- *     unlock(A);
- *
- * while the other thread is stuck trying to acquire the same lock, which
- * prevents it from signalling the fence the previous thread is stuck waiting
- * on::
- *
- *     lock(A);
- *     unlock(A);
- *     dma_fence_signal(B);
- *
- * By manually annotating all code relevant to signalling a &dma_fence we can
- * teach lockdep about these dependencies, which also helps with the validation
- * headache since now lockdep can check all the rules for us::
- *
- *    cookie = dma_fence_begin_signalling();
- *    lock(A);
- *    unlock(A);
- *    dma_fence_signal(B);
- *    dma_fence_end_signalling(cookie);
- *
- * For using dma_fence_begin_signalling() and dma_fence_end_signalling() to
- * annotate critical sections the following rules need to be observed:
- *
- * * All code necessary to complete a &dma_fence must be annotated, from the
- *   point where a fence is accessible to other threads, to the point where
- *   dma_fence_signal() is called. Un-annotated code can contain deadlock issues,
- *   and due to the very strict rules and many corner cases it is infeasible to
- *   catch these just with review or normal stress testing.
- *
- * * &struct dma_resv deserves a special note, since the readers are only
- *   protected by rcu. This means the signalling critical section starts as soon
- *   as the new fences are installed, even before dma_resv_unlock() is called.
- *
- * * The only exception are fast paths and opportunistic signalling code, which
- *   calls dma_fence_signal() purely as an optimization, but is not required to
- *   guarantee completion of a &dma_fence. The usual example is a wait IOCTL
- *   which calls dma_fence_signal(), while the mandatory completion path goes
- *   through a hardware interrupt and possible job completion worker.
- *
- * * To aid composability of code, the annotations can be freely nested, as long
- *   as the overall locking hierarchy is consistent. The annotations also work
- *   both in interrupt and process context. Due to implementation details this
- *   requires that callers pass an opaque cookie from
- *   dma_fence_begin_signalling() to dma_fence_end_signalling().
- *
- * * Validation against the cross driver contract is implemented by priming
- *   lockdep with the relevant hierarchy at boot-up. This means even just
- *   testing with a single device is enough to validate a driver, at least as
- *   far as deadlocks with dma_fence_wait() against dma_fence_signal() are
- *   concerned.
- */
-#ifdef CONFIG_LOCKDEP
-#ifdef BSDTNG
-static struct lockdep_map dma_fence_lockdep_map = {
-	.name = "dma_fence_map"
-};
-
-/**
- * dma_fence_begin_signalling - begin a critical DMA fence signalling section
- *
- * Drivers should use this to annotate the beginning of any code section
- * required to eventually complete &dma_fence by calling dma_fence_signal().
- *
- * The end of these critical sections are annotated with
- * dma_fence_end_signalling().
- *
- * Returns:
- *
- * Opaque cookie needed by the implementation, which needs to be passed to
- * dma_fence_end_signalling().
- */
-bool dma_fence_begin_signalling(void)
-{
-	/* explicitly nesting ... */
-	if (lock_is_held_type(&dma_fence_lockdep_map, 1))
-		return true;
-
-	/* rely on might_sleep check for soft/hardirq locks */
-	if (in_atomic())
-		return true;
-
-	/* ... and non-recursive readlock */
-	lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _RET_IP_);
-
-	return false;
-}
-EXPORT_SYMBOL(dma_fence_begin_signalling);
-
-/**
- * dma_fence_end_signalling - end a critical DMA fence signalling section
- * @cookie: opaque cookie from dma_fence_begin_signalling()
- *
- * Closes a critical section annotation opened by dma_fence_begin_signalling().
- */
-void dma_fence_end_signalling(bool cookie)
-{
-	if (cookie)
-		return;
-
-	lock_release(&dma_fence_lockdep_map, _RET_IP_);
-}
-EXPORT_SYMBOL(dma_fence_end_signalling);
-
-void __dma_fence_might_wait(void)
-{
-	bool tmp;
-
-	tmp = lock_is_held_type(&dma_fence_lockdep_map, 1);
-	if (tmp)
-		lock_release(&dma_fence_lockdep_map, _THIS_IP_);
-	lock_map_acquire(&dma_fence_lockdep_map);
-	lock_map_release(&dma_fence_lockdep_map);
-	if (tmp)
-		lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _THIS_IP_);
-}
-#endif /* BSDTNG */
-#endif
 
 /*
  * signal completion of a fence
@@ -329,24 +152,13 @@ int
 dma_fence_signal(struct dma_fence *fence)
 {
 	int rv;
-#ifdef BSDTNG
-	bool sig;
-#endif
 
 	if (fence == NULL)
 		return (-EINVAL);
 
-#ifdef BSDTNG
-	sig = dma_fence_begin_signalling();
-#endif
-
 	spin_lock(fence->lock);
 	rv = dma_fence_signal_timestamp_locked(fence, ktime_get());
 	spin_unlock(fence->lock);
-
-#ifdef BSDTNG
-	dma_fence_end_signalling(sig);
-#endif
 	return (rv);
 }
 
@@ -360,14 +172,6 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 
 	if (fence == NULL)
 		return (-EINVAL);
-
-#ifdef BSDTNG
-	might_sleep();
-
-	__dma_fence_might_wait();
-
-	dma_fence_enable_sw_signaling(fence);
-#endif
 
 	if (fence->ops && fence->ops->wait != NULL)
 		rv = fence->ops->wait(fence, intr, timeout);
@@ -385,28 +189,6 @@ dma_fence_release(struct kref *kref)
 	struct dma_fence *fence;
 
 	fence = container_of(kref, struct dma_fence, refcount);
-#ifdef BSDTNG
-	if (WARN(!list_empty(&fence->cb_list) &&
-		 !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags),
-		 "Fence %s:%s:%lx:%lx released with pending signals!\n",
-		 fence->ops->get_driver_name(fence),
-		 fence->ops->get_timeline_name(fence),
-		 fence->context, fence->seqno)) {
-
-		/*
-		 * Failed to signal before release, likely a refcounting issue.
-		 *
-		 * This should never happen, but if it does make sure that we
-		 * don't leave chains dangling. We set the error flag first
-		 * so that the callbacks know this signal is due to an error.
-		 */
-		spin_lock(fence->lock);
-		fence->error = -EDEADLK;
-		dma_fence_signal_locked(fence);
-		spin_unlock(fence->lock);
-	}
-#endif
-
 	if (fence->ops && fence->ops->release)
 		fence->ops->release(fence);
 	else
@@ -423,40 +205,27 @@ dma_fence_free(struct dma_fence *fence)
 	kfree_rcu(fence, rcu);
 }
 
-#ifdef BSDTNG
-
-static bool __dma_fence_enable_signaling(struct dma_fence *fence)
-{
-	bool was_enabled;
-
-	lockdep_assert_held(fence->lock);
-
-	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-	    &fence->flags);
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return false;
-
-	if (was_enabled == false &&
-	    fence->ops && fence->ops->enable_signaling) {
-		if (fence->ops->enable_signaling(fence) == false) {
-			dma_fence_signal_locked(fence);
-			return false;
-		}
-	}
-
-	return true;
-}
-#endif /* BSDTNG */
-
 /*
  * enable signaling on fence
  */
 void
 dma_fence_enable_sw_signaling(struct dma_fence *fence)
 {
+	bool was_enabled;
 
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return;
 	spin_lock(fence->lock);
-	__dma_fence_enable_signaling(fence);
+	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+	    &fence->flags);
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		goto out;
+	if (was_enabled == false &&
+	    fence->ops && fence->ops->enable_signaling) {
+		if (fence->ops->enable_signaling(fence) == false)
+			dma_fence_signal_locked(fence);
+	}
+out:
 	spin_unlock(fence->lock);
 }
 
@@ -467,7 +236,8 @@ int
 dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 			   dma_fence_func_t func)
 {
-	int rv = -ENOENT;
+	int rv = 0;
+	bool was_enabled;
 
 	if (fence == NULL || func == NULL)
 		return (-EINVAL);
@@ -478,9 +248,6 @@ dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 	}
 
 	spin_lock(fence->lock);
-#ifndef BSDTNG
-	bool was_enabled;
-
 	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 	    &fence->flags);
 
@@ -495,12 +262,8 @@ dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 	}
 
 	if (!rv) {
-#else
-	if (__dma_fence_enable_signaling(fence)) {
-#endif
 		cb->func = func;
 		list_add_tail(&cb->node, &fence->cb_list);
-		rv = 0;
 	} else
 		INIT_LIST_HEAD(&cb->node);
 	spin_unlock(fence->lock);
@@ -561,38 +324,25 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 {
 	struct default_wait_cb cb;
 	signed long rv = timeout ? timeout : 1;
-
-#ifndef BSDTNG
 	bool was_enabled;
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return (rv);
-#endif
 
 	spin_lock(fence->lock);
 
-#ifndef BSDTNG
-	was_enabled = 
-#endif
-	test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+	was_enabled = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 	    &fence->flags);
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		goto out;
 
-#ifdef BSDTNG
-	if (intr && signal_pending(current)) {
-		rv = -ERESTARTSYS;
-#else
 	if (was_enabled == false && fence->ops &&
 	    fence->ops->enable_signaling) {
 		if (!fence->ops->enable_signaling(fence)) {
 			dma_fence_signal_locked(fence);
-#endif
 			goto out;
-#ifndef BSDTNG
 		}
-#endif
 	}
 
 	if (timeout == 0) {
@@ -621,7 +371,6 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 	if (!list_empty(&cb.base.node))
 		list_del(&cb.base.node);
 	__set_current_state(TASK_RUNNING);
-
 out:
 	spin_unlock(fence->lock);
 	return (rv);
@@ -656,11 +405,7 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 	int i;
 
 	if (timeout == 0) {
-#ifdef BSDTNG
-		for (i = 0; i < count; ++i) {
-#else
 		for (i = 0; i < count; i++) {
-#endif
 			if (dma_fence_is_signaled(fences[i])) {
 				if (idx)
 					*idx = i;
@@ -671,11 +416,7 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 	}
 
 	cb = malloc(sizeof(*cb), M_DMABUF, M_WAITOK | M_ZERO);
-#ifdef BSDTNG
-	for (i = 0; i < count; ++i) {
-#else
 	for (i = 0; i < count; i++) {
-#endif
 		struct dma_fence *fence = fences[i];
 		cb[i].task = current;
 		if (dma_fence_add_callback(fence, &cb[i].base,
@@ -709,24 +450,6 @@ cb_cleanup:
 	free(cb, M_DMABUF);
 	return (rv);
 }
-
-#ifdef BSDTNG
-/**
- * dma_fence_describe - Dump fence describtion into seq_file
- * @fence: the 6fence to describe
- * @seq: the seq_file to put the textual description into
- *
- * Dump a textual description of the fence and it's state into the seq_file.
- */
-void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq)
-{
-	seq_printf(seq, "%s %s seq %llu %ssignalled\n",
-		   fence->ops->get_driver_name(fence),
-		   fence->ops->get_timeline_name(fence), fence->seqno,
-		   dma_fence_is_signaled(fence) ? "" : "un");
-}
-EXPORT_SYMBOL(dma_fence_describe);
-#endif
 
 /*
  * Initialize a custom fence.

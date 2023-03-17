@@ -35,6 +35,7 @@
 #include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <linux/rbtree.h>
+#include <linux/module.h>
 
 #include <drm/drm.h>
 #include <drm/drm_drv.h>
@@ -44,6 +45,8 @@
 #include <drm/drm_prime.h>
 
 #include "drm_internal.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 /**
  * DOC: overview and lifetime rules
@@ -192,37 +195,6 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 
 	return -ENOENT;
 }
-
-#ifdef BSDTNG
-void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv,
-				 uint32_t handle)
-{
-	struct rb_node *rb;
-
-	mutex_lock(&prime_fpriv->lock);
-
-	rb = prime_fpriv->handles.rb_node;
-	while (rb) {
-		struct drm_prime_member *member;
-
-		member = rb_entry(rb, struct drm_prime_member, handle_rb);
-		if (member->handle == handle) {
-			rb_erase(&member->handle_rb, &prime_fpriv->handles);
-			rb_erase(&member->dmabuf_rb, &prime_fpriv->dmabufs);
-
-			dma_buf_put(member->dma_buf);
-			kfree(member);
-			break;
-		} else if (member->handle < handle) {
-			rb = rb->rb_right;
-		} else {
-			rb = rb->rb_left;
-		}
-	}
-
-	mutex_unlock(&prime_fpriv->lock);
-}
-#endif /* BSDTNG */
 
 void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv,
 					struct dma_buf *dma_buf)
@@ -767,18 +739,13 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	if (obj->funcs && obj->funcs->mmap) {
 		vma->vm_ops = obj->funcs->vm_ops;
 
-#ifdef BSDTNG
 		drm_gem_object_get(obj);
-#endif
 		ret = obj->funcs->mmap(obj, vma);
 		if (ret) {
-#ifdef BSDTNG
 			drm_gem_object_put(obj);
-#endif
 			return ret;
 		}
 		vma->vm_private_data = obj;
-		drm_gem_object_get(obj);
 		return 0;
 	}
 
@@ -861,34 +828,26 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 				       struct page **pages, unsigned int nr_pages)
 {
-	struct sg_table *sg = NULL;
+	struct sg_table *sg;
 	size_t max_segment = 0;
-	int ret;
+	int err;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!sg) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!sg)
+		return ERR_PTR(-ENOMEM);
 
 	if (dev)
 		max_segment = dma_max_mapping_size(dev->dev);
 	if (max_segment == 0)
 		max_segment = UINT_MAX;
-#ifdef BSDTNG
-	ret = sg_alloc_table_from_pages_segment(sg, pages, nr_pages, 0,
-#else
-	ret = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
-#endif
-					  nr_pages << PAGE_SHIFT,
-					  max_segment, GFP_KERNEL);
-	if (ret)
-		goto out;
-
+	err = sg_alloc_table_from_pages_segment(sg, pages, nr_pages, 0,
+						nr_pages << PAGE_SHIFT,
+						max_segment, GFP_KERNEL);
+	if (err) {
+		kfree(sg);
+		sg = ERR_PTR(err);
+	}
 	return sg;
-out:
-	kfree(sg);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_prime_pages_to_sg);
 
@@ -897,7 +856,7 @@ EXPORT_SYMBOL(drm_prime_pages_to_sg);
  * @sgt: sg_table describing the buffer to check
  *
  * This helper calculates the contiguous size in the DMA address space
- * of the buffer described by the provided sg_table.
+ * of the the buffer described by the provided sg_table.
  *
  * This is useful for implementing
  * &drm_gem_object_funcs.gem_prime_import_sg_table.

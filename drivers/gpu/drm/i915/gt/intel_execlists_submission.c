@@ -107,7 +107,6 @@
  *
  */
 #include <linux/interrupt.h>
-#include <linux/string_helpers.h>
 
 #include "i915_drv.h"
 #include "i915_trace.h"
@@ -117,13 +116,11 @@
 #include "intel_context.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_regs.h"
 #include "intel_engine_stats.h"
 #include "intel_execlists_submission.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
 #include "intel_gt_pm.h"
-#include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
 #include "intel_lrc.h"
 #include "intel_lrc_reg.h"
@@ -416,7 +413,6 @@ execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 static void
 execlists_context_status_change(struct i915_request *rq, unsigned long status)
 {
-#ifdef __linux__
 	/*
 	 * Only used when GVT-g is enabled now. When GVT-g is disabled,
 	 * The compiler should eliminate this function as dead-code.
@@ -424,6 +420,7 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
 		return;
 
+#ifdef __linux__
 	atomic_notifier_call_chain(&rq->engine->context_status_notifier,
 				   status, rq);
 #endif
@@ -482,9 +479,9 @@ __execlists_schedule_in(struct i915_request *rq)
 
 	if (unlikely(intel_context_is_closed(ce) &&
 		     !intel_engine_has_heartbeat(engine)))
-		intel_context_set_exiting(ce);
+		intel_context_set_banned(ce);
 
-	if (unlikely(!intel_context_is_schedulable(ce) || bad_request(rq)))
+	if (unlikely(intel_context_is_banned(ce) || bad_request(rq)))
 		reset_active(rq, engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -627,6 +624,8 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 		GEM_BUG_ON(test_bit(ccid - 1, &engine->context_tag));
 		__set_bit(ccid - 1, &engine->context_tag);
 	}
+
+	lrc_update_runtime(ce);
 	intel_engine_context_out(engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 	if (engine->fw_domain && !--engine->fw_active)
@@ -663,25 +662,11 @@ static inline void execlists_schedule_out(struct i915_request *rq)
 	i915_request_put(rq);
 }
 
-static u32 map_i915_prio_to_lrc_desc_prio(int prio)
-{
-	if (prio > I915_PRIORITY_NORMAL)
-		return GEN12_CTX_PRIORITY_HIGH;
-	else if (prio < I915_PRIORITY_NORMAL)
-		return GEN12_CTX_PRIORITY_LOW;
-	else
-		return GEN12_CTX_PRIORITY_NORMAL;
-}
-
 static u64 execlists_update_context(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->context;
-	u64 desc;
+	u64 desc = ce->lrc.desc;
 	u32 tail, prev;
-
-	desc = ce->lrc.desc;
-	if (rq->engine->flags & I915_ENGINE_HAS_EU_PRIORITY)
-		desc |= map_i915_prio_to_lrc_desc_prio(rq_prio(rq));
 
 	/*
 	 * WaIdleLiteRestore:bdw,skl
@@ -1243,12 +1228,9 @@ static unsigned long active_preempt_timeout(struct intel_engine_cs *engine,
 	if (!rq)
 		return 0;
 
-	/* Only allow ourselves to force reset the currently active context */
-	engine->execlists.preempt_target = rq;
-
 	/* Force a fast reset for terminated contexts (ignoring sysfs!) */
 	if (unlikely(intel_context_is_banned(rq->context) || bad_request(rq)))
-		return INTEL_CONTEXT_BANNED_PREEMPT_TIMEOUT_MS;
+		return 1;
 
 	return READ_ONCE(engine->props.preempt_timeout_ms);
 }
@@ -1349,11 +1331,11 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		} else if (timeslice_expired(engine, last)) {
 			ENGINE_TRACE(engine,
 				     "expired:%s last=%llx:%lld, prio=%d, hint=%d, yield?=%s\n",
-				     str_yes_no(timer_expired(&execlists->timer)),
+				     yesno(timer_expired(&execlists->timer)),
 				     last->fence.context, last->fence.seqno,
 				     rq_prio(last),
 				     sched_engine->queue_priority_hint,
-				     str_yes_no(timeslice_yield(execlists, last)));
+				     yesno(timeslice_yield(execlists, last)));
 
 			/*
 			 * Consume this timeslice; ensure we start a new one.
@@ -1365,7 +1347,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * submission. If we don't cancel the timer now,
 			 * we will see that the timer has expired and
 			 * reschedule the tasklet; continually until the
-			 * next context switch or other preemption event.
+			 * next context switch or other preeemption event.
 			 *
 			 * Since we have decided to reschedule based on
 			 * consumption of this timeslice, if we submit the
@@ -1441,7 +1423,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			     __i915_request_is_complete(rq) ? "!" :
 			     __i915_request_has_started(rq) ? "*" :
 			     "",
-			     str_yes_no(engine != ve->siblings[0]));
+			     yesno(engine != ve->siblings[0]));
 
 		WRITE_ONCE(ve->request, NULL);
 		WRITE_ONCE(ve->base.sched_engine->queue_priority_hint, INT_MIN);
@@ -1666,6 +1648,12 @@ cancel_port_requests(struct intel_engine_execlists * const execlists,
 	cancel_timer(&execlists->preempt);
 
 	return inactive;
+}
+
+static void invalidate_csb_entries(const u64 *first, const u64 *last)
+{
+	clflush((void *)first);
+	clflush((void *)last);
 }
 
 /*
@@ -2015,30 +2003,15 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 	 * the wash as hardware, working or not, will need to do the
 	 * invalidation before.
 	 */
-	drm_clflush_virt_range(&buf[0], num_entries * sizeof(buf[0]));
+	invalidate_csb_entries(&buf[0], &buf[num_entries - 1]);
 
 	/*
 	 * We assume that any event reflects a change in context flow
 	 * and merits a fresh timeslice. We reinstall the timer after
 	 * inspecting the queue to see if we need to resumbit.
 	 */
-	if (*prev != *execlists->active) { /* elide lite-restores */
-		/*
-		 * Note the inherent discrepancy between the HW runtime,
-		 * recorded as part of the context switch, and the CPU
-		 * adjustment for active contexts. We have to hope that
-		 * the delay in processing the CS event is very small
-		 * and consistent. It works to our advantage to have
-		 * the CPU adjustment _undershoot_ (i.e. start later than)
-		 * the CS timestamp so we never overreport the runtime
-		 * and correct overselves later when updating from HW.
-		 */
-		if (*prev)
-			lrc_runtime_stop((*prev)->context);
-		if (*execlists->active)
-			lrc_runtime_start((*execlists->active)->context);
+	if (*prev != *execlists->active) /* elide lite-restores */
 		new_timeslice(execlists);
-	}
 
 	return inactive;
 }
@@ -2219,8 +2192,7 @@ struct execlists_capture {
 static void execlists_capture_work(struct work_struct *work)
 {
 	struct execlists_capture *cap = container_of(work, typeof(*cap), work);
-	const gfp_t gfp = __GFP_KSWAPD_RECLAIM | __GFP_RETRY_MAYFAIL |
-		__GFP_NOWARN;
+	const gfp_t gfp = GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
 	struct intel_engine_cs *engine = cap->rq->engine;
 	struct intel_gt_coredump *gt = cap->error->gt;
 	struct intel_engine_capture_vma *vma;
@@ -2262,11 +2234,11 @@ static struct execlists_capture *capture_regs(struct intel_engine_cs *engine)
 	if (!cap->error)
 		goto err_cap;
 
-	cap->error->gt = intel_gt_coredump_alloc(engine->gt, gfp, CORE_DUMP_FLAG_NONE);
+	cap->error->gt = intel_gt_coredump_alloc(engine->gt, gfp);
 	if (!cap->error->gt)
 		goto err_gpu;
 
-	cap->error->gt->engine = intel_engine_coredump_alloc(engine, gfp, CORE_DUMP_FLAG_NONE);
+	cap->error->gt->engine = intel_engine_coredump_alloc(engine, gfp);
 	if (!cap->error->gt->engine)
 		goto err_gt;
 
@@ -2436,24 +2408,8 @@ static void execlists_submission_tasklet(struct tasklet_struct *t)
 	GEM_BUG_ON(inactive - post > ARRAY_SIZE(post));
 
 	if (unlikely(preempt_timeout(engine))) {
-		const struct i915_request *rq = *engine->execlists.active;
-
-		/*
-		 * If after the preempt-timeout expired, we are still on the
-		 * same active request/context as before we initiated the
-		 * preemption, reset the engine.
-		 *
-		 * However, if we have processed a CS event to switch contexts,
-		 * but not yet processed the CS event for the pending
-		 * preemption, reset the timer allowing the new context to
-		 * gracefully exit.
-		 */
 		cancel_timer(&engine->execlists.preempt);
-		if (rq == engine->execlists.preempt_target)
-			engine->execlists.error_interrupt |= ERROR_PREEMPT;
-		else
-			set_timer_ms(&engine->execlists.preempt,
-				     active_preempt_timeout(engine, rq));
+		engine->execlists.error_interrupt |= ERROR_PREEMPT;
 	}
 
 	if (unlikely(READ_ONCE(engine->execlists.error_interrupt))) {
@@ -2648,45 +2604,8 @@ static void execlists_context_cancel_request(struct intel_context *ce,
 				      current->comm);
 }
 
-static struct intel_context *
-execlists_create_parallel(struct intel_engine_cs **engines,
-			  unsigned int num_siblings,
-			  unsigned int width)
-{
-	struct intel_context *parent = NULL, *ce, *err;
-	int i;
-
-	GEM_BUG_ON(num_siblings != 1);
-
-	for (i = 0; i < width; ++i) {
-		ce = intel_context_create(engines[i]);
-		if (IS_ERR(ce)) {
-			err = ce;
-			goto unwind;
-		}
-
-		if (i == 0)
-			parent = ce;
-		else
-			intel_context_bind_parent_child(parent, ce);
-	}
-
-	parent->parallel.fence_context = dma_fence_context_alloc(1);
-
-	intel_context_set_nopreempt(parent);
-	for_each_child(parent, ce)
-		intel_context_set_nopreempt(ce);
-
-	return parent;
-
-unwind:
-	if (parent)
-		intel_context_put(parent);
-	return err;
-}
-
 static const struct intel_context_ops execlists_context_ops = {
-	.flags = COPS_HAS_INFLIGHT | COPS_RUNTIME_CYCLES,
+	.flags = COPS_HAS_INFLIGHT,
 
 	.alloc = execlists_context_alloc,
 
@@ -2703,7 +2622,6 @@ static const struct intel_context_ops execlists_context_ops = {
 	.reset = lrc_reset,
 	.destroy = lrc_destroy,
 
-	.create_parallel = execlists_create_parallel,
 	.create_virtual = execlists_create_virtual,
 };
 
@@ -2830,9 +2748,8 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 
 	/* Check that the GPU does indeed update the CSB entries! */
 	memset(execlists->csb_status, -1, (reset_value + 1) * sizeof(u64));
-	drm_clflush_virt_range(execlists->csb_status,
-			       execlists->csb_size *
-			       sizeof(execlists->csb_status));
+	invalidate_csb_entries(&execlists->csb_status[0],
+			       &execlists->csb_status[reset_value]);
 
 	/* Once more for luck and our trusty paranoia */
 	ENGINE_WRITE(engine, RING_CONTEXT_STATUS_PTR,
@@ -2876,7 +2793,7 @@ static void execlists_sanitize(struct intel_engine_cs *engine)
 	sanitize_hwsp(engine);
 
 	/* And scrub the dirty cachelines for the HWSP */
-	drm_clflush_virt_range(engine->status_page.addr, PAGE_SIZE);
+	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
 
 	intel_engine_reset_pinned_contexts(engine);
 }
@@ -2955,9 +2872,6 @@ static int execlists_resume(struct intel_engine_cs *engine)
 
 	enable_execlists(engine);
 
-	if (engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE)
-		xehp_enable_ccs_engines(engine);
-
 	return 0;
 }
 
@@ -2993,13 +2907,6 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	ring_set_paused(engine, 1);
 	intel_engine_stop_cs(engine);
 
-	/*
-	 * Wa_22011802037:gen11/gen12: In addition to stopping the cs, we need
-	 * to wait for any pending mi force wakeups
-	 */
-	if (IS_GRAPHICS_VER(engine->i915, 11, 12))
-		intel_engine_wait_for_pending_mi_fw(engine);
-
 	engine->execlists.reset_ccid = active_ccid(engine);
 }
 
@@ -3008,8 +2915,9 @@ reset_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
-	drm_clflush_virt_range(execlists->csb_write,
-			       sizeof(execlists->csb_write[0]));
+	mb(); /* paranoia: read the CSB pointers from after the reset */
+	clflush(execlists->csb_write);
+	mb();
 
 	inactive = process_csb(engine, inactive); /* drain preemption events */
 
@@ -3391,38 +3299,6 @@ static void execlists_release(struct intel_engine_cs *engine)
 	lrc_fini_wa_ctx(engine);
 }
 
-static ktime_t __execlists_engine_busyness(struct intel_engine_cs *engine,
-					   ktime_t *now)
-{
-	struct intel_engine_execlists_stats *stats = &engine->stats.execlists;
-	ktime_t total = stats->total;
-
-	/*
-	 * If the engine is executing something at the moment
-	 * add it to the total.
-	 */
-	*now = ktime_get();
-	if (READ_ONCE(stats->active))
-		total = ktime_add(total, ktime_sub(*now, stats->start));
-
-	return total;
-}
-
-static ktime_t execlists_engine_busyness(struct intel_engine_cs *engine,
-					 ktime_t *now)
-{
-	struct intel_engine_execlists_stats *stats = &engine->stats.execlists;
-	unsigned int seq;
-	ktime_t total;
-
-	do {
-		seq = read_seqcount_begin(&stats->lock);
-		total = __execlists_engine_busyness(engine, now);
-	} while (read_seqcount_retry(&stats->lock, seq));
-
-	return total;
-}
-
 static void
 logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
@@ -3475,19 +3351,10 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		}
 	}
 
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
-		if (intel_engine_has_preemption(engine))
-			engine->emit_bb_start = gen125_emit_bb_start;
-		else
-			engine->emit_bb_start = gen125_emit_bb_start_noarb;
-	} else {
-		if (intel_engine_has_preemption(engine))
-			engine->emit_bb_start = gen8_emit_bb_start;
-		else
-			engine->emit_bb_start = gen8_emit_bb_start_noarb;
-	}
-
-	engine->busyness = execlists_engine_busyness;
+	if (intel_engine_has_preemption(engine))
+		engine->emit_bb_start = gen8_emit_bb_start;
+	else
+		engine->emit_bb_start = gen8_emit_bb_start_noarb;
 }
 
 static void logical_ring_default_irqs(struct intel_engine_cs *engine)
@@ -3544,7 +3411,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 
-	if (engine->flags & I915_ENGINE_HAS_RCS_REG_STATE)
+	if (engine->class == RENDER_CLASS)
 		rcs_submission_override(engine);
 
 	lrc_init_wa_ctx(engine);
@@ -3567,7 +3434,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 		(u64 *)&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 
 	execlists->csb_write =
-		&engine->status_page.addr[INTEL_HWS_CSB_WRITE_INDEX(i915)];
+		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
 
 	if (GRAPHICS_VER(i915) < 11)
 		execlists->csb_size = GEN8_CSB_ENTRIES;
@@ -3758,7 +3625,7 @@ virtual_get_sibling(struct intel_engine_cs *engine, unsigned int sibling)
 }
 
 static const struct intel_context_ops virtual_context_ops = {
-	.flags = COPS_HAS_INFLIGHT | COPS_RUNTIME_CYCLES,
+	.flags = COPS_HAS_INFLIGHT,
 
 	.alloc = virtual_context_alloc,
 

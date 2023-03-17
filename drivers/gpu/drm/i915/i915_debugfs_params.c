@@ -11,8 +11,13 @@
 #include "i915_drv.h"
 #include "i915_params.h"
 
+#ifdef __linux__
 #define MATCH_DEBUGFS_NODE_NAME(_file, _name) \
 	(strcmp((_file)->f_path.dentry->d_name.name, (_name)) == 0)
+#elif defined(__FreeBSD__)
+#define MATCH_DEBUGFS_NODE_NAME(_file, _name) \
+	false
+#endif
 
 #define GET_I915(i915, name, ptr)	\
 	do {	\
@@ -40,8 +45,8 @@ static int notify_guc(struct drm_i915_private *i915)
 {
 	int ret = 0;
 
-	if (intel_uc_uses_guc_submission(&to_gt(i915)->uc))
-		ret = intel_guc_global_policies_update(&to_gt(i915)->uc.guc);
+	if (intel_uc_uses_guc_submission(&i915->gt.uc))
+		ret = intel_guc_global_policies_update(&i915->gt.uc.guc);
 
 	return ret;
 }
@@ -103,14 +108,10 @@ static ssize_t i915_param_uint_write(struct file *file,
 				     const char __user *ubuf, size_t len,
 				     loff_t *offp)
 {
-#ifdef __linux__
 	struct drm_i915_private *i915;
-#endif	
 	struct seq_file *m = file->private_data;
 	unsigned int *value = m->private;
-#ifdef __linux__
 	unsigned int old = *value;
-#endif
 	int ret;
 
 	ret = kstrtouint_from_user(ubuf, len, 0, value);
@@ -123,7 +124,6 @@ static ssize_t i915_param_uint_write(struct file *file,
 			*value = b;
 	}
 
-#ifdef __linux__
 	if (!ret && MATCH_DEBUGFS_NODE_NAME(file, "reset")) {
 		GET_I915(i915, reset, value);
 
@@ -131,7 +131,6 @@ static ssize_t i915_param_uint_write(struct file *file,
 		if (ret)
 			*value = old;
 	}
-#endif
 
 	return ret ?: len;
 }

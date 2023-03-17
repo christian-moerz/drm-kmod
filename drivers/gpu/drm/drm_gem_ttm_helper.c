@@ -40,24 +40,12 @@ void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 	const struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
 
 	drm_printf_indent(p, indent, "placement=");
-#ifdef BSDTNG
 	drm_print_bits(p, bo->resource->placement, plname, ARRAY_SIZE(plname));
-#else
-	drm_print_bits(p, bo->mem.placement, plname, ARRAY_SIZE(plname));
-#endif	
 	drm_printf(p, "\n");
 
-#ifdef BSDTNG
 	if (bo->resource->bus.is_iomem)
-#else
-	if (bo->mem.bus.is_iomem)
-#endif
 		drm_printf_indent(p, indent, "bus.offset=%lx\n",
-#ifdef BSDTNG
 				  (unsigned long)bo->resource->bus.offset);
-#else				  
-				  (unsigned long)bo->mem.bus.offset);
-#endif
 }
 EXPORT_SYMBOL(drm_gem_ttm_print_info);
 
@@ -72,26 +60,12 @@ EXPORT_SYMBOL(drm_gem_ttm_print_info);
  * Returns:
  * 0 on success, or a negative errno code otherwise.
  */
-#ifdef BSDTNG
-int drm_gem_ttm_vmap(struct drm_gem_object *gem,
-		     struct iosys_map *map)
-#else
 int drm_gem_ttm_vmap(struct drm_gem_object *gem,
 		     struct dma_buf_map *map)
-#endif
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
-	int ret;
 
-#ifdef BSDTNG
-	dma_resv_lock(gem->resv, NULL);
-#endif
-	ret = ttm_bo_vmap(bo, map);
-#ifdef BSDTNG
-	dma_resv_unlock(gem->resv);
-#endif
-
-	return ret;
+	return ttm_bo_vmap(bo, map);
 }
 EXPORT_SYMBOL(drm_gem_ttm_vmap);
 
@@ -103,23 +77,12 @@ EXPORT_SYMBOL(drm_gem_ttm_vmap);
  * Unmaps a GEM object with ttm_bo_vunmap(). This function can be used as
  * &drm_gem_object_funcs.vmap callback.
  */
-#ifdef BSDTNG
-void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
-			struct iosys_map *map)
-#else
 void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
 			struct dma_buf_map *map)
-#endif
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
 
-#ifdef BSDTNG
-	dma_resv_lock(gem->resv, NULL);
-#endif
 	ttm_bo_vunmap(bo, map);
-#ifdef BSDTNG
-	dma_resv_unlock(gem->resv);
-#endif
 }
 EXPORT_SYMBOL(drm_gem_ttm_vunmap);
 
@@ -151,7 +114,6 @@ int drm_gem_ttm_mmap(struct drm_gem_object *gem,
 }
 EXPORT_SYMBOL(drm_gem_ttm_mmap);
 
-#ifdef BSDTNG
 /**
  * drm_gem_ttm_dumb_map_offset() - Implements struct &drm_driver.dumb_map_offset
  * @file:	DRM file pointer.
@@ -184,7 +146,6 @@ int drm_gem_ttm_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_ttm_dumb_map_offset);
-#endif
 
 MODULE_DESCRIPTION("DRM gem ttm helpers");
 MODULE_LICENSE("GPL");

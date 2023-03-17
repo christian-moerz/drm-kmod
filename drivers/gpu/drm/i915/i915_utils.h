@@ -28,19 +28,29 @@
 #include <linux/list.h>
 #include <linux/overflow.h>
 #include <linux/sched.h>
-#include <linux/string_helpers.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/sched/clock.h>
-
-#ifdef CONFIG_X86
-#include <asm/hypervisor.h>
-#endif
 
 struct drm_i915_private;
 struct timer_list;
 
 #define FDO_BUG_URL "https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs"
+
+#undef WARN_ON
+/* Many gcc seem to no see through this and fall over :( */
+#if 0
+#define WARN_ON(x) ({ \
+	bool __i915_warn_cond = (x); \
+	if (__builtin_constant_p(__i915_warn_cond)) \
+		BUILD_BUG_ON(__i915_warn_cond); \
+	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
+#else
+#define WARN_ON(x) WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
+#endif
+
+#undef WARN_ON_ONCE
+#define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")")
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
@@ -115,6 +125,39 @@ bool i915_error_injected(void);
 #define overflows_type(x, T) \
 	(sizeof(x) > sizeof(T) && (x) >> BITS_PER_TYPE(T))
 
+static inline bool
+__check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
+{
+	size_t sz;
+
+	if (check_mul_overflow(count, arr, &sz))
+		return false;
+
+	if (check_add_overflow(sz, base, &sz))
+		return false;
+
+	*size = sz;
+	return true;
+}
+
+/**
+ * check_struct_size() - Calculate size of structure with trailing array.
+ * @p: Pointer to the structure.
+ * @member: Name of the array member.
+ * @n: Number of elements in the array.
+ * @sz: Total size of structure and array
+ *
+ * Calculates size of memory needed for structure @p followed by an
+ * array of @n @member elements, like struct_size() but reports
+ * whether it overflowed, and the resultant size in @sz
+ *
+ * Return: false if the calculation overflowed.
+ */
+#define check_struct_size(p, member, n, sz) \
+	likely(__check_struct_size(sizeof(*(p)), \
+				   sizeof(*(p)->member) + __must_be_array((p)->member), \
+				   n, sz))
+
 #define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
 	(typeof(ptr))(__v & -BIT(n));					\
@@ -150,6 +193,8 @@ bool i915_error_injected(void);
 #define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
 
 #define struct_member(T, member) (((T *)0)->member)
+
+#define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\
@@ -193,6 +238,11 @@ static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
 	get_user(mbz__, (U)) ? -EFAULT : mbz__ ? -EINVAL : 0;		\
 })
 
+static inline u64 ptr_to_u64(const void *ptr)
+{
+	return (uintptr_t)ptr;
+}
+
 #define u64_to_ptr(T, x) ({						\
 	typecheck(u64, x);						\
 	(T *)(uintptr_t)(x);						\
@@ -229,116 +279,6 @@ static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
 }
 
-#if defined(__FreeBSD__)
-/* FIXME troubleshooting timeout */
-
-static int
-tmp_add_to_sleepqueue(void *wchan, struct task_struct *task,
-    const char *wmesg, int timeout, int state)
-{
-        int flags, ret;
-
-        MPASS((state & ~(TASK_PARKED | TASK_NORMAL)) == 0);
-
-        flags = SLEEPQ_SLEEP | ((state & TASK_INTERRUPTIBLE) != 0 ?
-            SLEEPQ_INTERRUPTIBLE : 0);
-
-		printk("sleepq_add\n");
-        sleepq_add(wchan, NULL, wmesg, flags, 0);
-		printk("timeout=%d\n", timeout);
-        if (timeout != 0) {
-				printk("sleepq_set_timeout(wchan, %d)\n", timeout);
-                sleepq_set_timeout(wchan, timeout);
-		}
-
-		printk("DROP GIANT\n");
-        DROP_GIANT();
-        if ((state & TASK_INTERRUPTIBLE) != 0) {
-                if (timeout == 0)
-                        ret = -sleepq_wait_sig(wchan, 0);
-                else
-                        ret = -sleepq_timedwait_sig(wchan, 0);
-        } else {
-				printk("state not interruptible\n");
-                if (timeout == 0) {
-						printk("sleepq_wait 0\n");
-                        sleepq_wait(wchan, 0);
-                        ret = 0;
-						printk("sleepq_wait 0 returns\n");
-                } else {
-						printk("sleepq_timedwait\n");
-                        ret = -sleepq_timedwait(wchan, 0);
-						printk("...returned\n");
-				}
-        }
-		printk("PICKUP GIANT\n");
-        PICKUP_GIANT();
-
-        /* filter return value */
-        if (ret != 0 && ret != -EWOULDBLOCK) {
-                linux_schedule_save_interrupt_value(task, ret);
-                ret = -ERESTARTSYS;
-        }
-        return (ret);
-}
-
-
-static int tmp_unint_timeout(unsigned int timeout) {
-	struct task_struct *task;
-	int ret;
-    int state;
-    int remainder;
-
-	printk("tmp_unint_timeout set uninterruptible\n");
-	set_current_state(TASK_UNINTERRUPTIBLE);
-
-    task = current;
-
-    /* range check timeout */
-    if (timeout < 1)
-    	timeout = 1;
-	else if (timeout == MAX_SCHEDULE_TIMEOUT)
-    	timeout = 0;
-
-	remainder = ticks + timeout;
-
-	printk("tmp_unint_timeout - sleep lock\n");
-	sleepq_lock(task);
-	printk("tmp_unint_timeout - atomic read\n");
-    state = atomic_read(&task->state);
-    if (state != TASK_WAKING) {
-		printk("tmp_unint_timeout - state not waking\n");
-		printk("tmp_unint_timeout - tmp_add_to_sleepqueue\n");
-    	ret = tmp_add_to_sleepqueue(task, task, "sched", timeout,
-        								state);
-	} else {
-		printk("tmp_unint_timeout - sleepq_release call\n");
-    	sleepq_release(task);
-        ret = 0;
-	}
-	printk("tmp_unint_timeout - setting state to running\n");
-    set_task_state(task, TASK_RUNNING);
-
-    if (timeout == 0)
-    	return (MAX_SCHEDULE_TIMEOUT);
-
-	/* range check return value */
-    remainder -= ticks;
-	printk("tmp_unint_timeout remainder is %d\n", remainder);
-
-    /* range check return value */
-    if (ret == -ERESTARTSYS && remainder < 1)
-    	remainder = 1;
-	else if (remainder < 0)
-    	remainder = 0;
-	else if (remainder > timeout)
-    	remainder = timeout;
-
-	printk("tmp_unint_timeout returning %d\n", remainder);
-	return (remainder);
-}
-#endif
-
 /*
  * If you need to wait X milliseconds between events A and B, but event B
  * doesn't happen exactly after event A, you record the timestamp (jiffies) of
@@ -349,15 +289,6 @@ static inline void
 wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 {
 	unsigned long target_jiffies, tmp_jiffies, remaining_jiffies;
-
-#if defined(__FreeBSD__)
-        if (timestamp_jiffies == 0) {
-                /* FIXME BSD this might need a different approach? */
-                /* in principle this is correct, because time_after should in theory
-                        (but does not in practice...) return false */
-                return;
-        }
-#endif
 
 	/*
 	 * Don't re-read the value of "jiffies" every time since it may change
@@ -479,6 +410,30 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
 
+#define KBps(x) (1000 * (x))
+#define MBps(x) KBps(1000 * (x))
+#define GBps(x) ((u64)1000 * MBps((x)))
+
+static inline const char *yesno(bool v)
+{
+	return v ? "yes" : "no";
+}
+
+static inline const char *onoff(bool v)
+{
+	return v ? "on" : "off";
+}
+
+static inline const char *enabledisable(bool v)
+{
+	return v ? "enable" : "disable";
+}
+
+static inline const char *enableddisabled(bool v)
+{
+	return v ? "enabled" : "disabled";
+}
+
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint);
 static inline void __add_taint_for_CI(unsigned int taint)
 {
@@ -503,16 +458,5 @@ static inline bool timer_expired(const struct timer_list *t)
 {
 	return timer_active(t) && !timer_pending(t);
 }
-
-static inline bool i915_run_as_guest(void)
-{
-#ifdef __linux__
-	return !hypervisor_is_type(X86_HYPER_NATIVE);
-#elif defined(__FreeBSD__)
-	return false;
-#endif
-}
-
-bool i915_vtd_active(struct drm_i915_private *i915);
 
 #endif /* !__I915_UTILS_H */

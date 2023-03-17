@@ -4,12 +4,12 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_drv.h>
+#include <linux/console.h>
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_object.h"
 #include "i915_active.h"
-#include "i915_driver.h"
+#include "i915_buddy.h"
 #include "i915_params.h"
 #include "i915_pci.h"
 #include "i915_perf.h"
@@ -17,41 +17,28 @@
 #include "i915_scheduler.h"
 #include "i915_selftest.h"
 #include "i915_vma.h"
-#include "i915_vma_resource.h"
 
-#if defined(__FreeBSD__)
-#include "i915_pciids.h"
-#endif
-
-#ifndef BSDTNG
 static int i915_check_nomodeset(void)
 {
 	bool use_kms = true;
 
-	printk("i915_check_nomodeset - begin\n");
-
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
-	 * either the i915.modeset parameter or by the
-	 * nomodeset boot option.
+	 * either the i915.modeset prarameter or by the
+	 * vga_text_mode_force boot option.
 	 */
 
 	if (i915_modparams.modeset == 0)
 		use_kms = false;
 
-#ifdef __linux__
-	if (drm_firmware_drivers_only() && i915_modparams.modeset == -1)
+	if (vgacon_text_force() && i915_modparams.modeset == -1)
 		use_kms = false;
-#endif
 
 	if (!use_kms) {
 		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		printk("i915_check_nomodeset - no kms\n");
 		return 1;
 	}
-
-	printk("i915_check_nomodeset - end\n");
 
 	return 0;
 }
@@ -63,6 +50,8 @@ static const struct {
 	{ .init = i915_check_nomodeset },
 	{ .init = i915_active_module_init,
 	  .exit = i915_active_module_exit },
+	{ .init = i915_buddy_module_init,
+	  .exit = i915_buddy_module_exit },
 	{ .init = i915_context_module_init,
 	  .exit = i915_context_module_exit },
 	{ .init = i915_gem_context_module_init,
@@ -75,14 +64,12 @@ static const struct {
 	  .exit = i915_scheduler_module_exit },
 	{ .init = i915_vma_module_init,
 	  .exit = i915_vma_module_exit },
-	{ .init = i915_vma_resource_module_init,
-	  .exit = i915_vma_resource_module_exit },
 	{ .init = i915_mock_selftests },
 	{ .init = i915_pmu_init,
 	  .exit = i915_pmu_exit },
 	{ .init = i915_pci_register_driver,
 	  .exit = i915_pci_unregister_driver },
-#ifdef defined(CONFIG_I915_PERF)
+#ifdef __linux__
 	{ .init = i915_perf_sysctl_register,
 	  .exit = i915_perf_sysctl_unregister },
 #endif
@@ -93,10 +80,7 @@ static int __init i915_init(void)
 {
 	int err, i;
 
-printk("i915_init begin\n");
-
 	for (i = 0; i < ARRAY_SIZE(init_funcs); i++) {
-		printk("i915_init - calling init [%d]\n", i);
 		err = init_funcs[i].init();
 		if (err < 0) {
 			while (i--) {
@@ -117,8 +101,6 @@ printk("i915_init begin\n");
 	}
 
 	init_progress = i;
-
-printk("i915_init end\n");
 
 	return 0;
 }
@@ -145,5 +127,17 @@ MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
 
-
-#endif /* ! BSDTNG */
+/* BSD stuff */
+#ifdef __FreeBSD__
+LKPI_DRIVER_MODULE(i915kms, i915_init, i915_exit);
+MODULE_DEPEND(i915kms, drmn, 2, 2, 2);
+MODULE_DEPEND(i915kms, ttm, 1, 1, 1);
+MODULE_DEPEND(i915kms, agp, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi_gplv2, 1, 1, 1);
+MODULE_DEPEND(i915kms, dmabuf, 1, 1, 1);
+MODULE_DEPEND(i915kms, firmware, 1, 1, 1);
+#ifdef CONFIG_DEBUG_FS
+MODULE_DEPEND(i915kms, lindebugfs, 1, 1, 1);
+#endif
+#endif

@@ -140,9 +140,6 @@ struct drm_dp_mst_port {
 	 */
 	struct drm_dp_mst_branch *mstb;
 	struct drm_dp_aux aux; /* i2c bus for this port? */
-#ifdef BSDTNG
-	struct drm_dp_aux *passthrough_aux;
-#endif
 	struct drm_dp_mst_branch *parent;
 
 	struct drm_dp_vcpi vcpi;
@@ -545,64 +542,6 @@ struct drm_dp_payload {
 
 #define to_dp_mst_topology_state(x) container_of(x, struct drm_dp_mst_topology_state, base)
 
-#ifdef BSDTNG
-/**
- * struct drm_dp_mst_atomic_payload - Atomic state struct for an MST payload
- *
- * The primary atomic state structure for a given MST payload. Stores information like current
- * bandwidth allocation, intended action for this payload, etc.
- */
-struct drm_dp_mst_atomic_payload {
-	/** @port: The MST port assigned to this payload */
-	struct drm_dp_mst_port *port;
-
-	/**
-	 * @vc_start_slot: The time slot that this payload starts on. Because payload start slots
-	 * can't be determined ahead of time, the contents of this value are UNDEFINED at atomic
-	 * check time. This shouldn't usually matter, as the start slot should never be relevant for
-	 * atomic state computations.
-	 *
-	 * Since this value is determined at commit time instead of check time, this value is
-	 * protected by the MST helpers ensuring that async commits operating on the given topology
-	 * never run in parallel. In the event that a driver does need to read this value (e.g. to
-	 * inform hardware of the starting timeslot for a payload), the driver may either:
-	 *
-	 * * Read this field during the atomic commit after
-	 *   drm_dp_mst_atomic_wait_for_dependencies() has been called, which will ensure the
-	 *   previous MST states payload start slots have been copied over to the new state. Note
-	 *   that a new start slot won't be assigned/removed from this payload until
-	 *   drm_dp_add_payload_part1()/drm_dp_remove_payload() have been called.
-	 * * Acquire the MST modesetting lock, and then wait for any pending MST-related commits to
-	 *   get committed to hardware by calling drm_crtc_commit_wait() on each of the
-	 *   &drm_crtc_commit structs in &drm_dp_mst_topology_state.commit_deps.
-	 *
-	 * If neither of the two above solutions suffice (e.g. the driver needs to read the start
-	 * slot in the middle of an atomic commit without waiting for some reason), then drivers
-	 * should cache this value themselves after changing payloads.
-	 */
-	s8 vc_start_slot;
-
-	/** @vcpi: The Virtual Channel Payload Identifier */
-	u8 vcpi;
-	/**
-	 * @time_slots:
-	 * The number of timeslots allocated to this payload from the source DP Tx to
-	 * the immediate downstream DP Rx
-	 */
-	int time_slots;
-	/** @pbn: The payload bandwidth for this payload */
-	int pbn;
-
-	/** @delete: Whether or not we intend to delete this payload during this atomic commit */
-	bool delete : 1;
-	/** @dsc_enabled: Whether or not this payload has DSC enabled */
-	bool dsc_enabled : 1;
-
-	/** @next: The list node for this payload */
-	struct list_head next;
-};
-#endif /* BSDTNG */
-
 struct drm_dp_vcpi_allocation {
 	struct drm_dp_mst_port *port;
 	int vcpi;
@@ -615,36 +554,8 @@ struct drm_dp_mst_topology_state {
 	struct drm_private_state base;
 	struct list_head vcpis;
 	struct drm_dp_mst_topology_mgr *mgr;
-#ifdef BSDTNG
-	/**
-	 * @pending_crtc_mask: A bitmask of all CRTCs this topology state touches, drivers may
-	 * modify this to add additional dependencies if needed.
-	 */
-	u32 pending_crtc_mask;
-	/**
-	 * @commit_deps: A list of all CRTC commits affecting this topology, this field isn't
-	 * populated until drm_dp_mst_atomic_wait_for_dependencies() is called.
-	 */
-	struct drm_crtc_commit **commit_deps;
-	/** @num_commit_deps: The number of CRTC commits in @commit_deps */
-	size_t num_commit_deps;
-
-	/** @payload_mask: A bitmask of allocated VCPIs, used for VCPI assignments */
-	u32 payload_mask;
-	/** @payloads: The list of payloads being created/destroyed in this state */
-	struct list_head payloads;
-
-	/** @total_avail_slots: The total number of slots this topology can handle (63 or 64) */
 	u8 total_avail_slots;
-	/** @start_slot: The first usable time slot in this topology (1 or 0) */
 	u8 start_slot;
-
-	/**
-	 * @pbn_div: The current PBN divisor for this topology. The driver is expected to fill this
-	 * out itself.
-	 */
-	int pbn_div;
-#endif /* BSDTNG */
 };
 
 #define to_dp_mst_topology_mgr(x) container_of(x, struct drm_dp_mst_topology_mgr, base)
@@ -684,6 +595,14 @@ struct drm_dp_mst_topology_mgr {
 	 * @max_payloads: maximum number of payloads the GPU can generate.
 	 */
 	int max_payloads;
+	/**
+	 * @max_lane_count: maximum number of lanes the GPU can drive.
+	 */
+	int max_lane_count;
+	/**
+	 * @max_link_rate: maximum link rate per lane GPU can output, in kHz.
+	 */
+	int max_link_rate;
 	/**
 	 * @conn_base_id: DRM connector ID this mgr is connected to. Only used
 	 * to build the MST connector path value.
@@ -725,22 +644,6 @@ struct drm_dp_mst_topology_mgr {
 	 * ID table for @mst_primary. Protected by @lock.
 	 */
 	bool payload_id_table_cleared : 1;
-
-#ifdef BSDTNG
-	/**
-	 * @payload_count: The number of currently active payloads in hardware. This value is only
-	 * intended to be used internally by MST helpers for payload tracking, and is only safe to
-	 * read/write from the atomic commit (not check) context.
-	 */
-	u8 payload_count;
-
-	/**
-	 * @next_start_slot: The starting timeslot to use for new VC payloads. This value is used
-	 * internally by MST helpers for payload tracking, and is only safe to read/write from the
-	 * atomic commit (not check) context.
-	 */
-	u8 next_start_slot;
-#endif
 
 	/**
 	 * @mst_primary: Pointer to the primary/first branch device.
@@ -872,7 +775,9 @@ struct drm_dp_mst_topology_mgr {
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_device *dev, struct drm_dp_aux *aux,
 				 int max_dpcd_transaction_bytes,
-				 int max_payloads, int conn_base_id);
+				 int max_payloads,
+				 int max_lane_count, int max_link_rate,
+				 int conn_base_id);
 
 void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr);
 
@@ -890,24 +795,8 @@ drm_dp_mst_detect_port(struct drm_connector *connector,
 
 struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
-#ifdef BSDTNG
-void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_t link_encoding_cap);
-
-int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
-			     struct drm_dp_mst_topology_state *mst_state,
-			     struct drm_dp_mst_atomic_payload *payload);
-int drm_dp_add_payload_part2(struct drm_dp_mst_topology_mgr *mgr,
-			     struct drm_atomic_state *state,
-			     struct drm_dp_mst_atomic_payload *payload);
-void drm_dp_remove_payload(struct drm_dp_mst_topology_mgr *mgr,
-			   struct drm_dp_mst_topology_state *mst_state,
-			   struct drm_dp_mst_atomic_payload *payload);
-
 int drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
 			     int link_rate, int link_lane_count);
-#else
-int drm_dp_get_vc_payload_bw(int link_rate, int link_lane_count);
-#endif
 
 int drm_dp_calc_pbn_mode(int clock, int bpp, bool dsc);
 
@@ -919,6 +808,7 @@ int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp
 
 void drm_dp_mst_reset_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
+void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_t link_encoding_cap);
 
 void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_port *port);
@@ -928,12 +818,10 @@ int drm_dp_find_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr,
 			   int pbn);
 
 
-#ifndef BSDTNG
-int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr);
+int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr, int start_slot);
 
 
 int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr);
-#endif /* !BSDTNG */
 
 int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr);
 
@@ -957,44 +845,18 @@ void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
 
 struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
 								    struct drm_dp_mst_topology_mgr *mgr);
-#ifdef BSDTNG
-struct drm_dp_mst_topology_state *
-drm_atomic_get_new_mst_topology_state(struct drm_atomic_state *state,
-				      struct drm_dp_mst_topology_mgr *mgr);
-struct drm_dp_mst_atomic_payload *
-drm_atomic_get_mst_payload_state(struct drm_dp_mst_topology_state *state,
-				 struct drm_dp_mst_port *port);
-int __must_check
-drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
-			      struct drm_dp_mst_topology_mgr *mgr,
-			      struct drm_dp_mst_port *port, int pbn);
-#endif
 int __must_check
 drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			      struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_mst_port *port, int pbn,
 			      int pbn_div);
-#ifdef BSDTNG
-int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
-				 struct drm_dp_mst_port *port,
-				 int pbn, bool enable);
-#else
 int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 				 struct drm_dp_mst_port *port,
 				 int pbn, int pbn_div,
 				 bool enable);
-#endif
 int __must_check
 drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr);
-#ifdef BSDTNG
-int __must_check
-drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
-				 struct drm_dp_mst_topology_mgr *mgr,
-				 struct drm_dp_mst_port *port);
-void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state);
-int __must_check drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state);
-#endif
 int __must_check
 drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				 struct drm_dp_mst_topology_mgr *mgr,
@@ -1005,23 +867,11 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 		struct drm_dp_mst_port *port,
 		struct drm_dp_query_stream_enc_status_ack_reply *status);
 int __must_check drm_dp_mst_atomic_check(struct drm_atomic_state *state);
-#ifdef BSDTNG
-int __must_check drm_dp_mst_root_conn_atomic_check(struct drm_connector_state *new_conn_state,
-						   struct drm_dp_mst_topology_mgr *mgr);
-#endif
 
 void drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port);
 void drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port);
 
 struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port);
-
-#ifdef BSDTNG
-static inline struct drm_dp_mst_topology_state *
-to_drm_dp_mst_topology_state(struct drm_private_state *state)
-{
-	return container_of(state, struct drm_dp_mst_topology_state, base);
-}
-#endif
 
 extern const struct drm_private_state_funcs drm_dp_mst_topology_state_funcs;
 

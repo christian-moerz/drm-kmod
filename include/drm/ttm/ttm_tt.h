@@ -51,7 +51,7 @@ struct ttm_tt {
 	 * `ttm_pool` to store private data. FreeBSD's `struct vm_page` does
 	 * not have that, so we use an extra field in `struct ttm_tt` */
 	unsigned int *orders;
-#endif	
+#endif
 	/**
 	 * @page_flags: The page flags.
 	 *
@@ -146,7 +146,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * @bo: The buffer object we create the ttm for.
  * @page_flags: Page flags as identified by TTM_TT_FLAG_XX flags.
  * @caching: the desired caching state of the pages
- * @extra_pages: Extra pages needed for the driver.
  *
  * Create a struct ttm_tt to back data with system memory pages.
  * No pages are actually allocated.
@@ -154,8 +153,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * NULL: Out of memory.
  */
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		uint32_t page_flags, enum ttm_caching caching,
-		unsigned long extra_pages);
+		uint32_t page_flags, enum ttm_caching caching);
 int ttm_sg_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
 		   uint32_t page_flags, enum ttm_caching caching);
 
@@ -245,7 +243,11 @@ struct ttm_kmap_iter *ttm_kmap_iter_tt_init(struct ttm_kmap_iter_tt *iter_tt,
  * bind and unbind memory backing a ttm_tt.
  */
 struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
+#ifdef __linux__
 				 struct agp_bridge_data *bridge,
+#else
+				 device_t bridge,
+#endif
 				 uint32_t page_flags);
 int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem);
 void ttm_agp_unbind(struct ttm_tt *ttm);

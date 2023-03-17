@@ -38,22 +38,13 @@
 #include <linux/math64.h>
 #endif
 
-#ifdef BSDTNG
-#include <drm/drm_dp_mst_helper.h>
-#endif
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_drv.h>
-#ifdef BSDTNG
-#include <drm/drm_edid.h>
-#endif
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#ifdef BSDTNG
-#include "drm_dp_helper_internal.h"
-#endif
 #include "drm_crtc_helper_internal.h"
 #include "drm_dp_mst_topology_internal.h"
 
@@ -77,11 +68,7 @@ static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port);
 
 static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
 				     int id,
-#ifndef BSDTNG
 				     struct drm_dp_payload *payload);
-#else
-					 u8 start_slot, u8 num_slots);
-#endif
 
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
@@ -107,11 +94,9 @@ static int drm_dp_mst_register_i2c_bus(struct drm_dp_mst_port *port);
 static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_mst_port *port);
 static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr);
 
-#ifdef BSDTNG
 static bool drm_dp_mst_port_downstream_of_branch(struct drm_dp_mst_port *port,
 						 struct drm_dp_mst_branch *branch);
 
-#endif
 #define DBG_PREFIX "[dp_mst]"
 
 #define DP_STR(x) [DP_ ## x] = #x
@@ -304,12 +289,8 @@ static void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	*len = idx;
 }
 
-#ifdef BSDTNG
 static bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_dp_sideband_msg_hdr *hdr,
-#else
-static bool drm_dp_decode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
-#endif
 					   u8 *buf, int buflen, u8 *hdrlen)
 {
 	u8 crc4;
@@ -326,7 +307,7 @@ static bool drm_dp_decode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	crc4 = drm_dp_msg_header_crc4(buf, (len * 2) - 1);
 
 	if ((crc4 & 0xf) != (buf[len - 1] & 0xf)) {
-		DRM_DEBUG_KMS("crc4 mismatch 0x%x 0x%x\n", crc4, buf[len - 1]);
+		drm_dbg_kms(mgr->dev, "crc4 mismatch 0x%x 0x%x\n", crc4, buf[len - 1]);
 		return false;
 	}
 
@@ -812,12 +793,8 @@ static bool drm_dp_sideband_append_payload(struct drm_dp_sideband_msg_rx *msg,
 	return true;
 }
 
-#ifdef BSDTNG
 static bool drm_dp_sideband_parse_link_address(const struct drm_dp_mst_topology_mgr *mgr,
 					       struct drm_dp_sideband_msg_rx *raw,
-#else
-static bool drm_dp_sideband_parse_link_address(struct drm_dp_sideband_msg_rx *raw,
-#endif
 					       struct drm_dp_sideband_msg_reply_body *repmsg)
 {
 	int idx = 1;
@@ -1042,12 +1019,8 @@ drm_dp_sideband_parse_query_stream_enc_status(
 	return true;
 }
 
-#ifdef BSDTNG
 static bool drm_dp_sideband_parse_reply(const struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_dp_sideband_msg_rx *raw,
-#else
-static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
-#endif
 					struct drm_dp_sideband_msg_reply_body *msg)
 {
 	memset(msg, 0, sizeof(*msg));
@@ -1063,11 +1036,7 @@ static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
 
 	switch (msg->req_type) {
 	case DP_LINK_ADDRESS:
-#ifndef BSDTNG
-		return drm_dp_sideband_parse_link_address(raw, msg);
-#else
 		return drm_dp_sideband_parse_link_address(mgr, raw, msg);
-#endif
 	case DP_QUERY_PAYLOAD:
 		return drm_dp_sideband_parse_query_payload_ack(raw, msg);
 	case DP_REMOTE_DPCD_READ:
@@ -1090,20 +1059,16 @@ static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
 	case DP_QUERY_STREAM_ENC_STATUS:
 		return drm_dp_sideband_parse_query_stream_enc_status(raw, msg);
 	default:
-		DRM_ERROR("Got unknown reply 0x%02x (%s)\n", msg->req_type,
-			  drm_dp_mst_req_type_str(msg->req_type));
+		drm_err(mgr->dev, "Got unknown reply 0x%02x (%s)\n",
+			msg->req_type, drm_dp_mst_req_type_str(msg->req_type));
 		return false;
 	}
 }
 
-#ifdef BSDTNG
 static bool
 drm_dp_sideband_parse_connection_status_notify(const struct drm_dp_mst_topology_mgr *mgr,
 					       struct drm_dp_sideband_msg_rx *raw,
-#else
-static bool drm_dp_sideband_parse_connection_status_notify(struct drm_dp_sideband_msg_rx *raw,
-#endif
-							   struct drm_dp_sideband_msg_req_body *msg)
+					       struct drm_dp_sideband_msg_req_body *msg)
 {
 	int idx = 1;
 
@@ -1125,17 +1090,14 @@ static bool drm_dp_sideband_parse_connection_status_notify(struct drm_dp_sideban
 	idx++;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("connection status reply parse length fail %d %d\n", idx, raw->curlen);
+	drm_dbg_kms(mgr->dev, "connection status reply parse length fail %d %d\n",
+		    idx, raw->curlen);
 	return false;
 }
 
-#ifdef BSDTNG
 static bool drm_dp_sideband_parse_resource_status_notify(const struct drm_dp_mst_topology_mgr *mgr,
 							 struct drm_dp_sideband_msg_rx *raw,
-#else
-static bool drm_dp_sideband_parse_resource_status_notify(struct drm_dp_sideband_msg_rx *raw,
-#endif							   
-							   struct drm_dp_sideband_msg_req_body *msg)
+							 struct drm_dp_sideband_msg_req_body *msg)
 {
 	int idx = 1;
 
@@ -1153,16 +1115,12 @@ static bool drm_dp_sideband_parse_resource_status_notify(struct drm_dp_sideband_
 	idx++;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("resource status reply parse length fail %d %d\n", idx, raw->curlen);
+	drm_dbg_kms(mgr->dev, "resource status reply parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
-#ifdef BSDTNG
 static bool drm_dp_sideband_parse_req(const struct drm_dp_mst_topology_mgr *mgr,
 				      struct drm_dp_sideband_msg_rx *raw,
-#else
-static bool drm_dp_sideband_parse_req(struct drm_dp_sideband_msg_rx *raw,
-#endif
 				      struct drm_dp_sideband_msg_req_body *msg)
 {
 	memset(msg, 0, sizeof(*msg));
@@ -1170,20 +1128,12 @@ static bool drm_dp_sideband_parse_req(struct drm_dp_sideband_msg_rx *raw,
 
 	switch (msg->req_type) {
 	case DP_CONNECTION_STATUS_NOTIFY:
-#ifdef BSDTNG
 		return drm_dp_sideband_parse_connection_status_notify(mgr, raw, msg);
-#else
-		return drm_dp_sideband_parse_connection_status_notify(raw, msg);
-#endif
 	case DP_RESOURCE_STATUS_NOTIFY:
-#ifdef BSDTNG
 		return drm_dp_sideband_parse_resource_status_notify(mgr, raw, msg);
-#else
-		return drm_dp_sideband_parse_resource_status_notify(raw, msg);
-#endif
 	default:
-		DRM_ERROR("Got unknown request 0x%02x (%s)\n", msg->req_type,
-			  drm_dp_mst_req_type_str(msg->req_type));
+		drm_err(mgr->dev, "Got unknown request 0x%02x (%s)\n",
+			msg->req_type, drm_dp_mst_req_type_str(msg->req_type));
 		return false;
 	}
 }
@@ -1215,9 +1165,7 @@ static void build_clear_payload_id_table(struct drm_dp_sideband_msg_tx *msg)
 
 	req.req_type = DP_CLEAR_PAYLOAD_ID_TABLE;
 	drm_dp_encode_sideband_req(&req, msg);
-#ifdef BSDTNG
 	msg->path_msg = true;
-#endif
 }
 
 static int build_enum_path_resources(struct drm_dp_sideband_msg_tx *msg,
@@ -1295,14 +1243,14 @@ static int drm_dp_mst_assign_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 	ret = find_first_zero_bit(&mgr->payload_mask, mgr->max_payloads + 1);
 	if (ret > mgr->max_payloads) {
 		ret = -EINVAL;
-		DRM_DEBUG_KMS("out of payload ids %d\n", ret);
+		drm_dbg_kms(mgr->dev, "out of payload ids %d\n", ret);
 		goto out_unlock;
 	}
 
 	vcpi_ret = find_first_zero_bit(&mgr->vcpi_mask, mgr->max_payloads + 1);
 	if (vcpi_ret > mgr->max_payloads) {
 		ret = -EINVAL;
-		DRM_DEBUG_KMS("out of vcpi ids %d\n", ret);
+		drm_dbg_kms(mgr->dev, "out of vcpi ids %d\n", ret);
 		goto out_unlock;
 	}
 
@@ -1324,7 +1272,7 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 		return;
 
 	mutex_lock(&mgr->payload_lock);
-	DRM_DEBUG_KMS("putting payload %d\n", vcpi);
+	drm_dbg_kms(mgr->dev, "putting payload %d\n", vcpi);
 	clear_bit(vcpi - 1, &mgr->vcpi_mask);
 
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -1394,7 +1342,8 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 			goto out;
 		}
 	} else {
-		DRM_DEBUG_KMS("timedout msg send %p %d %d\n", txmsg, txmsg->state, txmsg->seqno);
+		drm_dbg_kms(mgr->dev, "timedout msg send %p %d %d\n",
+			    txmsg, txmsg->state, txmsg->seqno);
 
 		/* dump some state */
 		ret = -EIO;
@@ -1548,7 +1497,7 @@ static void
 drm_dp_mst_get_mstb_malloc(struct drm_dp_mst_branch *mstb)
 {
 	kref_get(&mstb->malloc_kref);
-	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref));
+	drm_dbg(mstb->mgr->dev, "mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref));
 }
 
 /**
@@ -1565,7 +1514,7 @@ drm_dp_mst_get_mstb_malloc(struct drm_dp_mst_branch *mstb)
 static void
 drm_dp_mst_put_mstb_malloc(struct drm_dp_mst_branch *mstb)
 {
-	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref) - 1);
+	drm_dbg(mstb->mgr->dev, "mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref) - 1);
 	kref_put(&mstb->malloc_kref, drm_dp_free_mst_branch_device);
 }
 
@@ -1599,7 +1548,7 @@ void
 drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port)
 {
 	kref_get(&port->malloc_kref);
-	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->malloc_kref));
+	drm_dbg(port->mgr->dev, "port %p (%d)\n", port, kref_read(&port->malloc_kref));
 }
 EXPORT_SYMBOL(drm_dp_mst_get_port_malloc);
 
@@ -1616,7 +1565,7 @@ EXPORT_SYMBOL(drm_dp_mst_get_port_malloc);
 void
 drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port)
 {
-	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->malloc_kref) - 1);
+	drm_dbg(port->mgr->dev, "port %p (%d)\n", port, kref_read(&port->malloc_kref) - 1);
 	kref_put(&port->malloc_kref, drm_dp_free_mst_port);
 }
 EXPORT_SYMBOL(drm_dp_mst_put_port_malloc);
@@ -1719,13 +1668,10 @@ __dump_topology_ref_history(struct drm_dp_mst_topology_ref_history *history,
 	for (i = 0; i < history->len; i++) {
 		const struct drm_dp_mst_topology_ref_entry *entry =
 			&history->entries[i];
-		ulong *entries;
-		uint nr_entries;
 		u64 ts_nsec = entry->ts_nsec;
 		u32 rem_nsec = do_div(ts_nsec, 1000000000);
 
-		nr_entries = stack_depot_fetch(entry->backtrace, &entries);
-		stack_trace_snprint(buf, PAGE_SIZE, entries, nr_entries, 4);
+		stack_depot_snprint(entry->backtrace, buf, PAGE_SIZE, 4);
 
 		drm_printf(&p, "  %d %ss (last at %5llu.%06u):\n%s",
 			   entry->count,
@@ -1791,22 +1737,6 @@ drm_dp_mst_dump_port_topology_history(struct drm_dp_mst_port *port) {}
 #define save_port_topology_ref(port, type)
 #endif
 
-#ifdef BSDTNG
-struct drm_dp_mst_atomic_payload *
-drm_atomic_get_mst_payload_state(struct drm_dp_mst_topology_state *state,
-				 struct drm_dp_mst_port *port)
-{
-	struct drm_dp_mst_atomic_payload *payload;
-
-	list_for_each_entry(payload, &state->payloads, next)
-		if (payload->port == port)
-			return payload;
-
-	return NULL;
-}
-EXPORT_SYMBOL(drm_atomic_get_mst_payload_state);
-#endif
-
 static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 {
 	struct drm_dp_mst_branch *mstb =
@@ -1857,8 +1787,7 @@ drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
 	topology_ref_history_lock(mstb->mgr);
 	ret = kref_get_unless_zero(&mstb->topology_kref);
 	if (ret) {
-		DRM_DEBUG("mstb %p (%d)\n",
-			  mstb, kref_read(&mstb->topology_kref));
+		drm_dbg(mstb->mgr->dev, "mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
 		save_mstb_topology_ref(mstb, DRM_DP_MST_TOPOLOGY_REF_GET);
 	}
 
@@ -1888,7 +1817,7 @@ static void drm_dp_mst_topology_get_mstb(struct drm_dp_mst_branch *mstb)
 	save_mstb_topology_ref(mstb, DRM_DP_MST_TOPOLOGY_REF_GET);
 	WARN_ON(kref_read(&mstb->topology_kref) == 0);
 	kref_get(&mstb->topology_kref);
-	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
+	drm_dbg(mstb->mgr->dev, "mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
 
 	topology_ref_history_unlock(mstb->mgr);
 }
@@ -1910,8 +1839,7 @@ drm_dp_mst_topology_put_mstb(struct drm_dp_mst_branch *mstb)
 {
 	topology_ref_history_lock(mstb->mgr);
 
-	DRM_DEBUG("mstb %p (%d)\n",
-		  mstb, kref_read(&mstb->topology_kref) - 1);
+	drm_dbg(mstb->mgr->dev, "mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref) - 1);
 	save_mstb_topology_ref(mstb, DRM_DP_MST_TOPOLOGY_REF_PUT);
 
 	topology_ref_history_unlock(mstb->mgr);
@@ -1974,8 +1902,7 @@ drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
 	topology_ref_history_lock(port->mgr);
 	ret = kref_get_unless_zero(&port->topology_kref);
 	if (ret) {
-		DRM_DEBUG("port %p (%d)\n",
-			  port, kref_read(&port->topology_kref));
+		drm_dbg(port->mgr->dev, "port %p (%d)\n", port, kref_read(&port->topology_kref));
 		save_port_topology_ref(port, DRM_DP_MST_TOPOLOGY_REF_GET);
 	}
 
@@ -2002,7 +1929,7 @@ static void drm_dp_mst_topology_get_port(struct drm_dp_mst_port *port)
 
 	WARN_ON(kref_read(&port->topology_kref) == 0);
 	kref_get(&port->topology_kref);
-	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->topology_kref));
+	drm_dbg(port->mgr->dev, "port %p (%d)\n", port, kref_read(&port->topology_kref));
 	save_port_topology_ref(port, DRM_DP_MST_TOPOLOGY_REF_GET);
 
 	topology_ref_history_unlock(port->mgr);
@@ -2023,8 +1950,7 @@ static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port)
 {
 	topology_ref_history_lock(port->mgr);
 
-	DRM_DEBUG("port %p (%d)\n",
-		  port, kref_read(&port->topology_kref) - 1);
+	drm_dbg(port->mgr->dev, "port %p (%d)\n", port, kref_read(&port->topology_kref) - 1);
 	save_port_topology_ref(port, DRM_DP_MST_TOPOLOGY_REF_PUT);
 
 	topology_ref_history_unlock(port->mgr);
@@ -2209,8 +2135,7 @@ drm_dp_port_set_pdt(struct drm_dp_mst_port *port, u8 new_pdt,
 			mstb = drm_dp_add_mst_branch_device(lct, rad);
 			if (!mstb) {
 				ret = -ENOMEM;
-				DRM_ERROR("Failed to create MSTB for port %p",
-					  port);
+				drm_err(mgr->dev, "Failed to create MSTB for port %p", port);
 				goto out;
 			}
 
@@ -2340,8 +2265,8 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 int drm_dp_mst_connector_late_register(struct drm_connector *connector,
 				       struct drm_dp_mst_port *port)
 {
-	DRM_DEBUG_KMS("registering %s remote bus for %s\n",
-		      port->aux.name, connector->kdev->kobj.name);
+	drm_dbg_kms(port->mgr->dev, "registering %s remote bus for %s\n",
+		    port->aux.name, connector->kdev->kobj.name);
 
 	port->aux.dev = connector->kdev;
 	return drm_dp_aux_register_devnode(&port->aux);
@@ -2360,8 +2285,8 @@ EXPORT_SYMBOL(drm_dp_mst_connector_late_register);
 void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
 					   struct drm_dp_mst_port *port)
 {
-	DRM_DEBUG_KMS("unregistering %s remote bus for %s\n",
-		      port->aux.name, connector->kdev->kobj.name);
+	drm_dbg_kms(port->mgr->dev, "unregistering %s remote bus for %s\n",
+		    port->aux.name, connector->kdev->kobj.name);
 	drm_dp_aux_unregister_devnode(&port->aux);
 }
 EXPORT_SYMBOL(drm_dp_mst_connector_early_unregister);
@@ -2383,17 +2308,15 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 
 	if (port->pdt != DP_PEER_DEVICE_NONE &&
 	    drm_dp_mst_is_end_device(port->pdt, port->mcs) &&
-	    port->port_num >= DP_MST_LOGICAL_PORT_0) {
+	    port->port_num >= DP_MST_LOGICAL_PORT_0)
 		port->cached_edid = drm_get_edid(port->connector,
 						 &port->aux.ddc);
-		drm_connector_set_tile_property(port->connector);
-	}
 
 	drm_connector_register(port->connector);
 	return;
 
 error:
-	DRM_ERROR("Failed to create connector for port %p: %d\n", port, ret);
+	drm_err(mgr->dev, "Failed to create connector for port %p: %d\n", port, ret);
 }
 
 /*
@@ -2431,9 +2354,7 @@ drm_dp_mst_add_port(struct drm_device *dev,
 	port->aux.is_remote = true;
 
 	/* initialize the MST downstream port's AUX crc work queue */
-#ifdef BSDTNG
 	port->aux.drm_dev = dev;
-#endif
 	drm_dp_remote_aux_init(&port->aux);
 
 	/*
@@ -2535,8 +2456,7 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 	if (ret == 1) {
 		send_link_addr = true;
 	} else if (ret < 0) {
-		DRM_ERROR("Failed to change PDT on port %p: %d\n",
-			  port, ret);
+		drm_err(dev, "Failed to change PDT on port %p: %d\n", port, ret);
 		goto fail;
 	}
 
@@ -2575,32 +2495,20 @@ fail_put:
 	return ret;
 }
 
-#ifdef BSDTNG
-static int
-#else
 static void
-#endif
 drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 			    struct drm_dp_connection_status_notify *conn_stat)
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
-#ifdef BSDTNG
 	int old_ddps, ret;
-#else
-	int old_ddps, old_input, ret, i;
-#endif
 	u8 new_pdt;
 	bool new_mcs;
 	bool dowork = false, create_connector = false;
 
 	port = drm_dp_get_port(mstb, conn_stat->port_number);
 	if (!port)
-#ifdef BSDTNG
-		return 0;
-#else		
 		return;
-#endif
 
 	if (port->connector) {
 		if (!port->input && conn_stat->input_port) {
@@ -2625,9 +2533,6 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 	}
 
 	old_ddps = port->ddps;
-#ifndef BSDTNG
-	old_input = port->input;
-#endif
 	port->input = conn_stat->input_port;
 	port->ldps = conn_stat->legacy_device_plug_status;
 	port->ddps = conn_stat->displayport_device_plug_status;
@@ -2645,34 +2550,9 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 	if (ret == 1) {
 		dowork = true;
 	} else if (ret < 0) {
-		DRM_ERROR("Failed to change PDT for port %p: %d\n",
-			  port, ret);
+		drm_err(mgr->dev, "Failed to change PDT for port %p: %d\n", port, ret);
 		dowork = false;
 	}
-
-#ifndef BSDTNG
-	if (!old_input && old_ddps != port->ddps && !port->ddps) {
-		for (i = 0; i < mgr->max_payloads; i++) {
-			struct drm_dp_vcpi *vcpi = mgr->proposed_vcpis[i];
-			struct drm_dp_mst_port *port_validated;
-
-			if (!vcpi)
-				continue;
-
-			port_validated =
-				container_of(vcpi, struct drm_dp_mst_port, vcpi);
-			port_validated =
-				drm_dp_mst_topology_get_port_validated(mgr, port_validated);
-			if (!port_validated) {
-				mutex_lock(&mgr->payload_lock);
-				vcpi->num_slots = 0;
-				mutex_unlock(&mgr->payload_lock);
-			} else {
-				drm_dp_mst_topology_put_port(port_validated);
-			}
-		}
-	}
-#endif
 
 	if (port->connector)
 		drm_modeset_unlock(&mgr->base.lock);
@@ -2681,12 +2561,8 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 
 out:
 	drm_dp_mst_topology_put_port(port);
-#ifndef BSDTNG
 	if (dowork)
 		queue_work(system_long_wq, &mstb->mgr->work);
-#else
-	return dowork;
-#endif
 }
 
 static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_topology_mgr *mgr,
@@ -2711,7 +2587,9 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 			if (port->port_num == port_num) {
 				mstb = port->mstb;
 				if (!mstb) {
-					DRM_ERROR("failed to lookup MSTB with lct %d, rad %02x\n", lct, rad[0]);
+					drm_err(mgr->dev,
+						"failed to lookup MSTB with lct %d, rad %02x\n",
+						lct, rad[0]);
 					goto out;
 				}
 
@@ -2788,16 +2666,11 @@ static int drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *mg
 	}
 
 	list_for_each_entry(port, &mstb->ports, next) {
-#ifndef BSDTNG
 		struct drm_dp_mst_branch *mstb_child = NULL;
 
 		if (port->input || !port->ddps)
-#else
-		if (port->input || !port->ddps || !port->mstb)
-#endif
 			continue;
 
-#ifndef BSDTNG
 		if (port->mstb)
 			mstb_child = drm_dp_mst_topology_get_mstb_validated(
 			    mgr, port->mstb);
@@ -2806,16 +2679,11 @@ static int drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *mg
 			ret = drm_dp_check_and_send_link_address(mgr,
 								 mstb_child);
 			drm_dp_mst_topology_put_mstb(mstb_child);
-#else
-		ret = drm_dp_check_and_send_link_address(mgr, port->mstb);
-#endif
 			if (ret == 1)
 				changed = true;
 			else if (ret < 0)
 				return ret;
-#ifndef BSDTNG
 		}
-#endif
 	}
 
 	return changed;
@@ -2857,7 +2725,7 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 	 * things work again.
 	 */
 	if (clear_payload_id_table) {
-		DRM_DEBUG_KMS("Clearing payload ID table\n");
+		drm_dbg_kms(dev, "Clearing payload ID table\n");
 		drm_dp_send_clear_payload_id_table(mgr, mstb);
 	}
 
@@ -2919,7 +2787,7 @@ retry:
 				retries++;
 				goto retry;
 			}
-			DRM_DEBUG_KMS("failed to dpcd write %d %d\n", tosend, ret);
+			drm_dbg_kms(mgr->dev, "failed to dpcd write %d %d\n", tosend, ret);
 
 			return -EIO;
 		}
@@ -2937,32 +2805,21 @@ static int set_hdr_from_dst_qlock(struct drm_dp_sideband_msg_hdr *hdr,
 
 	req_type = txmsg->msg[0] & 0x7f;
 	if (req_type == DP_CONNECTION_STATUS_NOTIFY ||
-#ifndef BSDTNG
-		req_type == DP_RESOURCE_STATUS_NOTIFY)
-#else
 		req_type == DP_RESOURCE_STATUS_NOTIFY ||
 		req_type == DP_CLEAR_PAYLOAD_ID_TABLE)
-#endif
 		hdr->broadcast = 1;
 	else
 		hdr->broadcast = 0;
 	hdr->path_msg = txmsg->path_msg;
-#ifdef BSDTNG
 	if (hdr->broadcast) {
 		hdr->lct = 1;
 		hdr->lcr = 6;
 	} else {
-#endif
-	hdr->lct = mstb->lct;
-	hdr->lcr = mstb->lct - 1;
-#ifdef BSDTNG
+		hdr->lct = mstb->lct;
+		hdr->lcr = mstb->lct - 1;
 	}
 
 	memcpy(hdr->rad, mstb->rad, hdr->lct / 2);
-#else
-	if (mstb->lct > 1)
-		memcpy(hdr->rad, mstb->rad, mstb->lct / 2);
-#endif
 
 	return 0;
 }
@@ -3012,19 +2869,13 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	idx += tosend + 1;
 
 	ret = drm_dp_send_sideband_msg(mgr, up, chunk, idx);
-#ifdef BSDTNG
 	if (ret) {
 		if (drm_debug_enabled(DRM_UT_DP)) {
-#else
-	if (unlikely(ret) && drm_debug_enabled(DRM_UT_DP)) {
-#endif
-		struct drm_printer p = drm_debug_printer(DBG_PREFIX);
+			struct drm_printer p = drm_debug_printer(DBG_PREFIX);
 
-		drm_printf(&p, "sideband msg failed to send\n");
-		drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
-#ifdef BSDTNG
+			drm_printf(&p, "sideband msg failed to send\n");
+			drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
 		}
-#endif
 		return ret;
 	}
 
@@ -3051,7 +2902,7 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 				 struct drm_dp_sideband_msg_tx, next);
 	ret = process_single_tx_qlock(mgr, txmsg, false);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
+		drm_dbg_kms(mgr->dev, "failed to send msg in q %d\n", ret);
 		list_del(&txmsg->next);
 		txmsg->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
 		wake_up_all(&mgr->tx_waitq);
@@ -3076,29 +2927,26 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 static void
-#ifdef BSDTNG
 drm_dp_dump_link_address(const struct drm_dp_mst_topology_mgr *mgr,
 			 struct drm_dp_link_address_ack_reply *reply)
-#else
-drm_dp_dump_link_address(struct drm_dp_link_address_ack_reply *reply)
-#endif
 {
 	struct drm_dp_link_addr_reply_port *port_reply;
 	int i;
 
 	for (i = 0; i < reply->nports; i++) {
 		port_reply = &reply->ports[i];
-		DRM_DEBUG_KMS("port %d: input %d, pdt: %d, pn: %d, dpcd_rev: %02x, mcs: %d, ddps: %d, ldps %d, sdp %d/%d\n",
-			      i,
-			      port_reply->input_port,
-			      port_reply->peer_device_type,
-			      port_reply->port_number,
-			      port_reply->dpcd_revision,
-			      port_reply->mcs,
-			      port_reply->ddps,
-			      port_reply->legacy_device_plug_status,
-			      port_reply->num_sdp_streams,
-			      port_reply->num_sdp_stream_sinks);
+		drm_dbg_kms(mgr->dev,
+			    "port %d: input %d, pdt: %d, pn: %d, dpcd_rev: %02x, mcs: %d, ddps: %d, ldps %d, sdp %d/%d\n",
+			    i,
+			    port_reply->input_port,
+			    port_reply->peer_device_type,
+			    port_reply->port_number,
+			    port_reply->dpcd_revision,
+			    port_reply->mcs,
+			    port_reply->ddps,
+			    port_reply->legacy_device_plug_status,
+			    port_reply->num_sdp_streams,
+			    port_reply->num_sdp_stream_sinks);
 	}
 }
 
@@ -3124,17 +2972,17 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	/* FIXME: Actually do some real error handling here */
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret <= 0) {
-		DRM_ERROR("Sending link address failed with %d\n", ret);
+		drm_err(mgr->dev, "Sending link address failed with %d\n", ret);
 		goto out;
 	}
 	if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
-		DRM_ERROR("link address NAK received\n");
+		drm_err(mgr->dev, "link address NAK received\n");
 		ret = -EIO;
 		goto out;
 	}
 
 	reply = &txmsg->reply.u.link_addr;
-	DRM_DEBUG_KMS("link address reply: %d\n", reply->nports);
+	drm_dbg_kms(mgr->dev, "link address reply: %d\n", reply->nports);
 	drm_dp_dump_link_address(mgr, reply);
 
 	ret = drm_dp_check_mstb_guid(mstb, reply->guid);
@@ -3142,8 +2990,7 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 		char buf[64];
 
 		drm_dp_mst_rad_to_str(mstb->rad, mstb->lct, buf, sizeof(buf));
-		DRM_ERROR("GUID check on %s failed: %d\n",
-			  buf, ret);
+		drm_err(mgr->dev, "GUID check on %s failed: %d\n", buf, ret);
 		goto out;
 	}
 
@@ -3167,8 +3014,8 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 		if (port_mask & BIT(port->port_num))
 			continue;
 
-		DRM_DEBUG_KMS("port %d was not in link address, removing\n",
-			      port->port_num);
+		drm_dbg_kms(mgr->dev, "port %d was not in link address, removing\n",
+			    port->port_num);
 		list_del(&port->next);
 		drm_dp_mst_topology_put_port(port);
 		changed = true;
@@ -3200,7 +3047,7 @@ drm_dp_send_clear_payload_id_table(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret > 0 && txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-		DRM_DEBUG_KMS("clear payload table id nak received\n");
+		drm_dbg_kms(mgr->dev, "clear payload table id nak received\n");
 
 	kfree(txmsg);
 }
@@ -3229,15 +3076,15 @@ drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 		path_res = &txmsg->reply.u.path_resources;
 
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
-			DRM_DEBUG_KMS("enum path resources nak received\n");
+			drm_dbg_kms(mgr->dev, "enum path resources nak received\n");
 		} else {
 			if (port->port_num != path_res->port_number)
 				DRM_ERROR("got incorrect port in response\n");
 
-			DRM_DEBUG_KMS("enum path resources %d: %d %d\n",
-				      path_res->port_number,
-				      path_res->full_payload_bw_number,
-				      path_res->avail_payload_bw_number);
+			drm_dbg_kms(mgr->dev, "enum path resources %d: %d %d\n",
+				    path_res->port_number,
+				    path_res->full_payload_bw_number,
+				    path_res->avail_payload_bw_number);
 
 			/*
 			 * If something changed, make sure we send a
@@ -3402,16 +3249,9 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 		struct drm_dp_mst_port *port,
 		struct drm_dp_query_stream_enc_status_ack_reply *status)
 {
-#ifdef BSDTNG
-	struct drm_dp_mst_topology_state *state;
-	struct drm_dp_mst_atomic_payload *payload;
-	int ret;
-#endif
 	struct drm_dp_sideband_msg_tx *txmsg;
 	u8 nonce[7];
-#ifndef BSDTNG	
-	int len, ret;
-#endif
+	int ret;
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
 	if (!txmsg)
@@ -3425,12 +3265,6 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 
 	get_random_bytes(nonce, sizeof(nonce));
 
-#ifdef BSDTNG	
-	drm_modeset_lock(&mgr->base.lock, NULL);
-	state = to_drm_dp_mst_topology_state(mgr->base.state);
-	payload = drm_atomic_get_mst_payload_state(state, port);
-#endif
-
 	/*
 	 * "Source device targets the QUERY_STREAM_ENCRYPTION_STATUS message
 	 *  transaction at the MST Branch device directly connected to the
@@ -3438,11 +3272,7 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 	 */
 	txmsg->dst = mgr->mst_primary;
 
-#ifdef BSDTNG
-	build_query_stream_enc_status(txmsg, payload->vcpi, nonce);
-#else
-	len = build_query_stream_enc_status(txmsg, port->vcpi.vcpi, nonce);
-#endif
+	build_query_stream_enc_status(txmsg, port->vcpi.vcpi, nonce);
 
 	drm_dp_queue_down_tx(mgr, txmsg);
 
@@ -3459,9 +3289,6 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 	memcpy(status, &txmsg->reply.u.enc_status, sizeof(*status));
 
 out:
-#ifdef BSDTNG
-	drm_modeset_unlock(&mgr->base.lock);
-#endif
 	drm_dp_mst_topology_put_port(port);
 out_get_port:
 	kfree(txmsg);
@@ -3469,19 +3296,10 @@ out_get_port:
 }
 EXPORT_SYMBOL(drm_dp_send_query_stream_enc_status);
 
-#ifdef BSDTNG
-static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_atomic_payload *payload)
-#else
 static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 				       int id,
 				       struct drm_dp_payload *payload)
-#endif
 {
-#ifdef BSDTNG
-	return drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot,
-					 payload->time_slots);
-#else
 	int ret;
 
 	ret = drm_dp_dpcd_write_payload(mgr, id, payload);
@@ -3491,64 +3309,35 @@ static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 	}
 	payload->payload_state = DP_PAYLOAD_LOCAL;
 	return 0;
-#endif
 }
 
-#ifdef BSDTNG
-static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_atomic_payload *payload)
-#else
 static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 				       struct drm_dp_mst_port *port,
 				       int id,
 				       struct drm_dp_payload *payload)
-#endif
 {
 	int ret;
 
-#ifdef BSDTNG
-	struct drm_dp_mst_port *port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
-
-	if (!port)
-		return -EIO;
-
-	ret = drm_dp_payload_send_msg(mgr, port, payload->vcpi, payload->pbn);
-	drm_dp_mst_topology_put_port(port);
-#else
 	ret = drm_dp_payload_send_msg(mgr, port, id, port->vcpi.pbn);
 	if (ret < 0)
 		return ret;
 	payload->payload_state = DP_PAYLOAD_REMOTE;
-#endif
-
 	return ret;
 }
 
 static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-#ifdef BSDTNG
-					struct drm_dp_mst_topology_state *mst_state,
-					struct drm_dp_mst_atomic_payload *payload)
-#else
 					struct drm_dp_mst_port *port,
 					int id,
 					struct drm_dp_payload *payload)
-#endif
 {
-	DRM_DEBUG_KMS("\n");
+	drm_dbg_kms(mgr->dev, "\n");
 	/* it's okay for these to fail */
-#ifdef BSDTNG
-	/* it's okay for these to fail */
-	drm_dp_payload_send_msg(mgr, payload->port, payload->vcpi, 0);
-	drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot, 0);
-#else
 	if (port) {
 		drm_dp_payload_send_msg(mgr, port, id, 0);
 	}
 
 	drm_dp_dpcd_write_payload(mgr, id, payload);
 	payload->payload_state = DP_PAYLOAD_DELETE_LOCAL;
-#endif
-
 	return 0;
 }
 
@@ -3560,136 +3349,13 @@ static int drm_dp_destroy_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-#ifdef BSDTNG
-/**
- * drm_dp_add_payload_part1() - Execute payload update part 1
- * @mgr: Manager to use.
- * @mst_state: The MST atomic state
- * @payload: The payload to write
- *
- * Determines the starting time slot for the given payload, and programs the VCPI for this payload
- * into hardware. After calling this, the driver should generate ACT and payload packets.
- *
- * Returns: 0 on success, error code on failure. In the event that this fails,
- * @payload.vc_start_slot will also be set to -1.
- */
-int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
-			     struct drm_dp_mst_topology_state *mst_state,
-			     struct drm_dp_mst_atomic_payload *payload)
-{
-	struct drm_dp_mst_port *port;
-	int ret;
-
-	port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
-	if (!port)
-		return 0;
-
-	if (mgr->payload_count == 0)
-		mgr->next_start_slot = mst_state->start_slot;
-
-	payload->vc_start_slot = mgr->next_start_slot;
-
-	ret = drm_dp_create_payload_step1(mgr, payload);
-	drm_dp_mst_topology_put_port(port);
-	if (ret < 0) {
-		drm_warn(mgr->dev, "Failed to create MST payload for port %p: %d\n",
-			 payload->port, ret);
-		payload->vc_start_slot = -1;
-		return ret;
-	}
-
-	mgr->payload_count++;
-	mgr->next_start_slot += payload->time_slots;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_add_payload_part1);
-
-/**
- * drm_dp_remove_payload() - Remove an MST payload
- * @mgr: Manager to use.
- * @mst_state: The MST atomic state
- * @payload: The payload to write
- *
- * Removes a payload from an MST topology if it was successfully assigned a start slot. Also updates
- * the starting time slots of all other payloads which would have been shifted towards the start of
- * the VC table as a result. After calling this, the driver should generate ACT and payload packets.
- */
-void drm_dp_remove_payload(struct drm_dp_mst_topology_mgr *mgr,
-			   struct drm_dp_mst_topology_state *mst_state,
-			   struct drm_dp_mst_atomic_payload *payload)
-{
-	struct drm_dp_mst_atomic_payload *pos;
-	bool send_remove = false;
-
-	/* We failed to make the payload, so nothing to do */
-	if (payload->vc_start_slot == -1)
-		return;
-
-	mutex_lock(&mgr->lock);
-	send_remove = drm_dp_mst_port_downstream_of_branch(payload->port, mgr->mst_primary);
-	mutex_unlock(&mgr->lock);
-
-	if (send_remove)
-		drm_dp_destroy_payload_step1(mgr, mst_state, payload);
-	else
-		drm_dbg_kms(mgr->dev, "Payload for VCPI %d not in topology, not sending remove\n",
-			    payload->vcpi);
-
-	list_for_each_entry(pos, &mst_state->payloads, next) {
-		if (pos != payload && pos->vc_start_slot > payload->vc_start_slot)
-			pos->vc_start_slot -= payload->time_slots;
-	}
-	payload->vc_start_slot = -1;
-
-	mgr->payload_count--;
-	mgr->next_start_slot -= payload->time_slots;
-}
-EXPORT_SYMBOL(drm_dp_remove_payload);
-
-/**
- * drm_dp_add_payload_part2() - Execute payload update part 2
- * @mgr: Manager to use.
- * @state: The global atomic state
- * @payload: The payload to update
- *
- * If @payload was successfully assigned a starting time slot by drm_dp_add_payload_part1(), this
- * function will send the sideband messages to finish allocating this payload.
- *
- * Returns: 0 on success, negative error code on failure.
- */
-int drm_dp_add_payload_part2(struct drm_dp_mst_topology_mgr *mgr,
-			     struct drm_atomic_state *state,
-			     struct drm_dp_mst_atomic_payload *payload)
-{
-	int ret = 0;
-
-	/* Skip failed payloads */
-	if (payload->vc_start_slot == -1) {
-		drm_dbg_kms(state->dev, "Part 1 of payload creation for %s failed, skipping part 2\n",
-			    payload->port->connector->name);
-		return -EIO;
-	}
-
-	ret = drm_dp_create_payload_step2(mgr, payload);
-	if (ret < 0) {
-		if (!payload->delete)
-			drm_err(mgr->dev, "Step 2 of creating MST payload for %p failed: %d\n",
-				payload->port, ret);
-		else
-			drm_dbg_kms(mgr->dev, "Step 2 of removing MST payload for %p failed: %d\n",
-				    payload->port, ret);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(drm_dp_add_payload_part2);
-#endif /* BSDTNG */
-
-#ifndef BSDTNG
 /**
  * drm_dp_update_payload_part1() - Execute payload update part 1
  * @mgr: manager to use.
+ * @start_slot: this is the cur slot
+ *
+ * NOTE: start_slot is a temporary workaround for non-atomic drivers,
+ * this will be removed when non-atomic mst helpers are moved out of the helper
  *
  * This iterates over all proposed virtual channels, and tries to
  * allocate space in the link for them. For 0->slots transitions,
@@ -3700,12 +3366,13 @@ EXPORT_SYMBOL(drm_dp_add_payload_part2);
  * after calling this the driver should generate ACT and payload
  * packets.
  */
-int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
+int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr, int start_slot)
 {
 	struct drm_dp_payload req_payload;
 	struct drm_dp_mst_port *port;
 	int i, j;
-	int cur_slots = 1;
+	int cur_slots = start_slot;
+	bool skip;
 
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -3720,6 +3387,16 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			port = container_of(vcpi, struct drm_dp_mst_port,
 					    vcpi);
 
+			mutex_lock(&mgr->lock);
+			skip = !drm_dp_mst_port_downstream_of_branch(port, mgr->mst_primary);
+			mutex_unlock(&mgr->lock);
+
+			if (skip) {
+				drm_dbg_kms(mgr->dev,
+					    "Virtual channel %d is not in current topology\n",
+					    i);
+				continue;
+			}
 			/* Validated ports don't matter if we're releasing
 			 * VCPI
 			 */
@@ -3727,8 +3404,16 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 				port = drm_dp_mst_topology_get_port_validated(
 				    mgr, port);
 				if (!port) {
-					mutex_unlock(&mgr->payload_lock);
-					return -EINVAL;
+					if (vcpi->num_slots == payload->num_slots) {
+						cur_slots += vcpi->num_slots;
+						payload->start_slot = req_payload.start_slot;
+						continue;
+					} else {
+						drm_dbg_kms(mgr->dev,
+							    "Fail:set payload to invalid sink");
+						mutex_unlock(&mgr->payload_lock);
+						return -EINVAL;
+					}
 				}
 				put_port = true;
 			}
@@ -3746,12 +3431,8 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 
 			/* need to push an update for this payload */
 			if (req_payload.num_slots) {
-#ifdef BSDTNG				
-				drm_dp_create_payload_step1(mgr, &req_payload);
-#else
 				drm_dp_create_payload_step1(mgr, vcpi->vcpi,
 							    &req_payload);
-#endif
 				payload->num_slots = req_payload.num_slots;
 				payload->vcpi = req_payload.vcpi;
 
@@ -3778,7 +3459,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			continue;
 		}
 
-		DRM_DEBUG_KMS("removing payload %d\n", i);
+		drm_dbg_kms(mgr->dev, "removing payload %d\n", i);
 		for (j = i; j < mgr->max_payloads - 1; j++) {
 			mgr->payloads[j] = mgr->payloads[j + 1];
 			mgr->proposed_vcpis[j] = mgr->proposed_vcpis[j + 1];
@@ -3816,6 +3497,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_dp_mst_port *port;
 	int i;
 	int ret = 0;
+	bool skip;
 
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -3825,19 +3507,18 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 
 		port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
 
-		DRM_DEBUG_KMS("payload %d %d\n", i, mgr->payloads[i].payload_state);
+		mutex_lock(&mgr->lock);
+		skip = !drm_dp_mst_port_downstream_of_branch(port, mgr->mst_primary);
+		mutex_unlock(&mgr->lock);
+
+		if (skip)
+			continue;
+
+		drm_dbg_kms(mgr->dev, "payload %d %d\n", i, mgr->payloads[i].payload_state);
 		if (mgr->payloads[i].payload_state == DP_PAYLOAD_LOCAL) {
-#ifdef BSDTNG
-			ret = drm_dp_create_payload_step2(mgr, &mgr->payloads[i]);
-#else
 			ret = drm_dp_create_payload_step2(mgr, port, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
-#endif
 		} else if (mgr->payloads[i].payload_state == DP_PAYLOAD_DELETE_LOCAL) {
-#ifdef BSDTNG
 			ret = drm_dp_destroy_payload_step2(mgr, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
-#else
-			ret = drm_dp_destroy_payload_step2(mgr, &mgr->payloads[i]);
-#endif
 		}
 		if (ret) {
 			mutex_unlock(&mgr->payload_lock);
@@ -3848,7 +3529,6 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_update_payload_part2);
-#endif /* !BSDTNG */
 
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
@@ -3879,8 +3559,8 @@ static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 
 	/* DPCD read should never be NACKed */
 	if (txmsg->reply.reply_type == 1) {
-		DRM_ERROR("mstb %p port %d: DPCD read on addr 0x%x for %d bytes NAKed\n",
-			  mstb, port->port_num, offset, size);
+		drm_err(mgr->dev, "mstb %p port %d: DPCD read on addr 0x%x for %d bytes NAKed\n",
+			mstb, port->port_num, offset, size);
 		ret = -EIO;
 		goto fail_free;
 	}
@@ -3982,16 +3662,12 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
  * convert the number of PBNs required for a given stream to the number of
  * timeslots this stream requires in each MTP.
  */
-#ifdef BSDTNG
 int drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
 			     int link_rate, int link_lane_count)
-#else 
-int drm_dp_get_vc_payload_bw(int link_rate, int link_lane_count)
-#endif
 {
 	if (link_rate == 0 || link_lane_count == 0)
-		DRM_DEBUG_KMS("invalid link rate/lane count: (%d / %d)\n",
-			      link_rate, link_lane_count);
+		drm_dbg_kms(mgr->dev, "invalid link rate/lane count: (%d / %d)\n",
+			    link_rate, link_lane_count);
 
 	/* See DP v2.0 2.6.4.2, VCPayload_Bandwidth_for_OneTimeSlotPer_MTP_Allocation */
 	return link_rate * link_lane_count / 54000;
@@ -4033,9 +3709,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	int ret = 0;
 	struct drm_dp_mst_branch *mstb = NULL;
 
-#ifndef BSDTNG
 	mutex_lock(&mgr->payload_lock);
-#endif
 	mutex_lock(&mgr->lock);
 	if (mst_state == mgr->mst_state)
 		goto out_unlock;
@@ -4043,30 +3717,27 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	mgr->mst_state = mst_state;
 	/* set the device into MST mode */
 	if (mst_state) {
-#ifndef BSDTNG
 		struct drm_dp_payload reset_pay;
-#endif
+		int lane_count;
+		int link_rate;
 
 		WARN_ON(mgr->mst_primary);
 
 		/* get dpcd info */
-#ifdef BSDTNG
 		ret = drm_dp_read_dpcd_caps(mgr->aux, mgr->dpcd);
 		if (ret < 0) {
-			DRM_DEBUG_KMS("%s: failed to read DPCD, ret %d\n",
+			drm_dbg_kms(mgr->dev, "%s: failed to read DPCD, ret %d\n",
 				    mgr->aux->name, ret);
-#else		
-		ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd, DP_RECEIVER_CAP_SIZE);
-		if (ret != DP_RECEIVER_CAP_SIZE) {
-			DRM_DEBUG_KMS("failed to read DPCD\n");
 			goto out_unlock;
 		}
 
-		mgr->pbn_div = drm_dp_get_vc_payload_bw(drm_dp_bw_code_to_link_rate(mgr->dpcd[1]),
-							mgr->dpcd[2] & DP_MAX_LANE_COUNT_MASK);
+		lane_count = min_t(int, mgr->dpcd[2] & DP_MAX_LANE_COUNT_MASK, mgr->max_lane_count);
+		link_rate = min_t(int, drm_dp_bw_code_to_link_rate(mgr->dpcd[1]), mgr->max_link_rate);
+		mgr->pbn_div = drm_dp_get_vc_payload_bw(mgr,
+							link_rate,
+							lane_count);
 		if (mgr->pbn_div == 0) {
 			ret = -EINVAL;
-#endif
 			goto out_unlock;
 		}
 
@@ -4089,14 +3760,9 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		if (ret < 0)
 			goto out_unlock;
 
-#ifdef BSDTNG
-		/* Write reset payload */
-		drm_dp_dpcd_write_payload(mgr, 0, 0, 0x3f);
-#else
 		reset_pay.start_slot = 0;
 		reset_pay.num_slots = 0x3f;
 		drm_dp_dpcd_write_payload(mgr, 0, &reset_pay);
-#endif
 
 		queue_work(system_long_wq, &mgr->work);
 
@@ -4108,7 +3774,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		/* this can fail if the device is gone */
 		drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL, 0);
 		ret = 0;
-#ifndef BSDTNG
 		memset(mgr->payloads, 0,
 		       mgr->max_payloads * sizeof(mgr->payloads[0]));
 		memset(mgr->proposed_vcpis, 0,
@@ -4116,15 +3781,12 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		mgr->payload_mask = 0;
 		set_bit(0, &mgr->payload_mask);
 		mgr->vcpi_mask = 0;
-#endif
 		mgr->payload_id_table_cleared = false;
 	}
 
 out_unlock:
 	mutex_unlock(&mgr->lock);
-#ifndef BSDTNG
 	mutex_unlock(&mgr->payload_lock);
-#endif
 	if (mstb)
 		drm_dp_mst_topology_put_mstb(mstb);
 	return ret;
@@ -4199,15 +3861,10 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mgr->mst_primary)
 		goto out_fail;
 
-#ifdef BSDTNG
-	if (drm_dp_read_dpcd_caps(mgr->aux, mgr->dpcd) < 0) {
-		DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
-#else
 	ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd,
 			       DP_RECEIVER_CAP_SIZE);
 	if (ret != DP_RECEIVER_CAP_SIZE) {
-		DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
-#endif
+		drm_dbg_kms(mgr->dev, "dpcd read failed - undocked during suspend?\n");
 		goto out_fail;
 	}
 
@@ -4216,20 +3873,20 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr,
 				 DP_UP_REQ_EN |
 				 DP_UPSTREAM_IS_SRC);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("mst write failed - undocked during suspend?\n");
+		drm_dbg_kms(mgr->dev, "mst write failed - undocked during suspend?\n");
 		goto out_fail;
 	}
 
 	/* Some hubs forget their guids after they resume */
 	ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
 	if (ret != 16) {
-		DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
+		drm_dbg_kms(mgr->dev, "dpcd read failed - undocked during suspend?\n");
 		goto out_fail;
 	}
 
 	ret = drm_dp_check_mstb_guid(mgr->mst_primary, guid);
 	if (ret) {
-		DRM_DEBUG_KMS("check mstb failed - undocked during suspend?\n");
+		drm_dbg_kms(mgr->dev, "check mstb failed - undocked during suspend?\n");
 		goto out_fail;
 	}
 
@@ -4242,7 +3899,8 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_unlock(&mgr->lock);
 
 	if (sync) {
-		DRM_DEBUG_KMS("Waiting for link probe work to finish re-syncing topology...\n");
+		drm_dbg_kms(mgr->dev,
+			    "Waiting for link probe work to finish re-syncing topology...\n");
 		flush_work(&mgr->work);
 	}
 
@@ -4275,19 +3933,15 @@ drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up,
 	len = min(mgr->max_dpcd_transaction_bytes, 16);
 	ret = drm_dp_dpcd_read(mgr->aux, basereg, replyblock, len);
 	if (ret != len) {
-		DRM_DEBUG_KMS("failed to read DPCD down rep %d %d\n", len, ret);
+		drm_dbg_kms(mgr->dev, "failed to read DPCD down rep %d %d\n", len, ret);
 		return false;
 	}
 
-#ifdef BSDTNG
 	ret = drm_dp_decode_sideband_msg_hdr(mgr, &hdr, replyblock, len, &hdrlen);
-#else
-	ret = drm_dp_decode_sideband_msg_hdr(&hdr, replyblock, len, &hdrlen);
-#endif	
 	if (ret == false) {
 		print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16,
 			       1, replyblock, len, false);
-		DRM_DEBUG_KMS("ERROR: failed header\n");
+		drm_dbg_kms(mgr->dev, "ERROR: failed header\n");
 		return false;
 	}
 
@@ -4295,22 +3949,20 @@ drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up,
 		/* Caller is responsible for giving back this reference */
 		*mstb = drm_dp_get_mst_branch_device(mgr, hdr.lct, hdr.rad);
 		if (!*mstb) {
-			DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
-				      hdr.lct);
+			drm_dbg_kms(mgr->dev, "Got MST reply from unknown device %d\n", hdr.lct);
 			return false;
 		}
 	}
 
 	if (!drm_dp_sideband_msg_set_header(msg, &hdr, hdrlen)) {
-		DRM_DEBUG_KMS("sideband msg set header failed %d\n",
-			      replyblock[0]);
+		drm_dbg_kms(mgr->dev, "sideband msg set header failed %d\n", replyblock[0]);
 		return false;
 	}
 
 	replylen = min(msg->curchunk_len, (u8)(len - hdrlen));
 	ret = drm_dp_sideband_append_payload(msg, replyblock + hdrlen, replylen);
 	if (!ret) {
-		DRM_DEBUG_KMS("sideband msg build failed %d\n", replyblock[0]);
+		drm_dbg_kms(mgr->dev, "sideband msg build failed %d\n", replyblock[0]);
 		return false;
 	}
 
@@ -4321,14 +3973,14 @@ drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up,
 		ret = drm_dp_dpcd_read(mgr->aux, basereg + curreply,
 				    replyblock, len);
 		if (ret != len) {
-			DRM_DEBUG_KMS("failed to read a chunk (len %d, ret %d)\n",
-				      len, ret);
+			drm_dbg_kms(mgr->dev, "failed to read a chunk (len %d, ret %d)\n",
+				    len, ret);
 			return false;
 		}
 
 		ret = drm_dp_sideband_append_payload(msg, replyblock, len);
 		if (!ret) {
-			DRM_DEBUG_KMS("failed to build sideband msg\n");
+			drm_dbg_kms(mgr->dev, "failed to build sideband msg\n");
 			return false;
 		}
 
@@ -4362,25 +4014,21 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		struct drm_dp_sideband_msg_hdr *hdr;
 
 		hdr = &msg->initial_hdr;
-		DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
-			      mstb, hdr->seqno, hdr->lct, hdr->rad[0],
-			      msg->msg[0]);
+		drm_dbg_kms(mgr->dev, "Got MST reply with no msg %p %d %d %02x %02x\n",
+			    mstb, hdr->seqno, hdr->lct, hdr->rad[0], msg->msg[0]);
 		goto out_clear_reply;
 	}
 
-#ifdef BSDTNG
 	drm_dp_sideband_parse_reply(mgr, msg, &txmsg->reply);
-#else
-	drm_dp_sideband_parse_reply(msg, &txmsg->reply);
-#endif
 
 	if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
-		DRM_DEBUG_KMS("Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
-			      txmsg->reply.req_type,
-			      drm_dp_mst_req_type_str(txmsg->reply.req_type),
-			      txmsg->reply.u.nak.reason,
-			      drm_dp_mst_nak_reason_str(txmsg->reply.u.nak.reason),
-			      txmsg->reply.u.nak.nak_data);
+		drm_dbg_kms(mgr->dev,
+			    "Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
+			    txmsg->reply.req_type,
+			    drm_dp_mst_req_type_str(txmsg->reply.req_type),
+			    txmsg->reply.u.nak.reason,
+			    drm_dp_mst_nak_reason_str(txmsg->reply.u.nak.reason),
+			    txmsg->reply.u.nak.nak_data);
 	}
 
 	memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
@@ -4411,11 +4059,7 @@ drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_dp_mst_branch *mstb = NULL;
 	struct drm_dp_sideband_msg_req_body *msg = &up_req->msg;
 	struct drm_dp_sideband_msg_hdr *hdr = &up_req->hdr;
-#ifdef BSDTNG
-	bool hotplug = false, dowork = false;
-#else
 	bool hotplug = false;
-#endif
 
 	if (hdr->broadcast) {
 		const u8 *guid = NULL;
@@ -4432,8 +4076,7 @@ drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 	}
 
 	if (!mstb) {
-		DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
-			      hdr->lct);
+		drm_dbg_kms(mgr->dev, "Got MST reply from unknown device %d\n", hdr->lct);
 		return false;
 	}
 
@@ -4444,12 +4087,6 @@ drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 	}
 
 	drm_dp_mst_topology_put_mstb(mstb);
-
-#ifdef BSDTNG
-	if (dowork)
-		queue_work(system_long_wq, &mgr->work);
-#endif
-
 	return hotplug;
 }
 
@@ -4494,22 +4131,17 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 		return 0;
 
 	up_req = kzalloc(sizeof(*up_req), GFP_KERNEL);
-	if (!up_req) {
-		DRM_ERROR("Not enough memory to process MST up req\n");
+	if (!up_req)
 		return -ENOMEM;
-	}
+
 	INIT_LIST_HEAD(&up_req->next);
 
-#ifdef BSDTNG
 	drm_dp_sideband_parse_req(mgr, &mgr->up_req_recv, &up_req->msg);
-#else
-	drm_dp_sideband_parse_req(&mgr->up_req_recv, &up_req->msg);
-#endif
 
 	if (up_req->msg.req_type != DP_CONNECTION_STATUS_NOTIFY &&
 	    up_req->msg.req_type != DP_RESOURCE_STATUS_NOTIFY) {
-		DRM_DEBUG_KMS("Received unknown up req type, ignoring: %x\n",
-			      up_req->msg.req_type);
+		drm_dbg_kms(mgr->dev, "Received unknown up req type, ignoring: %x\n",
+			    up_req->msg.req_type);
 		kfree(up_req);
 		goto out;
 	}
@@ -4521,20 +4153,20 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 		const struct drm_dp_connection_status_notify *conn_stat =
 			&up_req->msg.u.conn_stat;
 
-		DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n",
-			      conn_stat->port_number,
-			      conn_stat->legacy_device_plug_status,
-			      conn_stat->displayport_device_plug_status,
-			      conn_stat->message_capability_status,
-			      conn_stat->input_port,
-			      conn_stat->peer_device_type);
+		drm_dbg_kms(mgr->dev, "Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n",
+			    conn_stat->port_number,
+			    conn_stat->legacy_device_plug_status,
+			    conn_stat->displayport_device_plug_status,
+			    conn_stat->message_capability_status,
+			    conn_stat->input_port,
+			    conn_stat->peer_device_type);
 	} else if (up_req->msg.req_type == DP_RESOURCE_STATUS_NOTIFY) {
 		const struct drm_dp_resource_status_notify *res_stat =
 			&up_req->msg.u.resource_stat;
 
-		DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n",
-			      res_stat->port_number,
-			      res_stat->available_pbn);
+		drm_dbg_kms(mgr->dev, "Got RSN: pn: %d avail_pbn %d\n",
+			    res_stat->port_number,
+			    res_stat->available_pbn);
 	}
 
 	up_req->hdr = mgr->up_req_recv.initial_hdr;
@@ -4564,10 +4196,7 @@ int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handl
 	int ret = 0;
 	int sc;
 	*handled = false;
-#ifdef BSDTNG
-#else
 	sc = esi[0] & 0x3f;
-#endif	
 
 	if (sc != mgr->sink_count) {
 		mgr->sink_count = sc;
@@ -4622,9 +4251,7 @@ drm_dp_mst_detect_port(struct drm_connector *connector,
 
 	switch (port->pdt) {
 	case DP_PEER_DEVICE_NONE:
-#ifdef BSDTNG
 		break;
-#endif
 	case DP_PEER_DEVICE_MST_BRANCHING:
 		if (!port->mcs)
 			ret = connector_status_connected;
@@ -4633,13 +4260,8 @@ drm_dp_mst_detect_port(struct drm_connector *connector,
 	case DP_PEER_DEVICE_SST_SINK:
 		ret = connector_status_connected;
 		/* for logical ports - cache the EDID */
-#ifdef BSDTNG
-		if (port->port_num >= DP_MST_LOGICAL_PORT_0 && !port->cached_edid) {
-#else
-		if (port->port_num >= 8 && !port->cached_edid) {
-#endif
+		if (port->port_num >= DP_MST_LOGICAL_PORT_0 && !port->cached_edid)
 			port->cached_edid = drm_get_edid(connector, &port->aux.ddc);
-		}
 		break;
 	case DP_PEER_DEVICE_DP_LEGACY_CONV:
 		if (port->ldps)
@@ -4682,7 +4304,6 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 }
 EXPORT_SYMBOL(drm_dp_mst_get_edid);
 
-#ifndef BSDTNG
 /**
  * drm_dp_find_vcpi_slots() - Find VCPI slots for this PBN value
  * @mgr: manager to use
@@ -4713,10 +4334,6 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 			    struct drm_dp_vcpi *vcpi, int pbn, int slots)
 {
 	int ret;
-
-	/* max. time slots - one slot for MTP header */
-	if (slots > 63)
-		return -ENOSPC;
 
 	vcpi->pbn = pbn;
 	vcpi->aligned_pbn = slots * mgr->pbn_div;
@@ -4785,8 +4402,9 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			 * which is an error
 			 */
 			if (WARN_ON(!prev_slots)) {
-				DRM_ERROR("cannot allocate and release VCPI on [MST PORT:%p] in the same state\n",
-					  port);
+				drm_err(mgr->dev,
+					"cannot allocate and release VCPI on [MST PORT:%p] in the same state\n",
+					port);
 				return -EINVAL;
 			}
 
@@ -4803,12 +4421,12 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 
 	req_slots = DIV_ROUND_UP(pbn, pbn_div);
 
-	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
-			 port->connector->base.id, port->connector->name,
-			 port, prev_slots, req_slots);
-	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] PBN %d -> %d\n",
-			 port->connector->base.id, port->connector->name,
-			 port, prev_bw, pbn);
+	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
+		       port->connector->base.id, port->connector->name,
+		       port, prev_slots, req_slots);
+	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] PBN %d -> %d\n",
+		       port->connector->base.id, port->connector->name,
+		       port, prev_bw, pbn);
 
 	/* Add the new allocation to the state */
 	if (!vcpi) {
@@ -4872,12 +4490,12 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 		}
 	}
 	if (WARN_ON(!found)) {
-		DRM_ERROR("no VCPI for [MST PORT:%p] found in mst state %p\n",
-			  port, &topology_state->base);
+		drm_err(mgr->dev, "no VCPI for [MST PORT:%p] found in mst state %p\n",
+			port, &topology_state->base);
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_ATOMIC("[MST PORT:%p] VCPI %d -> 0\n", port, pos->vcpi);
+	drm_dbg_atomic(mgr->dev, "[MST PORT:%p] VCPI %d -> 0\n", port, pos->vcpi);
 	if (pos->vcpi) {
 		drm_dp_mst_put_port_malloc(port);
 		pos->vcpi = 0;
@@ -4887,228 +4505,28 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_atomic_release_vcpi_slots);
-#endif /* !BSDTNG */
-
-#ifdef BSDTNG
-/**
- * drm_dp_atomic_find_time_slots() - Find and add time slots to the state
- * @state: global atomic state
- * @mgr: MST topology manager for the port
- * @port: port to find time slots for
- * @pbn: bandwidth required for the mode in PBN
- *
- * Allocates time slots to @port, replacing any previous time slot allocations it may
- * have had. Any atomic drivers which support MST must call this function in
- * their &drm_encoder_helper_funcs.atomic_check() callback unconditionally to
- * change the current time slot allocation for the new state, and ensure the MST
- * atomic state is added whenever the state of payloads in the topology changes.
- *
- * Allocations set by this function are not checked against the bandwidth
- * restraints of @mgr until the driver calls drm_dp_mst_atomic_check().
- *
- * Additionally, it is OK to call this function multiple times on the same
- * @port as needed. It is not OK however, to call this function and
- * drm_dp_atomic_release_time_slots() in the same atomic check phase.
- *
- * See also:
- * drm_dp_atomic_release_time_slots()
- * drm_dp_mst_atomic_check()
- *
- * Returns:
- * Total slots in the atomic state assigned for this port, or a negative error
- * code if the port no longer exists
- */
-int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
-				  struct drm_dp_mst_topology_mgr *mgr,
-				  struct drm_dp_mst_port *port, int pbn)
-{
-	struct drm_dp_mst_topology_state *topology_state;
-	struct drm_dp_mst_atomic_payload *payload = NULL;
-	struct drm_connector_state *conn_state;
-	int prev_slots = 0, prev_bw = 0, req_slots;
-
-	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
-	if (IS_ERR(topology_state))
-		return PTR_ERR(topology_state);
-
-	conn_state = drm_atomic_get_new_connector_state(state, port->connector);
-	topology_state->pending_crtc_mask |= drm_crtc_mask(conn_state->crtc);
-
-	/* Find the current allocation for this port, if any */
-	payload = drm_atomic_get_mst_payload_state(topology_state, port);
-	if (payload) {
-		prev_slots = payload->time_slots;
-		prev_bw = payload->pbn;
-
-		/*
-		 * This should never happen, unless the driver tries
-		 * releasing and allocating the same timeslot allocation,
-		 * which is an error
-		 */
-		if (drm_WARN_ON(mgr->dev, payload->delete)) {
-			DRM_ERROR(
-				"cannot allocate and release time slots on [MST PORT:%p] in the same state\n",
-				port);
-			return -EINVAL;
-		}
-	}
-
-	req_slots = DIV_ROUND_UP(pbn, topology_state->pbn_div);
-
-	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] TU %d -> %d\n",
-		       port->connector->base.id, port->connector->name,
-		       port, prev_slots, req_slots);
-	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] PBN %d -> %d\n",
-		       port->connector->base.id, port->connector->name,
-		       port, prev_bw, pbn);
-
-	/* Add the new allocation to the state, note the VCPI isn't assigned until the end */
-	if (!payload) {
-		payload = kzalloc(sizeof(*payload), GFP_KERNEL);
-		if (!payload)
-			return -ENOMEM;
-
-		drm_dp_mst_get_port_malloc(port);
-		payload->port = port;
-		payload->vc_start_slot = -1;
-		list_add(&payload->next, &topology_state->payloads);
-	}
-	payload->time_slots = req_slots;
-	payload->pbn = pbn;
-
-	return req_slots;
-}
-EXPORT_SYMBOL(drm_dp_atomic_find_time_slots);
 
 /**
- * drm_dp_atomic_release_time_slots() - Release allocated time slots
- * @state: global atomic state
- * @mgr: MST topology manager for the port
- * @port: The port to release the time slots from
- *
- * Releases any time slots that have been allocated to a port in the atomic
- * state. Any atomic drivers which support MST must call this function
- * unconditionally in their &drm_connector_helper_funcs.atomic_check() callback.
- * This helper will check whether time slots would be released by the new state and
- * respond accordingly, along with ensuring the MST state is always added to the
- * atomic state whenever a new state would modify the state of payloads on the
- * topology.
- *
- * It is OK to call this even if @port has been removed from the system.
- * Additionally, it is OK to call this function multiple times on the same
- * @port as needed. It is not OK however, to call this function and
- * drm_dp_atomic_find_time_slots() on the same @port in a single atomic check
- * phase.
- *
- * See also:
- * drm_dp_atomic_find_time_slots()
- * drm_dp_mst_atomic_check()
- *
- * Returns:
- * 0 on success, negative error code otherwise
+ * drm_dp_mst_update_slots() - updates the slot info depending on the DP ecoding format
+ * @mst_state: mst_state to update
+ * @link_encoding_cap: the ecoding format on the link
  */
-int drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
-				     struct drm_dp_mst_topology_mgr *mgr,
-				     struct drm_dp_mst_port *port)
+void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_t link_encoding_cap)
 {
-	struct drm_dp_mst_topology_state *topology_state;
-	struct drm_dp_mst_atomic_payload *payload;
-	struct drm_connector_state *old_conn_state, *new_conn_state;
-	bool update_payload = true;
-
-	old_conn_state = drm_atomic_get_old_connector_state(state, port->connector);
-	if (!old_conn_state->crtc)
-		return 0;
-
-	/* If the CRTC isn't disabled by this state, don't release it's payload */
-	new_conn_state = drm_atomic_get_new_connector_state(state, port->connector);
-	if (new_conn_state->crtc) {
-		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
-
-		/* No modeset means no payload changes, so it's safe to not pull in the MST state */
-		if (!crtc_state || !drm_atomic_crtc_needs_modeset(crtc_state))
-			return 0;
-
-		if (!crtc_state->mode_changed && !crtc_state->connectors_changed)
-			update_payload = false;
+	if (link_encoding_cap == DP_CAP_ANSI_128B132B) {
+		mst_state->total_avail_slots = 64;
+		mst_state->start_slot = 0;
+	} else {
+		mst_state->total_avail_slots = 63;
+		mst_state->start_slot = 1;
 	}
 
-	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
-	if (IS_ERR(topology_state))
-		return PTR_ERR(topology_state);
-
-	topology_state->pending_crtc_mask |= drm_crtc_mask(old_conn_state->crtc);
-	if (!update_payload)
-		return 0;
-
-	payload = drm_atomic_get_mst_payload_state(topology_state, port);
-	if (WARN_ON(!payload)) {
-		drm_err(mgr->dev, "No payload for [MST PORT:%p] found in mst state %p\n",
-			port, &topology_state->base);
-		return -EINVAL;
-	}
-
-	if (new_conn_state->crtc)
-		return 0;
-
-	drm_dbg_atomic(mgr->dev, "[MST PORT:%p] TU %d -> 0\n", port, payload->time_slots);
-	if (!payload->delete) {
-		drm_dp_mst_put_port_malloc(port);
-		payload->pbn = 0;
-		payload->delete = true;
-		topology_state->payload_mask &= ~BIT(payload->vcpi - 1);
-	}
-
-	return 0;
+	DRM_DEBUG_KMS("%s encoding format on mst_state 0x%p\n",
+		      (link_encoding_cap == DP_CAP_ANSI_128B132B) ? "128b/132b":"8b/10b",
+		      mst_state);
 }
-EXPORT_SYMBOL(drm_dp_atomic_release_time_slots);
+EXPORT_SYMBOL(drm_dp_mst_update_slots);
 
-/**
- * drm_dp_mst_atomic_setup_commit() - setup_commit hook for MST helpers
- * @state: global atomic state
- *
- * This function saves all of the &drm_crtc_commit structs in an atomic state that touch any CRTCs
- * currently assigned to an MST topology. Drivers must call this hook from their
- * &drm_mode_config_helper_funcs.atomic_commit_setup hook.
- *
- * Returns:
- * 0 if all CRTC commits were retrieved successfully, negative error code otherwise
- */
-int drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state)
-{
-	struct drm_dp_mst_topology_mgr *mgr;
-	struct drm_dp_mst_topology_state *mst_state;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int i, j, commit_idx, num_commit_deps;
-
-	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
-		if (!mst_state->pending_crtc_mask)
-			continue;
-
-		num_commit_deps = hweight32(mst_state->pending_crtc_mask);
-		mst_state->commit_deps = kmalloc_array(num_commit_deps,
-						       sizeof(*mst_state->commit_deps), GFP_KERNEL);
-		if (!mst_state->commit_deps)
-			return -ENOMEM;
-		mst_state->num_commit_deps = num_commit_deps;
-
-		commit_idx = 0;
-		for_each_new_crtc_in_state(state, crtc, crtc_state, j) {
-			if (mst_state->pending_crtc_mask & drm_crtc_mask(crtc)) {
-				mst_state->commit_deps[commit_idx++] =
-					drm_crtc_commit_get(crtc_state->commit);
-			}
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_mst_atomic_setup_commit);
-#endif /* BSDTNG */
-
-#ifndef BSDTNG
 /**
  * drm_dp_mst_allocate_vcpi() - Allocate a virtual channel
  * @mgr: manager for this port
@@ -5129,8 +4547,9 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 		return false;
 
 	if (port->vcpi.vcpi > 0) {
-		DRM_DEBUG_KMS("payload: vcpi %d already allocated for pbn %d - requested pbn %d\n",
-			      port->vcpi.vcpi, port->vcpi.pbn, pbn);
+		drm_dbg_kms(mgr->dev,
+			    "payload: vcpi %d already allocated for pbn %d - requested pbn %d\n",
+			    port->vcpi.vcpi, port->vcpi.pbn, pbn);
 		if (pbn == port->vcpi.pbn) {
 			drm_dp_mst_topology_put_port(port);
 			return true;
@@ -5139,13 +4558,12 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_init_vcpi(mgr, &port->vcpi, pbn, slots);
 	if (ret) {
-		DRM_DEBUG_KMS("failed to init vcpi slots=%d max=63 ret=%d\n",
-			      DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
+		drm_dbg_kms(mgr->dev, "failed to init vcpi slots=%d ret=%d\n",
+			    DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
 		drm_dp_mst_topology_put_port(port);
 		goto out;
 	}
-	DRM_DEBUG_KMS("initing vcpi for pbn=%d slots=%d\n",
-		      pbn, port->vcpi.num_slots);
+	drm_dbg_kms(mgr->dev, "initing vcpi for pbn=%d slots=%d\n", pbn, port->vcpi.num_slots);
 
 	/* Keep port allocated until its payload has been removed */
 	drm_dp_mst_get_port_malloc(port);
@@ -5199,7 +4617,16 @@ EXPORT_SYMBOL(drm_dp_mst_reset_vcpi_slots);
 void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_port *port)
 {
+	bool skip;
+
 	if (!port->vcpi.vcpi)
+		return;
+
+	mutex_lock(&mgr->lock);
+	skip = !drm_dp_mst_port_downstream_of_branch(port, mgr->mst_primary);
+	mutex_unlock(&mgr->lock);
+
+	if (skip)
 		return;
 
 	drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
@@ -5210,144 +4637,9 @@ void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_mst_put_port_malloc(port);
 }
 EXPORT_SYMBOL(drm_dp_mst_deallocate_vcpi);
-#endif /* !BSDTNG */
-
-#ifdef BSDTNG
-/**
- * drm_dp_mst_atomic_wait_for_dependencies() - Wait for all pending commits on MST topologies,
- * prepare new MST state for commit
- * @state: global atomic state
- *
- * Goes through any MST topologies in this atomic state, and waits for any pending commits which
- * touched CRTCs that were/are on an MST topology to be programmed to hardware and flipped to before
- * returning. This is to prevent multiple non-blocking commits affecting an MST topology from racing
- * with eachother by forcing them to be executed sequentially in situations where the only resources
- * the modeset objects in these commits share are an MST topology.
- *
- * This function also prepares the new MST state for commit by performing some state preparation
- * which can't be done until this point, such as reading back the final VC start slots (which are
- * determined at commit-time) from the previous state.
- *
- * All MST drivers must call this function after calling drm_atomic_helper_wait_for_dependencies(),
- * or whatever their equivalent of that is.
- */
-void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state)
-{
-	struct drm_dp_mst_topology_state *old_mst_state, *new_mst_state;
-	struct drm_dp_mst_topology_mgr *mgr;
-	struct drm_dp_mst_atomic_payload *old_payload, *new_payload;
-	int i, j, ret;
-
-	for_each_oldnew_mst_mgr_in_state(state, mgr, old_mst_state, new_mst_state, i) {
-		for (j = 0; j < old_mst_state->num_commit_deps; j++) {
-			ret = drm_crtc_commit_wait(old_mst_state->commit_deps[j]);
-			if (ret < 0)
-				drm_err(state->dev, "Failed to wait for %s: %d\n",
-					old_mst_state->commit_deps[j]->crtc->name, ret);
-		}
-
-		/* Now that previous state is committed, it's safe to copy over the start slot
-		 * assignments
-		 */
-		list_for_each_entry(old_payload, &old_mst_state->payloads, next) {
-			if (old_payload->delete)
-				continue;
-
-			new_payload = drm_atomic_get_mst_payload_state(new_mst_state,
-								       old_payload->port);
-			new_payload->vc_start_slot = old_payload->vc_start_slot;
-		}
-	}
-}
-EXPORT_SYMBOL(drm_dp_mst_atomic_wait_for_dependencies);
-
-/**
- * drm_dp_mst_root_conn_atomic_check() - Serialize CRTC commits on MST-capable connectors operating
- * in SST mode
- * @new_conn_state: The new connector state of the &drm_connector
- * @mgr: The MST topology manager for the &drm_connector
- *
- * Since MST uses fake &drm_encoder structs, the generic atomic modesetting code isn't able to
- * serialize non-blocking commits happening on the real DP connector of an MST topology switching
- * into/away from MST mode - as the CRTC on the real DP connector and the CRTCs on the connector's
- * MST topology will never share the same &drm_encoder.
- *
- * This function takes care of this serialization issue, by checking a root MST connector's atomic
- * state to determine if it is about to have a modeset - and then pulling in the MST topology state
- * if so, along with adding any relevant CRTCs to &drm_dp_mst_topology_state.pending_crtc_mask.
- *
- * Drivers implementing MST must call this function from the
- * &drm_connector_helper_funcs.atomic_check hook of any physical DP &drm_connector capable of
- * driving MST sinks.
- *
- * Returns:
- * 0 on success, negative error code otherwise
- */
-int drm_dp_mst_root_conn_atomic_check(struct drm_connector_state *new_conn_state,
-				      struct drm_dp_mst_topology_mgr *mgr)
-{
-	struct drm_atomic_state *state = new_conn_state->state;
-	struct drm_connector_state *old_conn_state =
-		drm_atomic_get_old_connector_state(state, new_conn_state->connector);
-	struct drm_crtc_state *crtc_state;
-	struct drm_dp_mst_topology_state *mst_state = NULL;
-
-	if (new_conn_state->crtc) {
-		crtc_state = drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
-		if (crtc_state && drm_atomic_crtc_needs_modeset(crtc_state)) {
-			mst_state = drm_atomic_get_mst_topology_state(state, mgr);
-			if (IS_ERR(mst_state))
-				return PTR_ERR(mst_state);
-
-			mst_state->pending_crtc_mask |= drm_crtc_mask(new_conn_state->crtc);
-		}
-	}
-
-	if (old_conn_state->crtc) {
-		crtc_state = drm_atomic_get_new_crtc_state(state, old_conn_state->crtc);
-		if (crtc_state && drm_atomic_crtc_needs_modeset(crtc_state)) {
-			if (!mst_state) {
-				mst_state = drm_atomic_get_mst_topology_state(state, mgr);
-				if (IS_ERR(mst_state))
-					return PTR_ERR(mst_state);
-			}
-
-			mst_state->pending_crtc_mask |= drm_crtc_mask(old_conn_state->crtc);
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_dp_mst_root_conn_atomic_check);
-
-/**
- * drm_dp_mst_update_slots() - updates the slot info depending on the DP ecoding format
- * @mst_state: mst_state to update
- * @link_encoding_cap: the ecoding format on the link
- */
-void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_t link_encoding_cap)
-{
-	if (link_encoding_cap == DP_CAP_ANSI_128B132B) {
-		mst_state->total_avail_slots = 64;
-		mst_state->start_slot = 0;
-	} else {
-		mst_state->total_avail_slots = 63;
-		mst_state->start_slot = 1;
-	}
-
-	DRM_DEBUG_KMS("%s encoding format on mst_state 0x%p\n",
-		      (link_encoding_cap == DP_CAP_ANSI_128B132B) ? "128b/132b":"8b/10b",
-		      mst_state);
-}
-EXPORT_SYMBOL(drm_dp_mst_update_slots);
-#endif /* BSDTNG */
 
 static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-#ifdef BSDTNG
-				     int id, u8 start_slot, u8 num_slots)
-#else
 				     int id, struct drm_dp_payload *payload)
-#endif
 {
 	u8 payload_alloc[3], status;
 	int ret;
@@ -5357,24 +4649,19 @@ static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
 			   DP_PAYLOAD_TABLE_UPDATED);
 
 	payload_alloc[0] = id;
-#ifdef BSDTNG
-	payload_alloc[1] = start_slot;
-	payload_alloc[2] = num_slots;
-#else
 	payload_alloc[1] = payload->start_slot;
 	payload_alloc[2] = payload->num_slots;
-#endif
 
 	ret = drm_dp_dpcd_write(mgr->aux, DP_PAYLOAD_ALLOCATE_SET, payload_alloc, 3);
 	if (ret != 3) {
-		DRM_DEBUG_KMS("failed to write payload allocation %d\n", ret);
+		drm_dbg_kms(mgr->dev, "failed to write payload allocation %d\n", ret);
 		goto fail;
 	}
 
 retry:
 	ret = drm_dp_dpcd_readb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("failed to read payload table status %d\n", ret);
+		drm_dbg_kms(mgr->dev, "failed to read payload table status %d\n", ret);
 		goto fail;
 	}
 
@@ -5384,7 +4671,8 @@ retry:
 			usleep_range(10000, 20000);
 			goto retry;
 		}
-		DRM_DEBUG_KMS("status not set after read payload table status %d\n", status);
+		drm_dbg_kms(mgr->dev, "status not set after read payload table status %d\n",
+			    status);
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -5431,16 +4719,15 @@ int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr)
 				 status & DP_PAYLOAD_ACT_HANDLED || status < 0,
 				 200, timeout_ms * USEC_PER_MSEC);
 	if (ret < 0 && status >= 0) {
-		DRM_ERROR("Failed to get ACT after %dms, last status: %02x\n",
-			  timeout_ms, status);
+		drm_err(mgr->dev, "Failed to get ACT after %dms, last status: %02x\n",
+			timeout_ms, status);
 		return -EINVAL;
 	} else if (status < 0) {
 		/*
 		 * Failure here isn't unexpected - the hub may have
 		 * just been unplugged
 		 */
-		DRM_DEBUG_KMS("Failed to read payload table status: %d\n",
-			      status);
+		drm_dbg_kms(mgr->dev, "Failed to read payload table status: %d\n", status);
 		return status;
 	}
 
@@ -5488,7 +4775,6 @@ static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr)
 	queue_work(system_long_wq, &mgr->tx_work);
 }
 
-#ifdef BSDTNG
 /*
  * Helper function for parsing DP device types into convenient strings
  * for use with dp_mst_topology
@@ -5510,7 +4796,6 @@ static const char *pdt_to_string(u8 pdt)
 		return "ERR";
 	}
 }
-#endif
 
 static void drm_dp_mst_dump_mstb(struct seq_file *m,
 				 struct drm_dp_mst_branch *mstb)
@@ -5524,10 +4809,9 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 		prefix[i] = '\t';
 	prefix[i] = '\0';
 
-	seq_printf(m, "%smst: %p, %d\n", prefix, mstb, mstb->num_ports);
+	seq_printf(m, "%smstb - [%p]: num_ports: %d\n", prefix, mstb, mstb->num_ports);
 	list_for_each_entry(port, &mstb->ports, next) {
-#ifdef BSDTNG
-		seq_printf(m, "%sport %d - [%p] (%s - %s): ddps: %d, ldps: %d, sdp: %d/%d, fec: %s, conn: %p\n",
+		seq_printf(m, "%sport %d - [%p] (%s - %s): ddps: %d, ldps: %d, sdp: %d/%d, fec: %s, conn: %p\n", 
 			   prefix,
 			   port->port_num,
 			   port,
@@ -5539,9 +4823,6 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 			   port->num_sdp_stream_sinks,
 			   port->fec_capable ? "true" : "false",
 			   port->connector);
-#else
-		seq_printf(m, "%sport: %d: input: %d: pdt: %d, ddps: %d ldps: %d, sdp: %d/%d, %p, conn: %p\n", prefix, port->port_num, port->input, port->pdt, port->ddps, port->ldps, port->num_sdp_streams, port->num_sdp_stream_sinks, port, port->connector);
-#endif
 		if (port->mstb)
 			drm_dp_mst_dump_mstb(m, port->mstb);
 	}
@@ -5571,9 +4852,6 @@ static void fetch_monitor_name(struct drm_dp_mst_topology_mgr *mgr,
 
 	mst_edid = drm_dp_mst_get_edid(port->connector, mgr, port);
 	drm_edid_get_monitor_name(mst_edid, name, namelen);
-#ifdef BSDTNG
-	kfree(mst_edid);
-#endif
 }
 
 /**
@@ -5586,14 +4864,8 @@ static void fetch_monitor_name(struct drm_dp_mst_topology_mgr *mgr,
 void drm_dp_mst_dump_topology(struct seq_file *m,
 			      struct drm_dp_mst_topology_mgr *mgr)
 {
-#ifdef BSDTNG
-	struct drm_dp_mst_topology_state *state;
-	struct drm_dp_mst_atomic_payload *payload;
-	int i, ret;
-#else
 	int i;
 	struct drm_dp_mst_port *port;
-#endif
 
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
@@ -5602,101 +4874,59 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	/* dump VCPIs */
 	mutex_unlock(&mgr->lock);
 
-#ifdef BSDTNG
-ret = drm_modeset_lock_single_interruptible(&mgr->base.lock);
-	if (ret < 0)
-		return;
-
-	state = to_drm_dp_mst_topology_state(mgr->base.state);
-	seq_printf(m, "\n*** Atomic state info ***\n");
-	seq_printf(m, "payload_mask: %x, max_payloads: %d, start_slot: %u, pbn_div: %d\n",
-		   state->payload_mask, mgr->max_payloads, state->start_slot, state->pbn_div);
-
-	seq_printf(m, "\n| idx | port | vcpi | slots | pbn | dsc |     sink name     |\n");
-	for (i = 0; i < mgr->max_payloads; i++) {
-		list_for_each_entry(payload, &state->payloads, next) {
-			char name[14];
-
-			if (payload->vcpi != i || payload->delete)
-				continue;
-
-			fetch_monitor_name(mgr, payload->port, name, sizeof(name));
-			seq_printf(m, " %5d %6d %6d %02d - %02d %5d %5s %19s\n",
-				   i,
-				   payload->port->port_num,
-				   payload->vcpi,
-				   payload->vc_start_slot,
-				   payload->vc_start_slot + payload->time_slots - 1,
-				   payload->pbn,
-				   payload->dsc_enabled ? "Y" : "N",
-				   (*name != 0) ? name : "Unknown");
-		}
-	}
-
-	seq_printf(m, "\n*** DPCD Info ***\n");
-#else
 	mutex_lock(&mgr->payload_lock);
-	seq_printf(m, "vcpi: %lx %lx %d\n", mgr->payload_mask, mgr->vcpi_mask,
-		mgr->max_payloads);
+	seq_printf(m, "\n*** VCPI Info ***\n");
+	seq_printf(m, "payload_mask: %lx, vcpi_mask: %lx, max_payloads: %d\n", mgr->payload_mask, mgr->vcpi_mask, mgr->max_payloads);
 
+	seq_printf(m, "\n|   idx   |  port # |  vcp_id | # slots |     sink name     |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
 		if (mgr->proposed_vcpis[i]) {
 			char name[14];
 
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
 			fetch_monitor_name(mgr, port, name, sizeof(name));
-			seq_printf(m, "vcpi %d: %d %d %d sink name: %s\n", i,
-				   port->port_num, port->vcpi.vcpi,
+			seq_printf(m, "%10d%10d%10d%10d%20s\n",
+				   i,
+				   port->port_num,
+				   port->vcpi.vcpi,
 				   port->vcpi.num_slots,
-				   (*name != 0) ? name :  "Unknown");
+				   (*name != 0) ? name : "Unknown");
 		} else
-			seq_printf(m, "vcpi %d:unused\n", i);
+			seq_printf(m, "%6d - Unused\n", i);
 	}
+	seq_printf(m, "\n*** Payload Info ***\n");
+	seq_printf(m, "|   idx   |  state  |  start slot  | # slots |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
-		seq_printf(m, "payload %d: %d, %d, %d\n",
+		seq_printf(m, "%10d%10d%15d%10d\n",
 			   i,
 			   mgr->payloads[i].payload_state,
 			   mgr->payloads[i].start_slot,
 			   mgr->payloads[i].num_slots);
-
-
 	}
 	mutex_unlock(&mgr->payload_lock);
-#endif /* !BSDTNG */
 
+	seq_printf(m, "\n*** DPCD Info ***\n");
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		u8 buf[DP_PAYLOAD_TABLE_SIZE];
 		int ret;
 
-#ifdef BSDTNG
-		if (drm_dp_read_dpcd_caps(mgr->aux, buf) < 0) {
-#else
 		ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, buf, DP_RECEIVER_CAP_SIZE);
 		if (ret) {
-#endif
 			seq_printf(m, "dpcd read failed\n");
 			goto out;
 		}
 		seq_printf(m, "dpcd: %*ph\n", DP_RECEIVER_CAP_SIZE, buf);
 
 		ret = drm_dp_dpcd_read(mgr->aux, DP_FAUX_CAP, buf, 2);
-#ifdef BSDTNG
-		if (ret != 2) {
-#else
 		if (ret) {
-#endif
 			seq_printf(m, "faux/mst read failed\n");
 			goto out;
 		}
 		seq_printf(m, "faux/mst: %*ph\n", 2, buf);
 
 		ret = drm_dp_dpcd_read(mgr->aux, DP_MSTM_CTRL, buf, 1);
-#ifdef BSDTNG
-		if (ret != 1) {
-#else
 		if (ret) {
-#endif
 			seq_printf(m, "mst ctrl read failed\n");
 			goto out;
 		}
@@ -5704,11 +4934,7 @@ ret = drm_modeset_lock_single_interruptible(&mgr->base.lock);
 
 		/* dump the standard OUI branch header */
 		ret = drm_dp_dpcd_read(mgr->aux, DP_BRANCH_OUI, buf, DP_BRANCH_OUI_HEADER_SIZE);
-#ifdef BSDTNG
-		if (ret != DP_BRANCH_OUI_HEADER_SIZE) {
-#else
 		if (ret) {
-#endif
 			seq_printf(m, "branch oui read failed\n");
 			goto out;
 		}
@@ -5724,9 +4950,7 @@ ret = drm_modeset_lock_single_interruptible(&mgr->base.lock);
 
 out:
 	mutex_unlock(&mgr->lock);
-#ifdef BSDTNG
-	drm_modeset_unlock(&mgr->base.lock);
-#endif
+
 }
 EXPORT_SYMBOL(drm_dp_mst_dump_topology);
 
@@ -5848,11 +5072,7 @@ drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 {
 	struct drm_dp_mst_topology_state *state, *old_state =
 		to_dp_mst_topology_state(obj->state);
-#ifdef BSDTNG
-	struct drm_dp_mst_atomic_payload *pos, *payload;
-#else
 	struct drm_dp_vcpi_allocation *pos, *vcpi;
-#endif
 
 	state = kmemdup(old_state, sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -5860,30 +5080,6 @@ drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
 
-#ifdef BSDTNG
-	INIT_LIST_HEAD(&state->payloads);
-	state->commit_deps = NULL;
-	state->num_commit_deps = 0;
-	state->pending_crtc_mask = 0;
-
-	list_for_each_entry(pos, &old_state->payloads, next) {
-		/* Prune leftover freed timeslot allocations */
-		if (pos->delete)
-			continue;
-
-		payload = kmemdup(pos, sizeof(*payload), GFP_KERNEL);
-		if (!payload)
-			goto fail;
-
-		drm_dp_mst_get_port_malloc(payload->port);
-		list_add(&payload->next, &state->payloads);
-	}
-
-	return &state->base;
-
-fail:
-	list_for_each_entry_safe(pos, payload, &state->payloads, next) {
-#else
 	INIT_LIST_HEAD(&state->vcpis);
 
 	list_for_each_entry(pos, &old_state->vcpis, next) {
@@ -5903,7 +5099,6 @@ fail:
 
 fail:
 	list_for_each_entry_safe(pos, vcpi, &state->vcpis, next) {
-#endif /* !BSDTNG */
 		drm_dp_mst_put_port_malloc(pos->port);
 		kfree(pos);
 	}
@@ -5917,33 +5112,15 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 {
 	struct drm_dp_mst_topology_state *mst_state =
 		to_dp_mst_topology_state(state);
-#ifdef BSDTNG
-	struct drm_dp_mst_atomic_payload *pos, *tmp;
-	int i;
-#else
 	struct drm_dp_vcpi_allocation *pos, *tmp;
-#endif
 
-#ifdef BSDTNG
-	list_for_each_entry_safe(pos, tmp, &mst_state->payloads, next) {
-		/* We only keep references to ports with active payloads */
-		if (!pos->delete)
-#else
 	list_for_each_entry_safe(pos, tmp, &mst_state->vcpis, next) {
 		/* We only keep references to ports with non-zero VCPIs */
 		if (pos->vcpi)
-#endif
 			drm_dp_mst_put_port_malloc(pos->port);
 		kfree(pos);
 	}
 
-#ifdef BSDTNG
-
-	for (i = 0; i < mst_state->num_commit_deps; i++)
-		drm_crtc_commit_put(mst_state->commit_deps[i]);
-
-	kfree(mst_state->commit_deps);
-#endif
 	kfree(mst_state);
 }
 
@@ -5970,11 +5147,7 @@ static int
 drm_dp_mst_atomic_check_mstb_bw_limit(struct drm_dp_mst_branch *mstb,
 				      struct drm_dp_mst_topology_state *state)
 {
-#ifdef BSDTNG
-	struct drm_dp_mst_atomic_payload *payload;
-#else
 	struct drm_dp_vcpi_allocation *vcpi;
-#endif
 	struct drm_dp_mst_port *port;
 	int pbn_used = 0, ret;
 	bool found = false;
@@ -5982,15 +5155,9 @@ drm_dp_mst_atomic_check_mstb_bw_limit(struct drm_dp_mst_branch *mstb,
 	/* Check that we have at least one port in our state that's downstream
 	 * of this branch, otherwise we can skip this branch
 	 */
-#ifdef BSDTNG
-	list_for_each_entry(payload, &state->payloads, next) {
-		if (!payload->pbn ||
-		    !drm_dp_mst_port_downstream_of_branch(payload->port, mstb))
-#else
 	list_for_each_entry(vcpi, &state->vcpis, next) {
 		if (!vcpi->pbn ||
 		    !drm_dp_mst_port_downstream_of_branch(vcpi->port, mstb))
-#endif
 			continue;
 
 		found = true;
@@ -6000,12 +5167,11 @@ drm_dp_mst_atomic_check_mstb_bw_limit(struct drm_dp_mst_branch *mstb,
 		return 0;
 
 	if (mstb->port_parent)
-		DRM_DEBUG_ATOMIC("[MSTB:%p] [MST PORT:%p] Checking bandwidth limits on [MSTB:%p]\n",
-				 mstb->port_parent->parent, mstb->port_parent,
-				 mstb);
+		drm_dbg_atomic(mstb->mgr->dev,
+			       "[MSTB:%p] [MST PORT:%p] Checking bandwidth limits on [MSTB:%p]\n",
+			       mstb->port_parent->parent, mstb->port_parent, mstb);
 	else
-		DRM_DEBUG_ATOMIC("[MSTB:%p] Checking bandwidth limits\n",
-				 mstb);
+		drm_dbg_atomic(mstb->mgr->dev, "[MSTB:%p] Checking bandwidth limits\n", mstb);
 
 	list_for_each_entry(port, &mstb->ports, next) {
 		ret = drm_dp_mst_atomic_check_port_bw_limit(port, state);
@@ -6022,35 +5188,13 @@ static int
 drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 				      struct drm_dp_mst_topology_state *state)
 {
-#ifdef BSDTNG
-	struct drm_dp_mst_atomic_payload *payload;
-#else
 	struct drm_dp_vcpi_allocation *vcpi;
-#endif
 	int pbn_used = 0;
 
 	if (port->pdt == DP_PEER_DEVICE_NONE)
 		return 0;
 
 	if (drm_dp_mst_is_end_device(port->pdt, port->mcs)) {
-#ifdef BSDTNG
-		payload = drm_atomic_get_mst_payload_state(state, port);
-		if (!payload)
-			return 0;
-
-		/*
-		 * This could happen if the sink deasserted its HPD line, but
-		 * the branch device still reports it as attached (PDT != NONE).
-		 */
-		if (!port->full_pbn) {
-			drm_dbg_atomic(port->mgr->dev,
-				       "[MSTB:%p] [MST PORT:%p] no BW available for the port\n",
-				       port->parent, port);
-			return -EINVAL;
-		}
-
-		pbn_used = payload->pbn;
-#else		
 		bool found = false;
 
 		list_for_each_entry(vcpi, &state->vcpis, next) {
@@ -6065,14 +5209,18 @@ drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 		if (!found)
 			return 0;
 
-		/* This should never happen, as it means we tried to
-		 * set a mode before querying the full_pbn
+		/*
+		 * This could happen if the sink deasserted its HPD line, but
+		 * the branch device still reports it as attached (PDT != NONE).
 		 */
-		if (WARN_ON(!port->full_pbn))
+		if (!port->full_pbn) {
+			drm_dbg_atomic(port->mgr->dev,
+				       "[MSTB:%p] [MST PORT:%p] no BW available for the port\n",
+				       port->parent, port);
 			return -EINVAL;
+		}
 
 		pbn_used = vcpi->pbn;
-#endif
 	} else {
 		pbn_used = drm_dp_mst_atomic_check_mstb_bw_limit(port->mstb,
 								 state);
@@ -6081,46 +5229,41 @@ drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 	}
 
 	if (pbn_used > port->full_pbn) {
-		DRM_DEBUG_ATOMIC("[MSTB:%p] [MST PORT:%p] required PBN of %d exceeds port limit of %d\n",
-				 port->parent, port, pbn_used,
-				 port->full_pbn);
+		drm_dbg_atomic(port->mgr->dev,
+			       "[MSTB:%p] [MST PORT:%p] required PBN of %d exceeds port limit of %d\n",
+			       port->parent, port, pbn_used, port->full_pbn);
 		return -ENOSPC;
 	}
 
-	DRM_DEBUG_ATOMIC("[MSTB:%p] [MST PORT:%p] uses %d out of %d PBN\n",
-			 port->parent, port, pbn_used, port->full_pbn);
+	drm_dbg_atomic(port->mgr->dev, "[MSTB:%p] [MST PORT:%p] uses %d out of %d PBN\n",
+		       port->parent, port, pbn_used, port->full_pbn);
 
 	return pbn_used;
 }
 
 static inline int
-#ifdef BSDTNG
-drm_dp_mst_atomic_check_payload_alloc_limits(struct drm_dp_mst_topology_mgr *mgr,
-#else
 drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
-#endif
 					 struct drm_dp_mst_topology_state *mst_state)
 {
-#ifdef BSDTNG
-	struct drm_dp_mst_atomic_payload *payload;
+	struct drm_dp_vcpi_allocation *vcpi;
 	int avail_slots = mst_state->total_avail_slots, payload_count = 0;
 
-	list_for_each_entry(payload, &mst_state->payloads, next) {
-		/* Releasing payloads is always OK-even if the port is gone */
-		if (payload->delete) {
-			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] releases all time slots\n",
-				       payload->port);
+	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
+		/* Releasing VCPI is always OK-even if the port is gone */
+		if (!vcpi->vcpi) {
+			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] releases all VCPI slots\n",
+				       vcpi->port);
 			continue;
 		}
 
-		drm_dbg_atomic(mgr->dev, "[MST PORT:%p] requires %d time slots\n",
-			       payload->port, payload->time_slots);
+		drm_dbg_atomic(mgr->dev, "[MST PORT:%p] requires %d vcpi slots\n",
+			       vcpi->port, vcpi->vcpi);
 
-		avail_slots -= payload->time_slots;
+		avail_slots -= vcpi->vcpi;
 		if (avail_slots < 0) {
 			drm_dbg_atomic(mgr->dev,
-				       "[MST PORT:%p] not enough time slots in mst state %p (avail=%d)\n",
-				       payload->port, mst_state, avail_slots + payload->time_slots);
+				       "[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
+				       vcpi->port, mst_state, avail_slots + vcpi->vcpi);
 			return -ENOSPC;
 		}
 
@@ -6130,55 +5273,9 @@ drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 				       mgr, mst_state, mgr->max_payloads);
 			return -EINVAL;
 		}
-
-		/* Assign a VCPI */
-		if (!payload->vcpi) {
-			payload->vcpi = ffz(mst_state->payload_mask) + 1;
-			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] assigned VCPI #%d\n",
-				       payload->port, payload->vcpi);
-			mst_state->payload_mask |= BIT(payload->vcpi - 1);
-		}
 	}
-
-	if (!payload_count)
-		mst_state->pbn_div = 0;
-
-	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p TU pbn_div=%d avail=%d used=%d\n",
-		       mgr, mst_state, mst_state->pbn_div, avail_slots,
-		       mst_state->total_avail_slots - avail_slots);
-#else
-	struct drm_dp_vcpi_allocation *vcpi;
-	int avail_slots = 63, payload_count = 0;
-
-	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
-		/* Releasing VCPI is always OK-even if the port is gone */
-		if (!vcpi->vcpi) {
-			DRM_DEBUG_ATOMIC("[MST PORT:%p] releases all VCPI slots\n",
-					 vcpi->port);
-			continue;
-		}
-
-		DRM_DEBUG_ATOMIC("[MST PORT:%p] requires %d vcpi slots\n",
-				 vcpi->port, vcpi->vcpi);
-
-		avail_slots -= vcpi->vcpi;
-		if (avail_slots < 0) {
-			DRM_DEBUG_ATOMIC("[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
-					 vcpi->port, mst_state,
-					 avail_slots + vcpi->vcpi);
-			return -ENOSPC;
-		}
-
-		if (++payload_count > mgr->max_payloads) {
-			DRM_DEBUG_ATOMIC("[MST MGR:%p] state %p has too many payloads (max=%d)\n",
-					 mgr, mst_state, mgr->max_payloads);
-			return -EINVAL;
-		}
-	}
-	DRM_DEBUG_ATOMIC("[MST MGR:%p] mst state %p VCPI avail=%d used=%d\n",
-			 mgr, mst_state, avail_slots,
-			 63 - avail_slots);
-#endif
+	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p VCPI avail=%d used=%d\n",
+		       mgr, mst_state, avail_slots, mst_state->total_avail_slots - avail_slots);
 
 	return 0;
 }
@@ -6199,11 +5296,7 @@ drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_mst_topology_state *mst_state;
-#ifdef BSDTNG
-	struct drm_dp_mst_atomic_payload *pos;
-#else
 	struct drm_dp_vcpi_allocation *pos;
-#endif
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc *crtc;
@@ -6212,17 +5305,9 @@ int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm
 	mst_state = drm_atomic_get_mst_topology_state(state, mgr);
 
 	if (IS_ERR(mst_state))
-#ifdef BSDTNG
-		return PTR_ERR(mst_state);
-#else
 		return -EINVAL;
-#endif
 
-#ifdef BSDTNG
-	list_for_each_entry(pos, &mst_state->payloads, next) {
-#else
 	list_for_each_entry(pos, &mst_state->vcpis, next) {
-#endif
 
 		connector = pos->port->connector;
 
@@ -6247,8 +5332,8 @@ int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
-		DRM_DEBUG_ATOMIC("[MST MGR:%p] Setting mode_changed flag on CRTC %p\n",
-				 mgr, crtc);
+		drm_dbg_atomic(mgr->dev, "[MST MGR:%p] Setting mode_changed flag on CRTC %p\n",
+			       mgr, crtc);
 
 		crtc_state->mode_changed = true;
 	}
@@ -6272,50 +5357,9 @@ EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
  */
 int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 				 struct drm_dp_mst_port *port,
-#ifdef BSDTNG
-				 int pbn,
-#else
 				 int pbn, int pbn_div,
-#endif
 				 bool enable)
 {
-#ifdef BSDTNG
-	struct drm_dp_mst_topology_state *mst_state;
-	struct drm_dp_mst_atomic_payload *payload;
-	int time_slots = 0;
-
-	mst_state = drm_atomic_get_mst_topology_state(state, port->mgr);
-	if (IS_ERR(mst_state))
-		return PTR_ERR(mst_state);
-
-	payload = drm_atomic_get_mst_payload_state(mst_state, port);
-	if (!payload) {
-		drm_dbg_atomic(state->dev,
-			       "[MST PORT:%p] Couldn't find payload in mst state %p\n",
-			       port, mst_state);
-		return -EINVAL;
-	}
-
-	if (payload->dsc_enabled == enable) {
-		drm_dbg_atomic(state->dev,
-			       "[MST PORT:%p] DSC flag is already set to %d, returning %d time slots\n",
-			       port, enable, payload->time_slots);
-		time_slots = payload->time_slots;
-	}
-
-	if (enable) {
-		time_slots = drm_dp_atomic_find_time_slots(state, port->mgr, port, pbn);
-		drm_dbg_atomic(state->dev,
-			       "[MST PORT:%p] Enabling DSC flag, reallocating %d time slots on the port\n",
-			       port, time_slots);
-		if (time_slots < 0)
-			return -EINVAL;
-	}
-
-	payload->dsc_enabled = enable;
-
-	return time_slots;
-#else
 	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_vcpi_allocation *pos;
 	bool found = false;
@@ -6334,21 +5378,24 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 	}
 
 	if (!found) {
-		DRM_DEBUG_ATOMIC("[MST PORT:%p] Couldn't find VCPI allocation in mst state %p\n",
-				 port, mst_state);
+		drm_dbg_atomic(state->dev,
+			       "[MST PORT:%p] Couldn't find VCPI allocation in mst state %p\n",
+			       port, mst_state);
 		return -EINVAL;
 	}
 
 	if (pos->dsc_enabled == enable) {
-		DRM_DEBUG_ATOMIC("[MST PORT:%p] DSC flag is already set to %d, returning %d VCPI slots\n",
-				 port, enable, pos->vcpi);
+		drm_dbg_atomic(state->dev,
+			       "[MST PORT:%p] DSC flag is already set to %d, returning %d VCPI slots\n",
+			       port, enable, pos->vcpi);
 		vcpi = pos->vcpi;
 	}
 
 	if (enable) {
 		vcpi = drm_dp_atomic_find_vcpi_slots(state, port->mgr, port, pbn, pbn_div);
-		DRM_DEBUG_ATOMIC("[MST PORT:%p] Enabling DSC flag, reallocating %d VCPI slots on the port\n",
-				 port, vcpi);
+		drm_dbg_atomic(state->dev,
+			       "[MST PORT:%p] Enabling DSC flag, reallocating %d VCPI slots on the port\n",
+			       port, vcpi);
 		if (vcpi < 0)
 			return -EINVAL;
 	}
@@ -6356,7 +5403,6 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 	pos->dsc_enabled = enable;
 
 	return vcpi;
-#endif /* !BSDTNG */
 }
 EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
 /**
@@ -6390,11 +5436,7 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 		if (!mgr->mst_state)
 			continue;
 
-#ifdef BSDTNG
-		ret = drm_dp_mst_atomic_check_payload_alloc_limits(mgr, mst_state);
-#else
 		ret = drm_dp_mst_atomic_check_vcpi_alloc_limit(mgr, mst_state);
-#endif
 		if (ret)
 			break;
 
@@ -6440,33 +5482,6 @@ struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_a
 }
 EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
 
-#ifdef BSDTNG
-/**
- * drm_atomic_get_new_mst_topology_state: get new MST topology state in atomic state, if any
- * @state: global atomic state
- * @mgr: MST topology manager, also the private object in this case
- *
- * This function wraps drm_atomic_get_priv_obj_state() passing in the MST atomic
- * state vtable so that the private object state returned is that of a MST
- * topology object.
- *
- * Returns:
- *
- * The MST topology state, or NULL if there's no topology state for this MST mgr
- * in the global atomic state
- */
-struct drm_dp_mst_topology_state *
-drm_atomic_get_new_mst_topology_state(struct drm_atomic_state *state,
-				      struct drm_dp_mst_topology_mgr *mgr)
-{
-	struct drm_private_state *priv_state =
-		drm_atomic_get_new_private_obj_state(state, &mgr->base);
-
-	return priv_state ? to_dp_mst_topology_state(priv_state) : NULL;
-}
-EXPORT_SYMBOL(drm_atomic_get_new_mst_topology_state);
-#endif /* BSDTNG */
-
 /**
  * drm_dp_mst_topology_mgr_init - initialise a topology manager
  * @mgr: manager struct to initialise
@@ -6474,35 +5489,28 @@ EXPORT_SYMBOL(drm_atomic_get_new_mst_topology_state);
  * @aux: DP helper aux channel to talk to this device
  * @max_dpcd_transaction_bytes: hw specific DPCD transaction limit
  * @max_payloads: maximum number of payloads this GPU can source
+ * @max_lane_count: maximum number of lanes this GPU supports
+ * @max_link_rate: maximum link rate per lane this GPU supports in kHz
  * @conn_base_id: the connector object ID the MST device is connected to.
  *
  * Return 0 for success, or negative error code on failure
  */
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_device *dev, struct drm_dp_aux *aux,
-#ifdef BSDTNG
 				 int max_dpcd_transaction_bytes, int max_payloads,
+				 int max_lane_count, int max_link_rate,
 				 int conn_base_id)
-#else
-				 int max_dpcd_transaction_bytes,
-				 int max_payloads, int conn_base_id)
-#endif
 {
 	struct drm_dp_mst_topology_state *mst_state;
 
 	mutex_init(&mgr->lock);
 	mutex_init(&mgr->qlock);
-#ifndef BSDTNG
 	mutex_init(&mgr->payload_lock);
-#endif
 	mutex_init(&mgr->delayed_destroy_lock);
 	mutex_init(&mgr->up_req_lock);
 	mutex_init(&mgr->probe_lock);
 #if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
 	mutex_init(&mgr->topology_ref_history_lock);
-#ifdef BSDTNG
-	stack_depot_init();
-#endif
 #endif
 	INIT_LIST_HEAD(&mgr->tx_msg_downq);
 	INIT_LIST_HEAD(&mgr->destroy_port_list);
@@ -6526,8 +5534,9 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mgr->aux = aux;
 	mgr->max_dpcd_transaction_bytes = max_dpcd_transaction_bytes;
 	mgr->max_payloads = max_payloads;
+	mgr->max_lane_count = max_lane_count;
+	mgr->max_link_rate = max_link_rate;
 	mgr->conn_base_id = conn_base_id;
-#ifndef BSDTNG
 	if (max_payloads + 1 > sizeof(mgr->payload_mask) * 8 ||
 	    max_payloads + 1 > sizeof(mgr->vcpi_mask) * 8)
 		return -EINVAL;
@@ -6538,23 +5547,16 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mgr->proposed_vcpis)
 		return -ENOMEM;
 	set_bit(0, &mgr->payload_mask);
-#endif
 
 	mst_state = kzalloc(sizeof(*mst_state), GFP_KERNEL);
 	if (mst_state == NULL)
 		return -ENOMEM;
 
-#ifdef BSDTNG
 	mst_state->total_avail_slots = 63;
 	mst_state->start_slot = 1;
-#endif
 
 	mst_state->mgr = mgr;
-#ifdef BSDTNG
-	INIT_LIST_HEAD(&mst_state->payloads);
-#else
 	INIT_LIST_HEAD(&mst_state->vcpis);
-#endif
 
 	drm_atomic_private_obj_init(dev, &mgr->base,
 				    &mst_state->base,
@@ -6577,23 +5579,19 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 		destroy_workqueue(mgr->delayed_destroy_wq);
 		mgr->delayed_destroy_wq = NULL;
 	}
-#ifndef BSDTNG
 	mutex_lock(&mgr->payload_lock);
 	kfree(mgr->payloads);
 	mgr->payloads = NULL;
 	kfree(mgr->proposed_vcpis);
 	mgr->proposed_vcpis = NULL;
 	mutex_unlock(&mgr->payload_lock);
-#endif
 	mgr->dev = NULL;
 	mgr->aux = NULL;
 	drm_atomic_private_obj_fini(&mgr->base);
 	mgr->funcs = NULL;
 
 	mutex_destroy(&mgr->delayed_destroy_lock);
-#ifndef BSDTNG
 	mutex_destroy(&mgr->payload_lock);
-#endif
 	mutex_destroy(&mgr->qlock);
 	mutex_destroy(&mgr->lock);
 	mutex_destroy(&mgr->up_req_lock);
@@ -6752,7 +5750,7 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter,
 	} else if (remote_i2c_write_ok(msgs, num)) {
 		ret = drm_dp_mst_i2c_write(mstb, port, msgs, num);
 	} else {
-		DRM_DEBUG_KMS("Unsupported I2C transaction for MST device\n");
+		drm_dbg_kms(mgr->dev, "Unsupported I2C transaction for MST device\n");
 		ret = -EIO;
 	}
 
@@ -6924,14 +5922,8 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 		/* Enpoint decompression with DP-to-DP peer device */
 		if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
 		    (endpoint_fec & DP_FEC_CAPABLE) &&
-#ifdef BSDTNG
-		    (upstream_dsc & DP_DSC_PASSTHROUGH_IS_SUPPORTED)) {
-				port->passthrough_aux = &immediate_upstream_port->aux;
-#else
 		    (upstream_dsc & 0x2) /* DSC passthrough */)
-#endif /* BSDTNG */
 			return &port->aux;
-		}
 
 		/* Virtual DPCD decompression with DP-to-DP peer device */
 		return &immediate_upstream_port->aux;
@@ -6952,7 +5944,6 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 	if (drm_dp_read_desc(port->mgr->aux, &desc, true))
 		return NULL;
 
-#ifdef BSDTNG
 	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) &&
 	    port->mgr->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14 &&
 	    port->parent == port->mgr->mst_primary) {
@@ -6966,22 +5957,6 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 		     != DP_DWN_STRM_PORT_TYPE_ANALOG))
 			return port->mgr->aux;
 	}
-#else
-	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) &&
-	    port->mgr->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14 &&
-	    port->parent == port->mgr->mst_primary) {
-		u8 downstreamport;
-
-		if (drm_dp_dpcd_read(&port->aux, DP_DOWNSTREAMPORT_PRESENT,
-				     &downstreamport, 1) < 0)
-			return NULL;
-
-		if ((downstreamport & DP_DWN_STRM_PORT_PRESENT) &&
-		   ((downstreamport & DP_DWN_STRM_PORT_TYPE_MASK)
-		     != DP_DWN_STRM_PORT_TYPE_ANALOG))
-			return port->mgr->aux;
-	}
-#endif
 
 	/*
 	 * The check below verifies if the MST sink

@@ -22,11 +22,8 @@
  * IN THE SOFTWARE.
  */
 
-#include <linux/string_helpers.h>
-
 #ifdef __FreeBSD__
 #include <linux/types.h>
-#include "i915_driver.h"
 #endif
 #include <drm/drm_print.h>
 
@@ -37,20 +34,6 @@
 SYSCTL_NODE(_hw, OID_AUTO, i915kms,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     DRIVER_DESC " parameters");
-#endif
-
-#ifdef __linux__
-DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
-			"DRM_UT_CORE",
-			"DRM_UT_DRIVER",
-			"DRM_UT_KMS",
-			"DRM_UT_PRIME",
-			"DRM_UT_ATOMIC",
-			"DRM_UT_VBL",
-			"DRM_UT_STATE",
-			"DRM_UT_LEASE",
-			"DRM_UT_DP",
-			"DRM_UT_DRMRES");
 #endif
 
 #define i915_param_named(name, T, perm, desc) \
@@ -104,7 +87,7 @@ i915_param_named_unsafe(reset, uint, 0400,
 	"Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
 
 #ifdef __linux__
-/* BSD - no charp */
+// no charp!
 i915_param_named_unsafe(vbt_firmware, charp, 0400,
 	"Load VBT from specified file under /lib/firmware");
 #endif
@@ -123,7 +106,7 @@ i915_param_named_unsafe(enable_hangcheck, bool, 0400,
 
 i915_param_named_unsafe(enable_psr, int, 0400,
 	"Enable PSR "
-	"(0=disabled, 1=enable up to PSR1, 2=enable up to PSR2) "
+	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
 
 i915_param_named(psr_safest_params, bool, 0400,
@@ -171,9 +154,6 @@ i915_param_named_unsafe(invert_brightness, int, 0400,
 i915_param_named(disable_display, bool, 0400,
 	"Disable display (default: false)");
 
-i915_param_named(memtest, bool, 0400,
-	"Perform a read/write test of all device memory on module load (default: off)");
-
 i915_param_named(mmio_debug, int, 0400,
 	"Enable the MMIO debug code for the first N failures (default: off). "
 	"This may negatively affect performance.");
@@ -201,8 +181,7 @@ i915_param_named(guc_log_level, int, 0400,
 	"(-1=auto [default], 0=disable, 1..4=enable with verbosity min..max)");
 
 #ifdef __linux__
-/* FIXME BSD */
-// XXX: How do we handle char *?
+// XXX: How to we handle char *?
 // Not critical: default kmod dir is fine...
 i915_param_named_unsafe(guc_firmware_path, charp, 0400,
 	"GuC firmware path to use instead of the default one");
@@ -231,24 +210,15 @@ i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
 #endif
 
-#ifdef __linux__
-#if CONFIG_DRM_I915_REQUEST_TIMEOUT
-i915_param_named_unsafe(request_timeout_ms, uint, 0600,
-			"Default request/fence/batch buffer expiration timeout.");
+#if IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)
+i915_param_named_unsafe(fake_lmem_start, ulong, 0400,
+	"Fake LMEM start offset (default: 0)");
 #endif
-#elif defined(__FreeBSD__)
-#ifdef CONFIG_DRM_I915_REQUEST_TIMEOUT
-#if CONFIG_DRM_I915_REQUEST_TIMEOUT
-i915_param_named_unsafe(request_timeout_ms, uint, 0600,
-			"Default request/fence/batch buffer expiration timeout.");
-#endif
-#endif /* CONFIG_DRM_I915_REQUEST_TIMEOUT */
-#endif /* __FreeBSD__ */
 
-i915_param_named_unsafe(lmem_size, uint, 0400,
-			"Set the lmem size(in MiB) for each region. (default: 0, all memory)");
-i915_param_named_unsafe(lmem_bar_size, uint, 0400,
-			"Set the lmem bar size(in MiB).");
+#if CONFIG_DRM_I915_REQUEST_TIMEOUT
+i915_param_named_unsafe(request_timeout_ms, uint, 0600,
+			"Default request/fence/batch buffer expiration timeout.");
+#endif
 
 static __always_inline void _print_param(struct drm_printer *p,
 					 const char *name,
@@ -256,8 +226,7 @@ static __always_inline void _print_param(struct drm_printer *p,
 					 const void *x)
 {
 	if (!__builtin_strcmp(type, "bool"))
-		drm_printf(p, "i915.%s=%s\n", name,
-			   str_yes_no(*(const bool *)x));
+		drm_printf(p, "i915.%s=%s\n", name, yesno(*(const bool *)x));
 	else if (!__builtin_strcmp(type, "int"))
 		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
 	else if (!__builtin_strcmp(type, "unsigned int"))

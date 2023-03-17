@@ -4,13 +4,10 @@
  */
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "intel_display.h"
-#include "intel_display_power_map.h"
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_tc.h"
-#include "intel_tc_phy_regs.h"
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
@@ -62,12 +59,10 @@ bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 static enum intel_display_power_domain
 tc_cold_get_power_domain(struct intel_digital_port *dig_port, enum tc_port_mode mode)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
 	if (mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
 		return POWER_DOMAIN_TC_COLD_OFF;
 
-	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+	return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
 }
 
 static intel_wakeref_t
@@ -246,7 +241,7 @@ static u32 icl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
-	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
+	u32 isr_bit = i915->hotplug.pch_hpd[dig_port->base.hpd_pin];
 	u32 mask = 0;
 	u32 val;
 
@@ -279,7 +274,7 @@ static u32 adl_tc_port_live_status_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
-	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
+	u32 isr_bit = i915->hotplug.pch_hpd[dig_port->base.hpd_pin];
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val, mask = 0;
 
@@ -350,11 +345,10 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 static bool adl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = intel_uncore_read(uncore, TCSS_DDI_STATUS(tc_port));
+	val = intel_uncore_read(uncore, TCSS_DDI_STATUS(dig_port->tc_phy_fia_idx));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY in TCCOLD, assuming not complete\n",
@@ -494,8 +488,7 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	}
 
 	live_status_mask = tc_port_live_status_mask(dig_port);
-	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY))) &&
-	    !dig_port->tc_legacy_port) {
+	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY)))) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY ownership not required (live status %02x)\n",
 			    dig_port->tc_port_name, live_status_mask);
 		goto out_set_tbt_alt_mode;
@@ -697,8 +690,6 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_encoder *encoder = &dig_port->base;
-	intel_wakeref_t tc_cold_wref;
-	enum intel_display_power_domain domain;
 	int active_links = 0;
 
 	mutex_lock(&dig_port->tc_lock);
@@ -710,11 +701,12 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 
 	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_DISCONNECTED);
 	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
-
-	tc_cold_wref = tc_cold_block(dig_port, &domain);
-
-	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
 	if (active_links) {
+		enum intel_display_power_domain domain;
+		intel_wakeref_t tc_cold_wref = tc_cold_block(dig_port, &domain);
+
+		dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
+
 		if (!icl_tc_phy_is_connected(dig_port))
 			drm_dbg_kms(&i915->drm,
 				    "Port %s: PHY disconnected with %d active link(s)\n",
@@ -723,22 +715,9 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 
 		dig_port->tc_lock_wakeref = tc_cold_block(dig_port,
 							  &dig_port->tc_lock_power_domain);
-	} else {
-		/*
-		 * TBT-alt is the default mode in any case the PHY ownership is not
-		 * held (regardless of the sink's connected live state), so
-		 * we'll just switch to disconnected mode from it here without
-		 * a note.
-		 */
-		if (dig_port->tc_mode != TC_PORT_TBT_ALT)
-			drm_dbg_kms(&i915->drm,
-				    "Port %s: PHY left in %s mode on disabled port, disconnecting it\n",
-				    dig_port->tc_port_name,
-				    tc_port_mode_name(dig_port->tc_mode));
-		icl_tc_phy_disconnect(dig_port);
-	}
 
-	tc_cold_unblock(dig_port, domain, tc_cold_wref);
+		tc_cold_unblock(dig_port, domain, tc_cold_wref);
+	}
 
 	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
 		    dig_port->tc_port_name,

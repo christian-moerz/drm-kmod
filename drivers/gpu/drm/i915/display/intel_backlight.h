@@ -7,8 +7,8 @@
 #define __INTEL_BACKLIGHT_H__
 
 #include <linux/types.h>
-#if defined(__FreeBSD__)
-#include <linux/kernel.h>
+#ifdef __FreeBSD__
+#include <linux/kconfig.h>
 #endif
 
 struct drm_connector_state;

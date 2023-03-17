@@ -9,10 +9,6 @@
 
 #include <linux/list.h>
 
-#if defined(__FreeBSD__)
-#include <linux/interrupt.h>
-#endif
-
 #include "gt/intel_engine_types.h"
 #include "i915_priolist_types.h"
 

@@ -59,12 +59,10 @@ static inline int i915_perf_ioctl_version(void)
 }
 
 #endif
-
-
-#if defined(CONFIG_I915_PERF)
 int i915_perf_sysctl_register(void);
 void i915_perf_sysctl_unregister(void);
 
+#if defined(CONFIG_I915_PERF)
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file);
 int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
@@ -106,11 +104,10 @@ i915_oa_init_reg_state(const struct intel_context *ce,
 
 	return;
 }
+#endif
+
 struct i915_oa_config *
 i915_perf_get_oa_config(struct i915_perf *perf, int metrics_set);
-void i915_oa_config_release(struct kref *ref);
-
-#endif
 
 static inline struct i915_oa_config *
 i915_oa_config_get(struct i915_oa_config *oa_config)
@@ -121,8 +118,8 @@ i915_oa_config_get(struct i915_oa_config *oa_config)
 		return NULL;
 }
 
-static inline void
-i915_oa_config_put(struct i915_oa_config *oa_config)
+void i915_oa_config_release(struct kref *ref);
+static inline void i915_oa_config_put(struct i915_oa_config *oa_config)
 {
 	if (!oa_config)
 		return;

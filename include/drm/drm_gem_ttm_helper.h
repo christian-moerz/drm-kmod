@@ -5,40 +5,26 @@
 
 #include <linux/kernel.h>
 
-#include <drm/drm_gem.h>
 #include <drm/drm_device.h>
+#include <drm/drm_gem.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
-#ifdef BSDTNG
-struct iosys_map;
-#else
 struct dma_buf_map;
-#endif
-
 
 #define drm_gem_ttm_of_gem(gem_obj) \
 	container_of(gem_obj, struct ttm_buffer_object, base)
 
 void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *gem);
-
-#ifdef BSDTNG
-int drm_gem_ttm_vmap(struct drm_gem_object *gem,
-		     struct iosys_map *map);
-void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
-			struct iosys_map *map);
-
-int drm_gem_ttm_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-				uint32_t handle, uint64_t *offset);
-#else
 int drm_gem_ttm_vmap(struct drm_gem_object *gem,
 		     struct dma_buf_map *map);
 void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
 			struct dma_buf_map *map);
-#endif /* BSDTNG */
-
 int drm_gem_ttm_mmap(struct drm_gem_object *gem,
 		     struct vm_area_struct *vma);
+
+int drm_gem_ttm_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
+				uint32_t handle, uint64_t *offset);
 
 #endif

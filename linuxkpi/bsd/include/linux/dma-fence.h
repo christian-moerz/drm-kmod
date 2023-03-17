@@ -35,14 +35,8 @@
 #include <linux/sched.h>
 #include <linux/printk.h>
 #include <linux/rcupdate.h>
-#ifdef BSDTNG
-#include <linux/seq_file.h>
 
-
-struct dma_fence;
-#endif
 struct dma_fence_ops;
-struct dma_fence_cb;
 
 struct dma_fence {
 	spinlock_t *lock;
@@ -59,12 +53,7 @@ struct dma_fence {
 	int error;
 };
 
-enum dma_fence_flag_bits {
-	DMA_FENCE_FLAG_SIGNALED_BIT,
-	DMA_FENCE_FLAG_TIMESTAMP_BIT,
-	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
-};
+struct dma_fence_cb;
 
 typedef void (*dma_fence_func_t)(struct dma_fence *fence,
 				 struct dma_fence_cb *cb);
@@ -89,14 +78,17 @@ struct dma_fence_ops {
 				   char *str, int size);
 };
 
+enum dma_fence_flag_bits {
+	DMA_FENCE_FLAG_SIGNALED_BIT,
+	DMA_FENCE_FLAG_TIMESTAMP_BIT,
+	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
+};
+
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
     spinlock_t *lock, u64 context, u64 seqno);
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
-#ifdef BSDTNG
-void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq);
-#endif /* BSDTNG */
-
 int dma_fence_signal(struct dma_fence *fence);
 int dma_fence_signal_locked(struct dma_fence *fence);
 int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp);
@@ -109,16 +101,13 @@ int dma_fence_add_callback(struct dma_fence *fence,
 bool dma_fence_remove_callback(struct dma_fence *fence,
     struct dma_fence_cb *cb);
 void dma_fence_enable_sw_signaling(struct dma_fence *fence);
-
-
 int dma_fence_get_status(struct dma_fence *fence);
-
-
 signed long dma_fence_wait_timeout(struct dma_fence *,
     bool intr, signed long timeout);
 signed long dma_fence_wait_any_timeout(struct dma_fence **fences,
     uint32_t count, bool intr, signed long timeout, uint32_t *idx);
 struct dma_fence *dma_fence_get_stub(void);
+struct dma_fence *dma_fence_allocate_private_stub(void);
 u64 dma_fence_context_alloc(unsigned num);
 void dma_fence_put(struct dma_fence *fence);
 struct dma_fence *dma_fence_get(struct dma_fence *fence);
@@ -134,69 +123,9 @@ int dma_fence_get_status_locked(struct dma_fence *fence);
 void dma_fence_set_error(struct dma_fence *fence, int error);
 signed long dma_fence_wait(struct dma_fence *fence, bool intr);
 
-#define DMA_FENCE_TRACE(f, fmt, args...) \
-	do {				\
-	} while (0)
+#define	dma_fence_begin_signalling() true
+#define	dma_fence_end_signalling(cookie) do {} while (0)
 
-#define DMA_FENCE_WARN(f, fmt, args...) \
-	do {				\
-	} while (0)
+#define	__dma_fence_might_wait	(void)
 
-#define DMA_FENCE_ERR(f, fmt, args...) \
-	do {				\
-	} while (0)
-
-#ifdef BSDTNG
-#ifdef CONFIG_LOCKDEP
-bool dma_fence_begin_signalling(void);
-void dma_fence_end_signalling(bool cookie);
-void __dma_fence_might_wait(void);
-#else
-static inline bool dma_fence_begin_signalling(void)
-{
-	return true;
-}
-static inline void dma_fence_end_signalling(bool cookie) {}
-static inline void __dma_fence_might_wait(void) {}
-struct dma_fence *dma_fence_allocate_private_stub(void);
-#endif
-
-extern const struct dma_fence_ops dma_fence_array_ops;
-extern const struct dma_fence_ops dma_fence_chain_ops;
-
-/**
- * dma_fence_is_array - check if a fence is from the array subclass
- * @fence: the fence to test
- *
- * Return true if it is a dma_fence_array and false otherwise.
- */
-static inline bool dma_fence_is_array(struct dma_fence *fence)
-{
-	return fence->ops == &dma_fence_array_ops;
-}
-
-/**
- * dma_fence_is_chain - check if a fence is from the chain subclass
- * @fence: the fence to test
- *
- * Return true if it is a dma_fence_chain and false otherwise.
- */
-static inline bool dma_fence_is_chain(struct dma_fence *fence)
-{
-	return fence->ops == &dma_fence_chain_ops;
-}
-
-/**
- * dma_fence_is_container - check if a fence is a container for other fences
- * @fence: the fence to test
- *
- * Return true if this fence is a container for other fences, false otherwise.
- * This is important since we can't build up large fence structure or otherwise
- * we run into recursion during operation on those fences.
- */
-static inline bool dma_fence_is_container(struct dma_fence *fence)
-{
-	return dma_fence_is_array(fence) || dma_fence_is_chain(fence);
-}
-#endif /* BSDTNG */
 #endif

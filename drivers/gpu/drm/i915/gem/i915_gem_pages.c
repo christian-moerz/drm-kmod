@@ -4,11 +4,6 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
-#include <drm/drm_cache.h>
-
-#include "gt/intel_gt.h"
-#include "gt/intel_gt_pm.h"
-
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
@@ -25,7 +20,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 unsigned int sg_page_sizes)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	unsigned long supported = RUNTIME_INFO(i915)->page_sizes;
+	unsigned long supported = INTEL_INFO(i915)->page_sizes;
 	bool shrinkable;
 	int i;
 
@@ -36,7 +31,6 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 
 	/* Make the pages coherent with the GPU (flushing any swapin). */
 	if (obj->cache_dirty) {
-		WARN_ON_ONCE(IS_DGFX(i915));
 		obj->write_domain = 0;
 		if (i915_gem_object_has_struct_page(obj))
 			drm_clflush_sg(pages);
@@ -71,7 +65,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 	shrinkable = i915_gem_object_is_shrinkable(obj);
 
 	if (i915_gem_object_is_tiled(obj) &&
-	    i915->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES) {
+	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		GEM_BUG_ON(i915_gem_object_has_tiling_quirk(obj));
 		i915_gem_object_set_tiling_quirk(obj);
 		GEM_BUG_ON(!list_empty(&obj->mm.link));
@@ -79,7 +73,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 		shrinkable = false;
 	}
 
-	if (shrinkable && !i915_gem_object_has_self_managed_shrink_list(obj)) {
+	if (shrinkable) {
 		struct list_head *list;
 		unsigned long flags;
 
@@ -169,12 +163,21 @@ retry:
 }
 
 /* Immediately discard the backing storage */
-int i915_gem_object_truncate(struct drm_i915_gem_object *obj)
+void i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
+	drm_gem_free_mmap_offset(&obj->base);
 	if (obj->ops->truncate)
-		return obj->ops->truncate(obj);
+		obj->ops->truncate(obj);
+}
 
-	return 0;
+/* Try to discard unwanted pages */
+void i915_gem_object_writeback(struct drm_i915_gem_object *obj)
+{
+	assert_object_held_shared(obj);
+	GEM_BUG_ON(i915_gem_object_has_pages(obj));
+
+	if (obj->ops->writeback)
+		obj->ops->writeback(obj);
 }
 
 static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
@@ -196,18 +199,6 @@ static void unmap_object(struct drm_i915_gem_object *obj, void *ptr)
 		vunmap(ptr);
 }
 
-static void flush_tlb_invalidate(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct intel_gt *gt = to_gt(i915);
-
-	if (!obj->mm.tlb)
-		return;
-
-	intel_gt_invalidate_tlb(gt, obj->mm.tlb);
-	obj->mm.tlb = 0;
-}
-
 struct sg_table *
 __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 {
@@ -222,8 +213,7 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_object_is_volatile(obj))
 		obj->mm.madv = I915_MADV_WILLNEED;
 
-	if (!i915_gem_object_has_self_managed_shrink_list(obj))
-		i915_gem_object_make_unshrinkable(obj);
+	i915_gem_object_make_unshrinkable(obj);
 
 	if (obj->mm.mapping) {
 		unmap_object(obj, page_mask_bits(obj->mm.mapping));
@@ -232,8 +222,6 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 
 	__i915_gem_object_reset_page_iter(obj);
 	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
-
-	flush_tlb_invalidate(obj);
 
 	return pages;
 }
@@ -331,11 +319,10 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 				     enum i915_map_type type)
 {
 #ifdef __FreeBSD__
-	/* BSDFIXME: Need vmap_pfn() implementation. */
-	/* FIXME BSD */
+	// BSDFIXME: Need vmap_pfn() implementation.
 	UNIMPLEMENTED();
 	return NULL;
-#else	
+#else
 	resource_size_t iomap = obj->mm.region->iomap.base -
 		obj->mm.region->region.start;
 	unsigned long n_pfn = obj->base.size >> PAGE_SHIFT;
@@ -376,9 +363,6 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj) &&
 	    !i915_gem_object_has_iomem(obj))
 		return ERR_PTR(-ENXIO);
-
-	if (WARN_ON_ONCE(obj->flags & I915_BO_ALLOC_GPU_ONLY))
-		return ERR_PTR(-EINVAL);
 
 	assert_object_held(obj);
 
@@ -441,19 +425,10 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	}
 
 	if (!ptr) {
-		err = i915_gem_object_wait_moving_fence(obj, true);
-		if (err) {
-			ptr = ERR_PTR(err);
-			goto err_unpin;
-		}
-
-#ifdef __linux__
-		if (GEM_WARN_ON(type == I915_MAP_WC && !pat_enabled()))
+		if (GEM_WARN_ON(type == I915_MAP_WC &&
+				!static_cpu_has(X86_FEATURE_PAT)))
 			ptr = ERR_PTR(-ENODEV);
 		else if (i915_gem_object_has_struct_page(obj))
-#elif defined(__FreeBSD__)
-		if (i915_gem_object_has_struct_page(obj))
-#endif
 			ptr = i915_gem_object_map_page(obj, type);
 		else
 			ptr = i915_gem_object_map_pfn(obj, type);

@@ -30,6 +30,8 @@
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_pool.h>
 
+#define TTM_NUM_MEM_TYPES 8
+
 struct ttm_device;
 struct ttm_placement;
 struct ttm_buffer_object;
@@ -199,6 +201,15 @@ struct ttm_device_funcs {
 			     void *buf, int len, int write);
 
 	/**
+	 * struct ttm_bo_driver member del_from_lru_notify
+	 *
+	 * @bo: the buffer object deleted from lru
+	 *
+	 * notify driver that a BO was deleted from LRU.
+	 */
+	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
+
+	/**
 	 * Notify the driver that we're about to release a BO
 	 *
 	 * @bo: BO that is about to be released
@@ -265,11 +276,7 @@ struct ttm_device {
 	 * @dev_mapping: A pointer to the struct address_space for invalidating
 	 * CPU mappings on buffer move. Protected by load/unload sync.
 	 */
-#ifdef __linux__	
 	struct address_space *dev_mapping;
-#elif defined(__FreeBSD__)
-	vm_object_t dev_mapping;
-#endif
 
 	/**
 	 * @wq: Work queue structure for the delayed delete workqueue.
@@ -297,11 +304,11 @@ static inline void ttm_set_driver_manager(struct ttm_device *bdev, int type,
 }
 
 int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
-		    struct device *dev, 
+		    struct device *dev,
 #ifdef __linux__
-			struct address_space *mapping,
+		    struct address_space *mapping,
 #elif defined(__FreeBSD__)
-			vm_object_t mapping,
+		    void *dummy,
 #endif
 		    struct drm_vma_offset_manager *vma_manager,
 		    bool use_dma_alloc, bool use_dma32);

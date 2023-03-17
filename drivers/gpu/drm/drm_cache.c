@@ -28,23 +28,18 @@
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
+#include <linux/dma-buf-map.h>
 #include <linux/export.h>
 #include <linux/highmem.h>
+#include <linux/cc_platform.h>
 #ifdef __linux__
-#include <linux/mem_encrypt.h>
 #include <xen/xen.h>
 #endif
 
 #include <drm/drm_cache.h>
 
-#ifdef BSDTNG
-#include <asm/fpu/api.h>
-#include <linux/preempt.h>
-#include <linux/jump_label.h>
-
 /* A small bounce buffer that fits on the stack. */
 #define MEMCPY_BOUNCE_SIZE 128
-#endif
 
 #if defined(CONFIG_X86)
 #include <asm/smp.h>
@@ -181,7 +176,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 		for (; addr < end; addr += size)
 			clflushopt(addr);
 		clflushopt(end - 1); /* force serialisation */
-		mb(); /*Ensure that evry data cache line entry is flushed*/
+		mb(); /*Ensure that every data cache line entry is flushed*/
 		return;
 	}
 
@@ -216,7 +211,7 @@ bool drm_need_swiotlb(int dma_bits)
 	 * Enforce dma_alloc_coherent when memory encryption is active as well
 	 * for the same reasons as for Xen paravirtual hosts.
 	 */
-	if (mem_encrypt_active())
+	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		return true;
 
 	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling)
@@ -231,19 +226,14 @@ bool drm_need_swiotlb(int dma_bits)
 }
 EXPORT_SYMBOL(drm_need_swiotlb);
 
-#ifdef BSDTNG
-static void memcpy_fallback(struct iosys_map *dst,
-			    const struct iosys_map *src,
+static void memcpy_fallback(struct dma_buf_map *dst,
+			    const struct dma_buf_map *src,
 			    unsigned long len)
 {
 	if (!dst->is_iomem && !src->is_iomem) {
 		memcpy(dst->vaddr, src->vaddr, len);
 	} else if (!src->is_iomem) {
-#if defined(__FreeBSD__)
-		memcpy(dst->vaddr_iomem, src->vaddr, len);
-#else
-		iosys_map_memcpy_to(dst, 0, src->vaddr, len);
-#endif
+		dma_buf_map_memcpy_to(dst, src->vaddr, len);
 	} else if (!dst->is_iomem) {
 		memcpy_fromio(dst->vaddr, src->vaddr_iomem, len);
 	} else {
@@ -270,11 +260,7 @@ static void memcpy_fallback(struct iosys_map *dst,
 	}
 }
 
-#ifdef BSDTNG
 #ifdef CONFIG_X86
-
-/* FIXME LINUXKPI */
-#define JUMP_TYPE_FALSE		0UL
 
 static DEFINE_STATIC_KEY_FALSE(has_movntdqa);
 
@@ -306,8 +292,6 @@ static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
 
 	kernel_fpu_end();
 }
-#endif
-#endif /* BSDTNG */
 
 /*
  * __drm_memcpy_from_wc copies @len bytes from @src to @dst using
@@ -333,8 +317,8 @@ static void __drm_memcpy_from_wc(void *dst, const void *src, unsigned long len)
  * Tries an arch optimized memcpy for prefetching reading out of a WC region,
  * and if no such beast is available, falls back to a normal memcpy.
  */
-void drm_memcpy_from_wc(struct iosys_map *dst,
-			const struct iosys_map *src,
+void drm_memcpy_from_wc(struct dma_buf_map *dst,
+			const struct dma_buf_map *src,
 			unsigned long len)
 {
 	if (WARN_ON(in_interrupt())) {
@@ -356,4 +340,32 @@ void drm_memcpy_from_wc(struct iosys_map *dst,
 	memcpy_fallback(dst, src, len);
 }
 EXPORT_SYMBOL(drm_memcpy_from_wc);
-#endif
+
+/*
+ * drm_memcpy_init_early - One time initialization of the WC memcpy code
+ */
+void drm_memcpy_init_early(void)
+{
+	/*
+	 * Some hypervisors (e.g. KVM) don't support VEX-prefix instructions
+	 * emulation. So don't enable movntdqa in hypervisor guest.
+	 */
+	if (static_cpu_has(X86_FEATURE_XMM4_1) &&
+	    !boot_cpu_has(X86_FEATURE_HYPERVISOR))
+		static_branch_enable(&has_movntdqa);
+}
+#else
+void drm_memcpy_from_wc(struct dma_buf_map *dst,
+			const struct dma_buf_map *src,
+			unsigned long len)
+{
+	WARN_ON(in_interrupt());
+
+	memcpy_fallback(dst, src, len);
+}
+EXPORT_SYMBOL(drm_memcpy_from_wc);
+
+void drm_memcpy_init_early(void)
+{
+}
+#endif /* CONFIG_X86 */

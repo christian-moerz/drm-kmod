@@ -38,13 +38,9 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
-#include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
 #include "skl_scaler.h"
-#include "vlv_dsi.h"
-#include "vlv_dsi_pll.h"
-#include "vlv_dsi_regs.h"
 #include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
@@ -782,7 +778,6 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
-	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	enum port port;
@@ -822,9 +817,9 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		u32 val;
 
 		/* Disable DPOunit clock gating, can stall pipe */
-		val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
+		val = intel_de_read(dev_priv, DSPCLK_GATE_D);
 		val |= DPOUNIT_CLOCK_GATE_DISABLE;
-		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
+		intel_de_write(dev_priv, DSPCLK_GATE_D, val);
 	}
 
 	if (!IS_GEMINILAKE(dev_priv))
@@ -839,7 +834,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	 * the delay in that case. If there is no deassert-seq, then an
 	 * unconditional msleep is used to give the panel time to power-on.
 	 */
-	if (connector->panel.vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
+	if (dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
 		intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	} else {
@@ -998,9 +993,9 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 
 		vlv_dsi_pll_disable(encoder);
 
-		val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
+		val = intel_de_read(dev_priv, DSPCLK_GATE_D);
 		val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
-		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
+		intel_de_write(dev_priv, DSPCLK_GATE_D, val);
 	}
 
 	/* Assert reset */
@@ -1263,9 +1258,7 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u32 pclk;
-
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
@@ -1277,12 +1270,10 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 		pclk = vlv_dsi_get_pclk(encoder, pipe_config);
 	}
 
-	pipe_config->port_clock = pclk;
-
-	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
-	pipe_config->hw.adjusted_mode.crtc_clock = pclk;
-	if (intel_dsi->dual_link)
-		pipe_config->hw.adjusted_mode.crtc_clock *= 2;
+	if (pclk) {
+		pipe_config->hw.adjusted_mode.crtc_clock = pclk;
+		pipe_config->port_clock = pclk;
+	}
 }
 
 /* return txclkesc cycles in terms of divider and duration in us */
@@ -1493,7 +1484,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		 */
 
 		if (is_vid_mode(intel_dsi) &&
-			intel_dsi->video_mode == BURST_MODE) {
+			intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 			intel_de_write(dev_priv, MIPI_HS_TX_TIMEOUT(port),
 				       txbyteclkhs(adjusted_mode->crtc_htotal, bpp, intel_dsi->lane_count, intel_dsi->burst_mode_ratio) + 1);
 		} else {
@@ -1569,33 +1560,12 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		intel_de_write(dev_priv, MIPI_CLK_LANE_SWITCH_TIME_CNT(port),
 			       intel_dsi->clk_lp_to_hs_count << LP_HS_SSW_CNT_SHIFT | intel_dsi->clk_hs_to_lp_count << HS_LP_PWR_SW_CNT_SHIFT);
 
-		if (is_vid_mode(intel_dsi)) {
-			u32 fmt = intel_dsi->video_frmt_cfg_bits | IP_TG_CONFIG;
-
-			/*
-			 * Some panels might have resolution which is not a
+		if (is_vid_mode(intel_dsi))
+			/* Some panels might have resolution which is not a
 			 * multiple of 64 like 1366 x 768. Enable RANDOM
-			 * resolution support for such panels by default.
-			 */
-			fmt |= RANDOM_DPI_DISPLAY_RESOLUTION;
-
-			switch (intel_dsi->video_mode) {
-			default:
-				MISSING_CASE(intel_dsi->video_mode);
-				fallthrough;
-			case NON_BURST_SYNC_EVENTS:
-				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS;
-				break;
-			case NON_BURST_SYNC_PULSE:
-				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE;
-				break;
-			case BURST_MODE:
-				fmt |= VIDEO_MODE_BURST;
-				break;
-			}
-
-			intel_de_write(dev_priv, MIPI_VIDEO_MODE_FORMAT(port), fmt);
-		}
+			 * resolution support for such panels by default */
+			intel_de_write(dev_priv, MIPI_VIDEO_MODE_FORMAT(port),
+				       intel_dsi->video_frmt_cfg_bits | intel_dsi->video_mode_format | IP_TG_CONFIG | RANDOM_DPI_DISPLAY_RESOLUTION);
 	}
 }
 
@@ -1660,8 +1630,6 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	const struct drm_display_mode *fixed_mode =
-		intel_panel_preferred_fixed_mode(connector);
 	u32 allowed_scalers;
 
 	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
@@ -1675,8 +1643,8 @@ static void vlv_dsi_add_properties(struct intel_connector *connector)
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
 						       intel_dsi_get_panel_orientation(connector),
-						       fixed_mode->hdisplay,
-						       fixed_mode->vdisplay);
+						       connector->panel.fixed_mode->hdisplay,
+						       connector->panel.fixed_mode->vdisplay);
 }
 
 #define NS_KHZ_RATIO		1000000
@@ -1690,8 +1658,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_connector *connector = intel_dsi->attached_connector;
-	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
@@ -1860,7 +1827,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *current_mode;
+	struct drm_display_mode *current_mode, *fixed_mode;
 	enum port port;
 	enum pipe pipe;
 
@@ -1871,9 +1838,9 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 		return;
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		dev_priv->display.dsi.mmio_base = BXT_MIPI_BASE;
+		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
 	else
-		dev_priv->display.dsi.mmio_base = VLV_MIPI_BASE;
+		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
 	if (!intel_dsi)
@@ -1925,18 +1892,13 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	intel_bios_init_panel(dev_priv, &intel_connector->panel, NULL, NULL);
-
-	if (intel_connector->panel.vbt.dsi.config->dual_link)
+	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
 	else
 		intel_dsi->ports = BIT(port);
 
-	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.bl_ports & ~intel_dsi->ports))
-		intel_connector->panel.vbt.dsi.bl_ports &= intel_dsi->ports;
-
-	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.cabc_ports & ~intel_dsi->ports))
-		intel_connector->panel.vbt.dsi.cabc_ports &= intel_dsi->ports;
+	intel_dsi->dcs_backlight_ports = dev_priv->vbt.dsi.bl_ports;
+	intel_dsi->dcs_cabc_ports = dev_priv->vbt.dsi.cabc_ports;
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -1986,16 +1948,15 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	mutex_lock(&dev->mode_config.mutex);
-	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
+	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
+	if (!fixed_mode) {
 		drm_dbg_kms(&dev_priv->drm, "no fixed mode\n");
 		goto err_cleanup_connector;
 	}
 
-	intel_panel_init(intel_connector);
-
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	vlv_dsi_add_properties(intel_connector);

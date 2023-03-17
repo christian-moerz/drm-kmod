@@ -62,6 +62,7 @@ dma_fence_chain_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	struct dma_fence_chain *chain;
 
 	chain = container_of(cb, typeof(*chain), cb);
+	init_irq_work(&chain->work, dma_fence_chain_irq_work);
 	irq_work_queue(&chain->work);
 	dma_fence_put(fence);
 }
@@ -150,7 +151,6 @@ dma_fence_chain_init(struct dma_fence_chain *chain,
 	uint64_t context;
 
 	spin_lock_init(&chain->lock);
-	init_irq_work(&chain->work, dma_fence_chain_irq_work);
 	chain->fence = fence;
 	chain->prev = prev;
 	prev_chain = to_dma_fence_chain(prev);
@@ -222,7 +222,6 @@ dma_fence_chain_walk(struct dma_fence *fence)
 	return (prev);
 }
 
-#ifndef BSDTNG
 struct dma_fence_chain *
 to_dma_fence_chain(struct dma_fence *fence)
 {
@@ -232,4 +231,3 @@ to_dma_fence_chain(struct dma_fence *fence)
 
 	return (container_of(fence, struct dma_fence_chain, base));
 }
-#endif

@@ -477,14 +477,14 @@ static const struct intel_ddi_buf_trans icl_combo_phy_trans_hdmi = {
 static const union intel_ddi_buf_trans_entry _ehl_combo_phy_trans_dp[] = {
 							/* NT mV Trans mV db    */
 	{ .icl = { 0xA, 0x33, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
-	{ .icl = { 0xA, 0x47, 0x38, 0x00, 0x07 } },	/* 350   500      3.1   */
-	{ .icl = { 0xC, 0x64, 0x33, 0x00, 0x0C } },	/* 350   700      6.0   */
-	{ .icl = { 0x6, 0x7F, 0x2F, 0x00, 0x10 } },	/* 350   900      8.2   */
+	{ .icl = { 0xA, 0x47, 0x36, 0x00, 0x09 } },	/* 350   500      3.1   */
+	{ .icl = { 0xC, 0x64, 0x34, 0x00, 0x0B } },	/* 350   700      6.0   */
+	{ .icl = { 0x6, 0x7F, 0x30, 0x00, 0x0F } },	/* 350   900      8.2   */
 	{ .icl = { 0xA, 0x46, 0x3F, 0x00, 0x00 } },	/* 500   500      0.0   */
-	{ .icl = { 0xC, 0x64, 0x37, 0x00, 0x08 } },	/* 500   700      2.9   */
+	{ .icl = { 0xC, 0x64, 0x38, 0x00, 0x07 } },	/* 500   700      2.9   */
 	{ .icl = { 0x6, 0x7F, 0x32, 0x00, 0x0D } },	/* 500   900      5.1   */
 	{ .icl = { 0xC, 0x61, 0x3F, 0x00, 0x00 } },	/* 650   700      0.6   */
-	{ .icl = { 0x6, 0x7F, 0x37, 0x00, 0x08 } },	/* 600   900      3.5   */
+	{ .icl = { 0x6, 0x7F, 0x38, 0x00, 0x07 } },	/* 600   900      3.5   */
 	{ .icl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
@@ -878,6 +878,26 @@ static const struct intel_ddi_buf_trans adls_combo_phy_trans_edp_hbr3 = {
 	.num_entries = ARRAY_SIZE(_adls_combo_phy_trans_edp_hbr3),
 };
 
+static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_hdmi[] = {
+							/* NT mV Trans mV    db   */
+	{ .icl = { 0x6, 0x60, 0x3F, 0x00, 0x00 } },	/*  400    400      0.0 */
+	{ .icl = { 0x6, 0x68, 0x3F, 0x00, 0x00 } },	/*  500    500      0.0 */
+	{ .icl = { 0xA, 0x73, 0x3F, 0x00, 0x00 } },	/*  650    650      0.0 ALS */
+	{ .icl = { 0xA, 0x78, 0x3F, 0x00, 0x00 } },	/*  800    800      0.0 */
+	{ .icl = { 0xB, 0x7F, 0x3F, 0x00, 0x00 } },	/* 1000   1000      0.0 Re-timer */
+	{ .icl = { 0xB, 0x7F, 0x3B, 0x00, 0x04 } },	/* Full    Red     -1.5 */
+	{ .icl = { 0xB, 0x7F, 0x39, 0x00, 0x06 } },	/* Full    Red     -1.8 */
+	{ .icl = { 0xB, 0x7F, 0x37, 0x00, 0x08 } },	/* Full    Red     -2.0 CRLS */
+	{ .icl = { 0xB, 0x7F, 0x35, 0x00, 0x0A } },	/* Full    Red     -2.5 */
+	{ .icl = { 0xB, 0x7F, 0x33, 0x00, 0x0C } },	/* Full    Red     -3.0 */
+};
+
+static const struct intel_ddi_buf_trans adlp_combo_phy_trans_hdmi = {
+	.entries = _adlp_combo_phy_trans_hdmi,
+	.num_entries = ARRAY_SIZE(_adlp_combo_phy_trans_hdmi),
+	.hdmi_default_entry = ARRAY_SIZE(_adlp_combo_phy_trans_hdmi) - 1,
+};
+
 static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_dp_hbr[] = {
 							/* NT mV Trans mV db    */
 	{ .icl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
@@ -887,7 +907,7 @@ static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_dp_hbr[] = {
 	{ .icl = { 0xA, 0x4C, 0x3F, 0x00, 0x00 } },	/* 500   500      0.0   */
 	{ .icl = { 0xC, 0x73, 0x34, 0x00, 0x0B } },	/* 500   700      2.9   */
 	{ .icl = { 0x6, 0x7F, 0x2F, 0x00, 0x10 } },	/* 500   900      5.1   */
-	{ .icl = { 0xC, 0x7C, 0x3C, 0x00, 0x03 } },	/* 650   700      0.6   */
+	{ .icl = { 0xC, 0x73, 0x3E, 0x00, 0x01 } },	/* 650   700      0.6   */
 	{ .icl = { 0x6, 0x7F, 0x35, 0x00, 0x0A } },	/* 600   900      3.5   */
 	{ .icl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
@@ -901,35 +921,7 @@ static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_dp_hbr2_hbr3[
 							/* NT mV Trans mV db    */
 	{ .icl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .icl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
-	{ .icl = { 0xC, 0x71, 0x30, 0x00, 0x0F } },	/* 350   700      6.0   */
-	{ .icl = { 0x6, 0x7F, 0x2B, 0x00, 0x14 } },	/* 350   900      8.2   */
-	{ .icl = { 0xA, 0x4C, 0x3F, 0x00, 0x00 } },	/* 500   500      0.0   */
-	{ .icl = { 0xC, 0x73, 0x34, 0x00, 0x0B } },	/* 500   700      2.9   */
-	{ .icl = { 0x6, 0x7F, 0x30, 0x00, 0x0F } },	/* 500   900      5.1   */
-	{ .icl = { 0xC, 0x63, 0x3F, 0x00, 0x00 } },	/* 650   700      0.6   */
-	{ .icl = { 0x6, 0x7F, 0x38, 0x00, 0x07 } },	/* 600   900      3.5   */
-	{ .icl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
-};
-
-static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_edp_hbr2[] = {
-							/* NT mV Trans mV db    */
-	{ .icl = { 0x4, 0x50, 0x38, 0x00, 0x07 } },	/* 200   200      0.0   */
-	{ .icl = { 0x4, 0x58, 0x35, 0x00, 0x0A } },	/* 200   250      1.9   */
-	{ .icl = { 0x4, 0x60, 0x34, 0x00, 0x0B } },	/* 200   300      3.5   */
-	{ .icl = { 0x4, 0x6A, 0x32, 0x00, 0x0D } },	/* 200   350      4.9   */
-	{ .icl = { 0x4, 0x5E, 0x38, 0x00, 0x07 } },	/* 250   250      0.0   */
-	{ .icl = { 0x4, 0x61, 0x36, 0x00, 0x09 } },	/* 250   300      1.6   */
-	{ .icl = { 0x4, 0x6B, 0x34, 0x00, 0x0B } },	/* 250   350      2.9   */
-	{ .icl = { 0x4, 0x69, 0x39, 0x00, 0x06 } },	/* 300   300      0.0   */
-	{ .icl = { 0x4, 0x73, 0x37, 0x00, 0x08 } },	/* 300   350      1.3   */
-	{ .icl = { 0x4, 0x7A, 0x38, 0x00, 0x07 } },	/* 350   350      0.0   */
-};
-
-static const union intel_ddi_buf_trans_entry _adlp_combo_phy_trans_dp_hbr2_edp_hbr3[] = {
-							/* NT mV Trans mV db    */
-	{ .icl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
-	{ .icl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
-	{ .icl = { 0xC, 0x71, 0x30, 0x00, 0x0f } },	/* 350   700      6.0   */
+	{ .icl = { 0xC, 0x71, 0x2F, 0x00, 0x10 } },	/* 350   700      6.0   */
 	{ .icl = { 0x6, 0x7F, 0x2B, 0x00, 0x14 } },	/* 350   900      8.2   */
 	{ .icl = { 0xA, 0x4C, 0x3F, 0x00, 0x00 } },	/* 500   500      0.0   */
 	{ .icl = { 0xC, 0x73, 0x34, 0x00, 0x0B } },	/* 500   700      2.9   */
@@ -945,13 +937,13 @@ static const struct intel_ddi_buf_trans adlp_combo_phy_trans_dp_hbr2_hbr3 = {
 };
 
 static const struct intel_ddi_buf_trans adlp_combo_phy_trans_edp_hbr3 = {
-	.entries = _adlp_combo_phy_trans_dp_hbr2_edp_hbr3,
-	.num_entries = ARRAY_SIZE(_adlp_combo_phy_trans_dp_hbr2_edp_hbr3),
+	.entries = _icl_combo_phy_trans_dp_hbr2_edp_hbr3,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_trans_dp_hbr2_edp_hbr3),
 };
 
 static const struct intel_ddi_buf_trans adlp_combo_phy_trans_edp_up_to_hbr2 = {
-	.entries = _adlp_combo_phy_trans_edp_hbr2,
-	.num_entries = ARRAY_SIZE(_adlp_combo_phy_trans_edp_hbr2),
+	.entries = _icl_combo_phy_trans_edp_hbr2,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_trans_edp_hbr2),
 };
 
 static const union intel_ddi_buf_trans_entry _adlp_dkl_phy_trans_dp_hbr[] = {
@@ -993,15 +985,15 @@ static const struct intel_ddi_buf_trans adlp_dkl_phy_trans_dp_hbr2_hbr3 = {
 };
 
 static const union intel_ddi_buf_trans_entry _dg2_snps_trans[] = {
-	{ .snps = { 25, 0, 0 } },	/* VS 0, pre-emph 0 */
-	{ .snps = { 32, 0, 6 } },	/* VS 0, pre-emph 1 */
-	{ .snps = { 35, 0, 10 } },	/* VS 0, pre-emph 2 */
-	{ .snps = { 43, 0, 17 } },	/* VS 0, pre-emph 3 */
-	{ .snps = { 35, 0, 0 } },	/* VS 1, pre-emph 0 */
-	{ .snps = { 45, 0, 8 } },	/* VS 1, pre-emph 1 */
-	{ .snps = { 48, 0, 14 } },	/* VS 1, pre-emph 2 */
-	{ .snps = { 47, 0, 0 } },	/* VS 2, pre-emph 0 */
-	{ .snps = { 55, 0, 7 } },	/* VS 2, pre-emph 1 */
+	{ .snps = { 26, 0, 0 } },	/* VS 0, pre-emph 0 */
+	{ .snps = { 33, 0, 6 } },	/* VS 0, pre-emph 1 */
+	{ .snps = { 38, 0, 12 } },	/* VS 0, pre-emph 2 */
+	{ .snps = { 43, 0, 19 } },	/* VS 0, pre-emph 3 */
+	{ .snps = { 39, 0, 0 } },	/* VS 1, pre-emph 0 */
+	{ .snps = { 44, 0, 8 } },	/* VS 1, pre-emph 1 */
+	{ .snps = { 47, 0, 15 } },	/* VS 1, pre-emph 2 */
+	{ .snps = { 52, 0, 0 } },	/* VS 2, pre-emph 0 */
+	{ .snps = { 51, 0, 10 } },	/* VS 2, pre-emph 1 */
 	{ .snps = { 62, 0, 0 } },	/* VS 3, pre-emph 0 */
 };
 
@@ -1013,21 +1005,21 @@ static const struct intel_ddi_buf_trans dg2_snps_trans = {
 
 static const union intel_ddi_buf_trans_entry _dg2_snps_trans_uhbr[] = {
 	{ .snps = { 62, 0, 0 } },	/* preset 0 */
-	{ .snps = { 55, 0, 7 } },	/* preset 1 */
-	{ .snps = { 50, 0, 12 } },	/* preset 2 */
-	{ .snps = { 44, 0, 18 } },	/* preset 3 */
-	{ .snps = { 35, 0, 21 } },	/* preset 4 */
+	{ .snps = { 56, 0, 6 } },	/* preset 1 */
+	{ .snps = { 51, 0, 11 } },	/* preset 2 */
+	{ .snps = { 48, 0, 14 } },	/* preset 3 */
+	{ .snps = { 43, 0, 19 } },	/* preset 4 */
 	{ .snps = { 59, 3, 0 } },	/* preset 5 */
 	{ .snps = { 53, 3, 6 } },	/* preset 6 */
-	{ .snps = { 48, 3, 11 } },	/* preset 7 */
-	{ .snps = { 42, 5, 15 } },	/* preset 8 */
-	{ .snps = { 37, 5, 20 } },	/* preset 9 */
+	{ .snps = { 49, 3, 10 } },	/* preset 7 */
+	{ .snps = { 45, 3, 14 } },	/* preset 8 */
+	{ .snps = { 42, 3, 17 } },	/* preset 9 */
 	{ .snps = { 56, 6, 0 } },	/* preset 10 */
-	{ .snps = { 48, 7, 7 } },	/* preset 11 */
-	{ .snps = { 45, 7, 10 } },	/* preset 12 */
-	{ .snps = { 39, 8, 15 } },	/* preset 13 */
-	{ .snps = { 48, 14, 0 } },	/* preset 14 */
-	{ .snps = { 45, 4, 4 } },	/* preset 15 */
+	{ .snps = { 50, 6, 6 } },	/* preset 11 */
+	{ .snps = { 47, 6, 9 } },	/* preset 12 */
+	{ .snps = { 42, 6, 14 } },	/* preset 13 */
+	{ .snps = { 46, 8, 8 } },	/* preset 14 */
+	{ .snps = { 56, 3, 3 } },	/* preset 15 */
 };
 
 static const struct intel_ddi_buf_trans dg2_snps_trans_uhbr = {
@@ -1038,22 +1030,6 @@ static const struct intel_ddi_buf_trans dg2_snps_trans_uhbr = {
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table)
 {
 	return table == &tgl_combo_phy_trans_edp_hbr2_hobl;
-}
-
-static bool use_edp_hobl(struct intel_encoder *encoder)
-{
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_connector *connector = intel_dp->attached_connector;
-
-	return connector->panel.vbt.edp.hobl && !intel_dp->hobl_failed;
-}
-
-static bool use_edp_low_vswing(struct intel_encoder *encoder)
-{
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_connector *connector = intel_dp->attached_connector;
-
-	return connector->panel.vbt.edp.low_vswing;
 }
 
 static const struct intel_ddi_buf_trans *
@@ -1081,12 +1057,14 @@ bdw_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
 		return intel_get_buf_trans(&bdw_trans_fdi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&bdw_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return intel_get_buf_trans(&bdw_trans_edp, n_entries);
 	else
 		return intel_get_buf_trans(&bdw_trans_dp, n_entries);
@@ -1116,10 +1094,12 @@ skl_y_get_buf_trans(struct intel_encoder *encoder,
 		    const struct intel_crtc_state *crtc_state,
 		    int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&skl_y_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return _skl_get_buf_trans_dp(encoder, &skl_y_trans_edp, n_entries);
 	else
 		return _skl_get_buf_trans_dp(encoder, &skl_y_trans_dp, n_entries);
@@ -1130,10 +1110,12 @@ skl_u_get_buf_trans(struct intel_encoder *encoder,
 		    const struct intel_crtc_state *crtc_state,
 		    int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&skl_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return _skl_get_buf_trans_dp(encoder, &skl_u_trans_edp, n_entries);
 	else
 		return _skl_get_buf_trans_dp(encoder, &skl_u_trans_dp, n_entries);
@@ -1144,10 +1126,12 @@ skl_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&skl_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return _skl_get_buf_trans_dp(encoder, &skl_trans_edp, n_entries);
 	else
 		return _skl_get_buf_trans_dp(encoder, &skl_trans_dp, n_entries);
@@ -1158,10 +1142,12 @@ kbl_y_get_buf_trans(struct intel_encoder *encoder,
 		    const struct intel_crtc_state *crtc_state,
 		    int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&skl_y_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return _skl_get_buf_trans_dp(encoder, &skl_y_trans_edp, n_entries);
 	else
 		return _skl_get_buf_trans_dp(encoder, &kbl_y_trans_dp, n_entries);
@@ -1172,10 +1158,12 @@ kbl_u_get_buf_trans(struct intel_encoder *encoder,
 		    const struct intel_crtc_state *crtc_state,
 		    int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&skl_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return _skl_get_buf_trans_dp(encoder, &skl_u_trans_edp, n_entries);
 	else
 		return _skl_get_buf_trans_dp(encoder, &kbl_u_trans_dp, n_entries);
@@ -1186,10 +1174,12 @@ kbl_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&skl_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return _skl_get_buf_trans_dp(encoder, &skl_trans_edp, n_entries);
 	else
 		return _skl_get_buf_trans_dp(encoder, &kbl_trans_dp, n_entries);
@@ -1200,10 +1190,12 @@ bxt_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&bxt_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 i915->vbt.edp.low_vswing)
 		return intel_get_buf_trans(&bxt_trans_edp, n_entries);
 	else
 		return intel_get_buf_trans(&bxt_trans_dp, n_entries);
@@ -1223,10 +1215,12 @@ icl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (crtc_state->port_clock > 540000) {
 		return intel_get_buf_trans(&icl_combo_phy_trans_dp_hbr2_edp_hbr3,
 					   n_entries);
-	} else if (use_edp_low_vswing(encoder)) {
+	} else if (dev_priv->vbt.edp.low_vswing) {
 		return intel_get_buf_trans(&icl_combo_phy_trans_edp_hbr2,
 					   n_entries);
 	}
@@ -1288,10 +1282,12 @@ ehl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&icl_combo_phy_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 dev_priv->vbt.edp.low_vswing)
 		return ehl_get_combo_buf_trans_edp(encoder, crtc_state, n_entries);
 	else
 		return intel_get_buf_trans(&ehl_combo_phy_trans_dp, n_entries);
@@ -1313,10 +1309,12 @@ jsl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&icl_combo_phy_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
-		 use_edp_low_vswing(encoder))
+		 dev_priv->vbt.edp.low_vswing)
 		return jsl_get_combo_buf_trans_edp(encoder, crtc_state, n_entries);
 	else
 		return intel_get_buf_trans(&icl_combo_phy_trans_dp_hbr2_edp_hbr3, n_entries);
@@ -1330,7 +1328,7 @@ tgl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (crtc_state->port_clock > 270000) {
-		if (IS_TGL_UY(dev_priv)) {
+		if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
 			return intel_get_buf_trans(&tgl_uy_combo_phy_trans_dp_hbr2,
 						   n_entries);
 		} else {
@@ -1348,13 +1346,16 @@ tgl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (crtc_state->port_clock > 540000) {
 		return intel_get_buf_trans(&icl_combo_phy_trans_dp_hbr2_edp_hbr3,
 					   n_entries);
-	} else if (use_edp_hobl(encoder)) {
+	} else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed) {
 		return intel_get_buf_trans(&tgl_combo_phy_trans_edp_hbr2_hobl,
 					   n_entries);
-	} else if (use_edp_low_vswing(encoder)) {
+	} else if (dev_priv->vbt.edp.low_vswing) {
 		return intel_get_buf_trans(&icl_combo_phy_trans_edp_hbr2,
 					   n_entries);
 	}
@@ -1393,13 +1394,16 @@ dg1_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (crtc_state->port_clock > 540000)
 		return intel_get_buf_trans(&icl_combo_phy_trans_dp_hbr2_edp_hbr3,
 					   n_entries);
-	else if (use_edp_hobl(encoder))
+	else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed)
 		return intel_get_buf_trans(&tgl_combo_phy_trans_edp_hbr2_hobl,
 					   n_entries);
-	else if (use_edp_low_vswing(encoder))
+	else if (dev_priv->vbt.edp.low_vswing)
 		return intel_get_buf_trans(&icl_combo_phy_trans_edp_hbr2,
 					   n_entries);
 	else
@@ -1435,13 +1439,16 @@ rkl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (crtc_state->port_clock > 540000) {
 		return intel_get_buf_trans(&icl_combo_phy_trans_dp_hbr2_edp_hbr3,
 					   n_entries);
-	} else if (use_edp_hobl(encoder)) {
+	} else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed) {
 		return intel_get_buf_trans(&tgl_combo_phy_trans_edp_hbr2_hobl,
 					   n_entries);
-	} else if (use_edp_low_vswing(encoder)) {
+	} else if (dev_priv->vbt.edp.low_vswing) {
 		return intel_get_buf_trans(&icl_combo_phy_trans_edp_hbr2,
 					   n_entries);
 	}
@@ -1478,11 +1485,14 @@ adls_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (crtc_state->port_clock > 540000)
 		return intel_get_buf_trans(&adls_combo_phy_trans_edp_hbr3, n_entries);
-	else if (use_edp_hobl(encoder))
+	else if (i915->vbt.edp.hobl && !intel_dp->hobl_failed)
 		return intel_get_buf_trans(&tgl_combo_phy_trans_edp_hbr2_hobl, n_entries);
-	else if (use_edp_low_vswing(encoder))
+	else if (i915->vbt.edp.low_vswing)
 		return intel_get_buf_trans(&adls_combo_phy_trans_edp_hbr2, n_entries);
 	else
 		return adls_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
@@ -1517,13 +1527,16 @@ adlp_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (crtc_state->port_clock > 540000) {
 		return intel_get_buf_trans(&adlp_combo_phy_trans_edp_hbr3,
 					   n_entries);
-	} else if (use_edp_hobl(encoder)) {
+	} else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed) {
 		return intel_get_buf_trans(&tgl_combo_phy_trans_edp_hbr2_hobl,
 					   n_entries);
-	} else if (use_edp_low_vswing(encoder)) {
+	} else if (dev_priv->vbt.edp.low_vswing) {
 		return intel_get_buf_trans(&adlp_combo_phy_trans_edp_up_to_hbr2,
 					   n_entries);
 	}
@@ -1537,7 +1550,7 @@ adlp_get_combo_buf_trans(struct intel_encoder *encoder,
 			 int *n_entries)
 {
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		return intel_get_buf_trans(&icl_combo_phy_trans_hdmi, n_entries);
+		return intel_get_buf_trans(&adlp_combo_phy_trans_hdmi, n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
 		return adlp_get_combo_buf_trans_edp(encoder, crtc_state, n_entries);
 	else
@@ -1654,9 +1667,7 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 		encoder->get_buf_trans = skl_get_buf_trans;
 	} else if (IS_BROADWELL(i915)) {
 		encoder->get_buf_trans = bdw_get_buf_trans;
-	} else if (IS_HASWELL(i915)) {
-		encoder->get_buf_trans = hsw_get_buf_trans;
 	} else {
-		MISSING_CASE(INTEL_INFO(i915)->platform);
+		encoder->get_buf_trans = hsw_get_buf_trans;
 	}
 }

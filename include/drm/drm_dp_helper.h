@@ -27,15 +27,10 @@
 #include <linux/i2c.h>
 #include <linux/types.h>
 #include <drm/drm_connector.h>
-#ifdef BSDTNG
-#include <drm/drm_panel.h>
-#endif
 
 struct drm_device;
-#ifdef BSDTNG
 struct drm_dp_aux;
 struct drm_panel;
-#endif
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -113,8 +108,9 @@ struct drm_panel;
 #define DP_AUX_I2C_REPLY_DEFER		(0x2 << 2)
 #define DP_AUX_I2C_REPLY_MASK		(0x3 << 2)
 
-/* AUX CH addresses */
-/* DPCD */
+/* DPCD Field Address Mapping */
+
+/* Receiver Capability */
 #define DP_DPCD_REV                         0x000
 # define DP_DPCD_REV_10                     0x10
 # define DP_DPCD_REV_11                     0x11
@@ -131,6 +127,7 @@ struct drm_panel;
 
 #define DP_MAX_DOWNSPREAD                   0x003
 # define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
+# define DP_STREAM_REGENERATION_STATUS_CAP  (1 << 1) /* 2.0 */
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
 # define DP_TPS4_SUPPORTED                  (1 << 7)
 
@@ -148,9 +145,7 @@ struct drm_panel;
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 # define DP_CAP_ANSI_8B10B		    (1 << 0)
-#ifdef BSDTNG
 # define DP_CAP_ANSI_128B132B               (1 << 1) /* 2.0 */
-#endif
 
 #define DP_DOWN_STREAM_PORT_COUNT	    0x007
 # define DP_PORT_COUNT_MASK		    0x0f
@@ -194,8 +189,14 @@ struct drm_panel;
 #define DP_FAUX_CAP			    0x020   /* 1.2 */
 # define DP_FAUX_CAP_1			    (1 << 0)
 
+#define DP_SINK_VIDEO_FALLBACK_FORMATS      0x020   /* 2.0 */
+# define DP_FALLBACK_1024x768_60HZ_24BPP    (1 << 0)
+# define DP_FALLBACK_1280x720_60HZ_24BPP    (1 << 1)
+# define DP_FALLBACK_1920x1080_60HZ_24BPP   (1 << 2)
+
 #define DP_MSTM_CAP			    0x021   /* 1.2 */
 # define DP_MST_CAP			    (1 << 0)
+# define DP_SINGLE_STREAM_SIDEBAND_MSG      (1 << 1) /* 2.0 */
 
 #define DP_NUMBER_OF_AUDIO_ENDPOINTS	    0x022   /* 1.2 */
 
@@ -245,9 +246,6 @@ struct drm_panel;
 
 #define DP_DSC_SUPPORT                      0x060   /* DP 1.4 */
 # define DP_DSC_DECOMPRESSION_IS_SUPPORTED  (1 << 0)
-#ifdef BSDTNG
-# define DP_DSC_PASSTHROUGH_IS_SUPPORTED    (1 << 1)
-#endif
 
 #define DP_DSC_REV                          0x061
 # define DP_DSC_MAJOR_MASK                  (0xf << 0)
@@ -455,6 +453,7 @@ struct drm_panel;
 # define DP_FEC_UNCORR_BLK_ERROR_COUNT_CAP  (1 << 1)
 # define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
 # define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
+#define DP_FEC_CAPABILITY_1			0x091   /* 2.0 */
 
 /* DP-HDMI2.1 PCON DSC ENCODER SUPPORT */
 #define DP_PCON_DSC_ENCODER_CAP_SIZE        0xC	/* 0x9E - 0x92 */
@@ -539,13 +538,19 @@ struct drm_panel;
 #define DP_DSC_BRANCH_OVERALL_THROUGHPUT_1  0x0a1
 #define DP_DSC_BRANCH_MAX_LINE_WIDTH        0x0a2
 
-/* link configuration */
+/* DFP Capability Extension */
+#define DP_DFP_CAPABILITY_EXTENSION_SUPPORT	0x0a3	/* 2.0 */
+
+/* Link Configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 # define DP_LINK_BW_5_4			    0x14    /* 1.2 */
 # define DP_LINK_BW_8_1			    0x1e    /* 1.4 */
+# define DP_LINK_BW_10                      0x01    /* 2.0 128b/132b Link Layer */
+# define DP_LINK_BW_13_5                    0x04    /* 2.0 128b/132b Link Layer */
+# define DP_LINK_BW_20                      0x02    /* 2.0 128b/132b Link Layer */
 
 #define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
@@ -555,9 +560,6 @@ struct drm_panel;
 # define DP_TRAINING_PATTERN_DISABLE	    0
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
-#ifdef BSDTNG
-# define DP_TRAINING_PATTERN_2_CDS	    3	    /* 2.0 E11 */
-#endif
 # define DP_TRAINING_PATTERN_3		    3	    /* 1.2 */
 # define DP_TRAINING_PATTERN_4              7       /* 1.4 */
 # define DP_TRAINING_PATTERN_MASK	    0x3
@@ -600,11 +602,7 @@ struct drm_panel;
 # define DP_TRAIN_PRE_EMPHASIS_SHIFT	    3
 # define DP_TRAIN_MAX_PRE_EMPHASIS_REACHED  (1 << 5)
 
-#if defined(__FreeBSD__)
-#ifdef BSDTNG
 # define DP_TX_FFE_PRESET_VALUE_MASK        (0xf << 0) /* 2.0 128b/132b Link Layer */
-#endif
-#endif /* __FreeBSD__ */
 
 #define DP_DOWNSPREAD_CTRL		    0x107
 # define DP_SPREAD_AMP_0_5		    (1 << 4)
@@ -612,9 +610,7 @@ struct drm_panel;
 
 #define DP_MAIN_LINK_CHANNEL_CODING_SET	    0x108
 # define DP_SET_ANSI_8B10B		    (1 << 0)
-#ifdef BSDTNG
 # define DP_SET_ANSI_128B132B               (1 << 1)
-#endif
 
 #define DP_I2C_SPEED_CONTROL_STATUS	    0x109   /* DPI */
 /* bitmask as for DP_I2C_SPEED_CAP */
@@ -633,8 +629,19 @@ struct drm_panel;
 # define DP_LINK_QUAL_PATTERN_ERROR_RATE    2
 # define DP_LINK_QUAL_PATTERN_PRBS7	    3
 # define DP_LINK_QUAL_PATTERN_80BIT_CUSTOM  4
-# define DP_LINK_QUAL_PATTERN_HBR2_EYE      5
-# define DP_LINK_QUAL_PATTERN_MASK	    7
+# define DP_LINK_QUAL_PATTERN_CP2520_PAT_1  5
+# define DP_LINK_QUAL_PATTERN_CP2520_PAT_2  6
+# define DP_LINK_QUAL_PATTERN_CP2520_PAT_3  7
+/* DP 2.0 UHBR10, UHBR13.5, UHBR20 */
+# define DP_LINK_QUAL_PATTERN_128B132B_TPS1 0x08
+# define DP_LINK_QUAL_PATTERN_128B132B_TPS2 0x10
+# define DP_LINK_QUAL_PATTERN_PRSBS9        0x18
+# define DP_LINK_QUAL_PATTERN_PRSBS11       0x20
+# define DP_LINK_QUAL_PATTERN_PRSBS15       0x28
+# define DP_LINK_QUAL_PATTERN_PRSBS23       0x30
+# define DP_LINK_QUAL_PATTERN_PRSBS31       0x38
+# define DP_LINK_QUAL_PATTERN_CUSTOM        0x40
+# define DP_LINK_QUAL_PATTERN_SQUARE        0x48
 
 #define DP_TRAINING_LANE0_1_SET2	    0x10f
 #define DP_TRAINING_LANE2_3_SET2	    0x110
@@ -685,18 +692,16 @@ struct drm_panel;
 
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
 # define DP_DECOMPRESSION_EN                (1 << 0)
+#define DP_DSC_CONFIGURATION				0x161	/* DP 2.0 */
 
-#define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
-# define DP_PSR_ENABLE			    (1 << 0)
-# define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
-# define DP_PSR_CRC_VERIFICATION	    (1 << 2)
-# define DP_PSR_FRAME_CAPTURE		    (1 << 3)
-#ifdef BSDTNG
+#define DP_PSR_EN_CFG				0x170   /* XXX 1.2? */
+# define DP_PSR_ENABLE				BIT(0)
+# define DP_PSR_MAIN_LINK_ACTIVE		BIT(1)
+# define DP_PSR_CRC_VERIFICATION		BIT(2)
+# define DP_PSR_FRAME_CAPTURE			BIT(3)
 # define DP_PSR_SU_REGION_SCANLINE_CAPTURE	BIT(4) /* eDP 1.4a */
-#endif
-# define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
-# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
-# define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
+# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS		BIT(5) /* eDP 1.4a */
+# define DP_PSR_ENABLE_PSR2			BIT(6) /* eDP 1.4a */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -708,6 +713,7 @@ struct drm_panel;
 #define DP_PAYLOAD_ALLOCATE_START_TIME_SLOT 0x1c1
 #define DP_PAYLOAD_ALLOCATE_TIME_SLOT_COUNT 0x1c2
 
+/* Link/Sink Device Status */
 #define DP_SINK_COUNT			    0x200
 /* prior to 1.2 bit 7 was reserved mbz */
 # define DP_GET_SINK_COUNT(x)		    ((((x) & 0x80) >> 1) | ((x) & 0x3f))
@@ -733,29 +739,16 @@ struct drm_panel;
 			    DP_LANE_SYMBOL_LOCKED)
 
 #define DP_LANE_ALIGN_STATUS_UPDATED	    0x204
-#ifdef BSDTNG
-#define  DP_INTERLANE_ALIGN_DONE                        (1 << 0)
-#define  DP_128B132B_DPRX_EQ_INTERLANE_ALIGN_DONE       (1 << 2) /* 2.0 E11 */
-#define  DP_128B132B_DPRX_CDS_INTERLANE_ALIGN_DONE      (1 << 3) /* 2.0 E11 */
-#define  DP_128B132B_LT_FAILED                          (1 << 4) /* 2.0 E11 */
-#define  DP_DOWNSTREAM_PORT_STATUS_CHANGED              (1 << 6)
-#define  DP_LINK_STATUS_UPDATED                         (1 << 7)
-#endif
 
 #define DP_INTERLANE_ALIGN_DONE		    (1 << 0)
 #define DP_DOWNSTREAM_PORT_STATUS_CHANGED   (1 << 6)
 #define DP_LINK_STATUS_UPDATED		    (1 << 7)
 
 #define DP_SINK_STATUS			    0x205
-#ifdef BSDTNG
 # define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
 # define DP_RECEIVE_PORT_1_STATUS	    (1 << 1)
 # define DP_STREAM_REGENERATION_STATUS      (1 << 2) /* 2.0 */
 # define DP_INTRA_HOP_AUX_REPLY_INDICATION	(1 << 3) /* 2.0 */
-#endif
-
-#define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
-#define DP_RECEIVE_PORT_1_STATUS	    (1 << 1)
 
 #define DP_ADJUST_REQUEST_LANE0_1	    0x206
 #define DP_ADJUST_REQUEST_LANE2_3	    0x207
@@ -768,13 +761,11 @@ struct drm_panel;
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
-#ifdef BSDTNG
 /* DP 2.0 128b/132b Link Layer */
 # define DP_ADJUST_TX_FFE_PRESET_LANE0_MASK  (0xf << 0)
 # define DP_ADJUST_TX_FFE_PRESET_LANE0_SHIFT 0
 # define DP_ADJUST_TX_FFE_PRESET_LANE1_MASK  (0xf << 4)
 # define DP_ADJUST_TX_FFE_PRESET_LANE1_SHIFT 4
-#endif
 
 #define DP_ADJUST_REQUEST_POST_CURSOR2      0x20c
 # define DP_ADJUST_POST_CURSOR2_LANE0_MASK  0x03
@@ -880,6 +871,8 @@ struct drm_panel;
 # define DP_PHY_TEST_PATTERN_80BIT_CUSTOM   0x4
 # define DP_PHY_TEST_PATTERN_CP2520         0x5
 
+#define DP_PHY_SQUARE_PATTERN				0x249
+
 #define DP_TEST_HBR2_SCRAMBLER_RESET        0x24A
 #define DP_TEST_80BIT_CUSTOM_PATTERN_7_0    0x250
 #define	DP_TEST_80BIT_CUSTOM_PATTERN_15_8   0x251
@@ -929,20 +922,27 @@ struct drm_panel;
 #define DP_VC_PAYLOAD_ID_SLOT_1             0x2c1   /* 1.2 MST */
 /* up to ID_SLOT_63 at 0x2ff */
 
+/* Source Device-specific */
 #define DP_SOURCE_OUI			    0x300
+
+/* Sink Device-specific */
 #define DP_SINK_OUI			    0x400
+
+/* Branch Device-specific */
 #define DP_BRANCH_OUI			    0x500
 #define DP_BRANCH_ID                        0x503
 #define DP_BRANCH_REVISION_START            0x509
 #define DP_BRANCH_HW_REV                    0x509
 #define DP_BRANCH_SW_REV                    0x50A
 
+/* Link/Sink Device Power Control */
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
 # define DP_SET_POWER_D3_AUX_ON             0x5
 
+/* eDP-specific */
 #define DP_EDP_DPCD_REV			    0x700    /* eDP 1.2 */
 # define DP_EDP_11			    0x00
 # define DP_EDP_12			    0x01
@@ -1026,18 +1026,18 @@ struct drm_panel;
 #define DP_EDP_REGIONAL_BACKLIGHT_BASE      0x740    /* eDP 1.4 */
 #define DP_EDP_REGIONAL_BACKLIGHT_0	    0x741    /* eDP 1.4 */
 
-#ifdef BSDTNG
 #define DP_EDP_MSO_LINK_CAPABILITIES        0x7a4    /* eDP 1.4 */
 # define DP_EDP_MSO_NUMBER_OF_LINKS_MASK    (7 << 0)
 # define DP_EDP_MSO_NUMBER_OF_LINKS_SHIFT   0
 # define DP_EDP_MSO_INDEPENDENT_LINK_BIT    (1 << 3)
-#endif /* BSDTNG */
 
+/* Sideband MSG Buffers */
 #define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_DOWN_REP_BASE	    0x1400   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REQ_BASE	    0x1600   /* 1.2 MST */
 
+/* DPRX Event Status Indicator */
 #define DP_SINK_COUNT_ESI		    0x2002   /* 1.2 */
 /* 0-5 sink count */
 # define DP_SINK_COUNT_CP_READY             (1 << 6)
@@ -1096,8 +1096,8 @@ struct drm_panel;
 #define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
 #define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
 
+/* Extended Receiver Capability: See DP_DPCD_REV for definitions */
 #define DP_DP13_DPCD_REV                    0x2200
-#define DP_DP13_MAX_LINK_RATE               0x2201
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
 # define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
@@ -1109,22 +1109,13 @@ struct drm_panel;
 # define DP_VSC_EXT_CEA_SDP_SUPPORTED			(1 << 6)  /* DP 1.4 */
 # define DP_VSC_EXT_CEA_SDP_CHAINING_SUPPORTED		(1 << 7)  /* DP 1.4 */
 
-#ifdef BSDTNG
 #define DP_128B132B_SUPPORTED_LINK_RATES       0x2215 /* 2.0 */
 # define DP_UHBR10                             (1 << 0)
 # define DP_UHBR20                             (1 << 1)
 # define DP_UHBR13_5                           (1 << 2)
 
-#define DP_128B132B_TRAINING_AUX_RD_INTERVAL                    0x2216 /* 2.0 */
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_1MS_UNIT          (1 << 7)
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK              0x7f
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_400_US            0x00
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_4_MS              0x01
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_8_MS              0x02
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_12_MS             0x03
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_16_MS             0x04
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_32_MS             0x05
-# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_64_MS             0x06
+#define DP_128B132B_TRAINING_AUX_RD_INTERVAL   0x2216 /* 2.0 */
+# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK 0x7f
 
 #define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0x2230
 #define DP_TEST_264BIT_CUSTOM_PATTERN_263_256	0x2250
@@ -1137,8 +1128,8 @@ struct drm_panel;
 # define DP_DSC_DECODER_0_MAXIMUM_SLICE_COUNT_MASK	(1 << 0)
 # define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_MASK	(0b111 << 1)
 # define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_SHIFT	1
-#endif /* BSDTNG */
 
+/* Protocol Converter Extension */
 /* HDMI CEC tunneling over AUX DP 1.3 section 5.3.3.3.1 DPCD 1.4+ */
 #define DP_CEC_TUNNELING_CAPABILITY            0x3000
 # define DP_CEC_TUNNELING_CAPABLE               (1 << 0)
@@ -1207,9 +1198,7 @@ struct drm_panel;
 # define DP_PCON_ENABLE_MAX_BW_48GBPS	       6
 # define DP_PCON_ENABLE_SOURCE_CTL_MODE       (1 << 3)
 # define DP_PCON_ENABLE_CONCURRENT_LINK       (1 << 4)
-#ifdef BSDTNG
 # define DP_PCON_ENABLE_SEQUENTIAL_LINK       (0 << 4)
-#endif
 # define DP_PCON_ENABLE_LINK_FRL_MODE         (1 << 5)
 # define DP_PCON_ENABLE_HPD_READY	      (1 << 6)
 # define DP_PCON_ENABLE_HDMI_LINK             (1 << 7)
@@ -1224,9 +1213,7 @@ struct drm_panel;
 # define DP_PCON_FRL_BW_MASK_40GBPS           (1 << 4)
 # define DP_PCON_FRL_BW_MASK_48GBPS           (1 << 5)
 # define DP_PCON_FRL_LINK_TRAIN_EXTENDED      (1 << 6)
-#ifdef BSDTNG
 # define DP_PCON_FRL_LINK_TRAIN_NORMAL        (0 << 6)
-#endif
 
 /* PCON HDMI LINK STATUS */
 #define DP_PCON_HDMI_TX_LINK_STATUS           0x303B
@@ -1344,7 +1331,7 @@ struct drm_panel;
 #define DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET	0x69494
 #define DP_HDCP_2_2_REG_DBG_OFFSET		0x69518
 
-/* Link Training (LT)-tunable PHY Repeaters */
+/* LTTPR: Link Training (LT)-tunable PHY Repeaters */
 #define DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV 0xf0000 /* 1.3 */
 #define DP_MAX_LINK_RATE_PHY_REPEATER			    0xf0001 /* 1.4a */
 #define DP_PHY_REPEATER_CNT				    0xf0002 /* 1.3 */
@@ -1352,13 +1339,10 @@ struct drm_panel;
 #define DP_MAX_LANE_COUNT_PHY_REPEATER			    0xf0004 /* 1.4a */
 #define DP_Repeater_FEC_CAPABILITY			    0xf0004 /* 1.4 */
 #define DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT		    0xf0005 /* 1.4a */
-#ifdef BSDTNG
 #define DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER	    0xf0006 /* 2.0 */
 # define DP_PHY_REPEATER_128B132B_SUPPORTED		    (1 << 0)
 /* See DP_128B132B_SUPPORTED_LINK_RATES for values */
 #define DP_PHY_REPEATER_128B132B_RATES			    0xf0007 /* 2.0 */
-#define DP_PHY_REPEATER_EQ_DONE                             0xf0008 /* 2.0 E11 */
-#endif /* BSDTNG */
 
 enum drm_dp_phy {
 	DP_PHY_DPRX,
@@ -1405,13 +1389,6 @@ enum drm_dp_phy {
 # define DP_VOLTAGE_SWING_LEVEL_3_SUPPORTED		    BIT(0)
 # define DP_PRE_EMPHASIS_LEVEL_3_SUPPORTED		    BIT(1)
 
-#ifdef BSDTNG
-#define DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1  0xf0022 /* 2.0 */
-#define DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy)	\
-	DP_LTTPR_REG(dp_phy, DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1)
-/* see DP_128B132B_TRAINING_AUX_RD_INTERVAL for values */
-#endif
-
 #define DP_LANE0_1_STATUS_PHY_REPEATER1			    0xf0030 /* 1.3 */
 #define DP_LANE0_1_STATUS_PHY_REPEATER(dp_phy) \
 	DP_LTTPR_REG(dp_phy, DP_LANE0_1_STATUS_PHY_REPEATER1)
@@ -1425,9 +1402,26 @@ enum drm_dp_phy {
 #define DP_SYMBOL_ERROR_COUNT_LANE1_PHY_REPEATER1	    0xf0037 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
+
+#define __DP_FEC1_BASE					    0xf0290 /* 1.4 */
+#define __DP_FEC2_BASE					    0xf0298 /* 1.4 */
+#define DP_FEC_BASE(dp_phy) \
+	(__DP_FEC1_BASE + ((__DP_FEC2_BASE - __DP_FEC1_BASE) * \
+			   ((dp_phy) - DP_PHY_LTTPR1)))
+
+#define DP_FEC_REG(dp_phy, fec1_reg) \
+	(DP_FEC_BASE(dp_phy) - DP_FEC_BASE(DP_PHY_LTTPR1) + fec1_reg)
+
 #define DP_FEC_STATUS_PHY_REPEATER1			    0xf0290 /* 1.4 */
+#define DP_FEC_STATUS_PHY_REPEATER(dp_phy) \
+	DP_FEC_REG(dp_phy, DP_FEC_STATUS_PHY_REPEATER1)
+
 #define DP_FEC_ERROR_COUNT_PHY_REPEATER1                    0xf0291 /* 1.4 */
 #define DP_FEC_CAPABILITY_PHY_REPEATER1                     0xf0294 /* 1.4a */
+
+#define DP_LTTPR_MAX_ADD				    0xf02ff /* 1.4 */
+
+#define DP_DPCD_MAX_ADD					    0xfffff /* 1.4 */
 
 /* Repeater modes */
 #define DP_PHY_REPEATER_MODE_TRANSPARENT		    0x55    /* 1.3 */
@@ -1520,6 +1514,8 @@ u8 drm_dp_get_adjust_request_voltage(const u8 link_status[DP_LINK_STATUS_SIZE],
 				     int lane);
 u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SIZE],
 					  int lane);
+u8 drm_dp_get_adjust_tx_ffe_preset(const u8 link_status[DP_LINK_STATUS_SIZE],
+				   int lane);
 u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZE],
 					 unsigned int lane);
 
@@ -1531,39 +1527,16 @@ u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZ
 #define DP_LTTPR_COMMON_CAP_SIZE	8
 #define DP_LTTPR_PHY_CAP_SIZE		3
 
-#ifdef BSDTNG
-u8 drm_dp_get_adjust_tx_ffe_preset(const u8 link_status[DP_LINK_STATUS_SIZE],
-				   int lane);
-
-int drm_dp_read_clock_recovery_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-				     enum drm_dp_phy dp_phy, bool uhbr);
-int drm_dp_read_channel_eq_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-				 enum drm_dp_phy dp_phy, bool uhbr);
-
-bool drm_dp_128b132b_lane_channel_eq_done(const u8 link_status[DP_LINK_STATUS_SIZE],
-					  int lane_count);
-bool drm_dp_128b132b_lane_symbol_locked(const u8 link_status[DP_LINK_STATUS_SIZE],
-					int lane_count);
-bool drm_dp_128b132b_eq_interlane_align_done(const u8 link_status[DP_LINK_STATUS_SIZE]);
-bool drm_dp_128b132b_cds_interlane_align_done(const u8 link_status[DP_LINK_STATUS_SIZE]);
-bool drm_dp_128b132b_link_training_failed(const u8 link_status[DP_LINK_STATUS_SIZE]);
-#endif
-
-void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
+					    const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 void drm_dp_lttpr_link_train_clock_recovery_delay(void);
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
-void drm_dp_lttpr_link_train_channel_eq_delay(const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
-
-#ifdef BSDTNG
-int drm_dp_128b132b_read_aux_rd_interval(struct drm_dp_aux *aux);
-#endif
+void drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
+					const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_lttpr_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
+					      const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
-
-#ifdef BSDTNG
-const char *drm_dp_phy_name(enum drm_dp_phy dp_phy);
-#endif
 
 #define DP_SDP_AUDIO_TIMESTAMP		0x01
 #define DP_SDP_AUDIO_STREAM		0x02
@@ -1872,14 +1845,13 @@ drm_dp_sink_can_do_video_without_timing_msa(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		DP_MSA_TIMING_PAR_IGNORED;
 }
 
-#ifdef BSDTNG
 /**
  * drm_edp_backlight_supported() - Check an eDP DPCD for VESA backlight support
  * @edp_dpcd: The DPCD to check
  *
  * Note that currently this function will return %false for panels which support various DPCD
  * backlight features but which require the brightness be set through PWM, and don't support setting
- * the brightness level via the DPCD.
+ * the brightness level via the DPCD. This is a TODO.
  *
  * Returns: %True if @edp_dpcd indicates that VESA backlight controls are supported, %false
  * otherwise
@@ -1887,9 +1859,9 @@ drm_dp_sink_can_do_video_without_timing_msa(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 static inline bool
 drm_edp_backlight_supported(const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE])
 {
-	return !!(edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP);
+	return (edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP) &&
+		(edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP);
 }
-#endif
 
 /*
  * DisplayPort AUX channel
@@ -1931,49 +1903,39 @@ struct drm_dp_aux_cec {
 
 /**
  * struct drm_dp_aux - DisplayPort AUX channel
- * @name: user-visible name of this AUX channel and the I2C-over-AUX adapter
- * @ddc: I2C adapter that can be used for I2C-over-AUX communication
- * @dev: pointer to struct device that is the parent for this AUX channel
- * @crtc: backpointer to the crtc that is currently using this AUX channel
- * @hw_mutex: internal mutex used for locking transfers
- * @crc_work: worker that captures CRCs for each frame
- * @crc_count: counter of captured frame CRCs
- * @transfer: transfers a message representing a single AUX transaction
- *
- * The .dev field should be set to a pointer to the device that implements
- * the AUX channel.
- *
- * The .name field may be used to specify the name of the I2C adapter. If set to
- * NULL, dev_name() of .dev will be used.
- *
- * Drivers provide a hardware-specific implementation of how transactions
- * are executed via the .transfer() function. A pointer to a drm_dp_aux_msg
- * structure describing the transaction is passed into this function. Upon
- * success, the implementation should return the number of payload bytes
- * that were transferred, or a negative error-code on failure. Helpers
- * propagate errors from the .transfer() function, with the exception of
- * the -EBUSY error, which causes a transaction to be retried. On a short,
- * helpers will return -EPROTO to make it simpler to check for failure.
  *
  * An AUX channel can also be used to transport I2C messages to a sink. A
- * typical application of that is to access an EDID that's present in the
- * sink device. The .transfer() function can also be used to execute such
- * transactions. The drm_dp_aux_register() function registers an I2C
- * adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
- * should call drm_dp_aux_unregister() to remove the I2C adapter.
- * The I2C adapter uses long transfers by default; if a partial response is
- * received, the adapter will drop down to the size given by the partial
- * response for this transaction only.
- *
- * Note that the aux helper code assumes that the .transfer() function
- * only modifies the reply field of the drm_dp_aux_msg structure.  The
- * retry logic and i2c helpers assume this is the case.
+ * typical application of that is to access an EDID that's present in the sink
+ * device. The @transfer() function can also be used to execute such
+ * transactions. The drm_dp_aux_register() function registers an I2C adapter
+ * that can be passed to drm_probe_ddc(). Upon removal, drivers should call
+ * drm_dp_aux_unregister() to remove the I2C adapter. The I2C adapter uses long
+ * transfers by default; if a partial response is received, the adapter will
+ * drop down to the size given by the partial response for this transaction
+ * only.
  */
 struct drm_dp_aux {
+	/**
+	 * @name: user-visible name of this AUX channel and the
+	 * I2C-over-AUX adapter.
+	 *
+	 * It's also used to specify the name of the I2C adapter. If set
+	 * to %NULL, dev_name() of @dev will be used.
+	 */
 	const char *name;
+
+	/**
+	 * @ddc: I2C adapter that can be used for I2C-over-AUX
+	 * communication
+	 */
 	struct i2c_adapter ddc;
+
+	/**
+	 * @dev: pointer to struct device that is the parent for this
+	 * AUX channel.
+	 */
 	struct device *dev;
-#ifdef BSDTNG
+
 	/**
 	 * @drm_dev: pointer to the &drm_device that owns this AUX channel.
 	 * Beware, this may be %NULL before drm_dp_aux_register() has been
@@ -1986,13 +1948,61 @@ struct drm_dp_aux {
 	 * drm_dp_aux_register().
 	 */
 	struct drm_device *drm_dev;
-#endif
+
+	/**
+	 * @crtc: backpointer to the crtc that is currently using this
+	 * AUX channel
+	 */
 	struct drm_crtc *crtc;
+
+	/**
+	 * @hw_mutex: internal mutex used for locking transfers.
+	 *
+	 * Note that if the underlying hardware is shared among multiple
+	 * channels, the driver needs to do additional locking to
+	 * prevent concurrent access.
+	 */
 	struct mutex hw_mutex;
+
+	/**
+	 * @crc_work: worker that captures CRCs for each frame
+	 */
 	struct work_struct crc_work;
+
+	/**
+	 * @crc_count: counter of captured frame CRCs
+	 */
 	u8 crc_count;
+
+	/**
+	 * @transfer: transfers a message representing a single AUX
+	 * transaction.
+	 *
+	 * This is a hardware-specific implementation of how
+	 * transactions are executed that the drivers must provide.
+	 *
+	 * A pointer to a &drm_dp_aux_msg structure describing the
+	 * transaction is passed into this function. Upon success, the
+	 * implementation should return the number of payload bytes that
+	 * were transferred, or a negative error-code on failure.
+	 *
+	 * Helpers will propagate these errors, with the exception of
+	 * the %-EBUSY error, which causes a transaction to be retried.
+	 * On a short, helpers will return %-EPROTO to make it simpler
+	 * to check for failure.
+	 *
+	 * The @transfer() function must only modify the reply field of
+	 * the &drm_dp_aux_msg structure. The retry logic and i2c
+	 * helpers assume this is the case.
+	 *
+	 * Also note that this callback can be called no matter the
+	 * state @dev is in. Drivers that need that device to be powered
+	 * to perform this operation will first need to make sure it's
+	 * been properly enabled.
+	 */
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
+
 	/**
 	 * @i2c_nack_count: Counts I2C NACKs, used for DP validation.
 	 */
@@ -2011,9 +2021,6 @@ struct drm_dp_aux {
 	bool is_remote;
 };
 
-#ifdef BSDTNG
-int drm_dp_dpcd_probe(struct drm_dp_aux *aux, unsigned int offset);
-#endif
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
@@ -2109,14 +2116,8 @@ bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
 int drm_dp_read_sink_count(struct drm_dp_aux *aux);
 
 int drm_dp_read_lttpr_common_caps(struct drm_dp_aux *aux,
-#ifdef BSDTNG
-				  const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-#endif
 				  u8 caps[DP_LTTPR_COMMON_CAP_SIZE]);
 int drm_dp_read_lttpr_phy_caps(struct drm_dp_aux *aux,
-#ifdef BSDTNG
-			       const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-#endif
 			       enum drm_dp_phy dp_phy,
 			       u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 int drm_dp_lttpr_count(const u8 cap[DP_LTTPR_COMMON_CAP_SIZE]);
@@ -2213,7 +2214,6 @@ drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
 	return desc->quirks & BIT(quirk);
 }
 
-#ifdef BSDTNG
 /**
  * struct drm_edp_backlight_info - Probed eDP backlight info struct
  * @pwmgen_bit_count: The pwmgen bit count
@@ -2221,7 +2221,6 @@ drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
  * @max: The maximum backlight level that may be set
  * @lsb_reg_used: Do we also write values to the DP_EDP_BACKLIGHT_BRIGHTNESS_LSB register?
  * @aux_enable: Does the panel support the AUX enable cap?
- * @aux_set: Does the panel support setting the brightness through AUX?
  *
  * This structure contains various data about an eDP backlight, which can be populated by using
  * drm_edp_backlight_init().
@@ -2233,11 +2232,8 @@ struct drm_edp_backlight_info {
 
 	bool lsb_reg_used : 1;
 	bool aux_enable : 1;
-	bool aux_set : 1;
 };
-#endif
 
-#ifdef BSDTNG
 int
 drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
 		       u16 driver_pwm_freq_hz, const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE],
@@ -2261,11 +2257,7 @@ static inline int drm_panel_dp_aux_backlight(struct drm_panel *panel,
 	return 0;
 }
 
-#endif /* IS_ENABLED(CONFIG_DRM_KMS_HELPER) && 
-			(IS_BUILTIN(CONFIG_BACKLIGHT_CLASS_DEVICE) || \
-			(IS_MODULE(CONFIG_DRM_KMS_HELPER) && 
-			IS_MODULE(CONFIG_BACKLIGHT_CLASS_DEVICE))) */
-#endif /* BSDTNG */
+#endif
 
 #ifdef CONFIG_DRM_DP_CEC
 void drm_dp_cec_irq(struct drm_dp_aux *aux);
@@ -2327,9 +2319,9 @@ int drm_dp_get_pcon_max_frl_bw(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 int drm_dp_pcon_frl_prepare(struct drm_dp_aux *aux, bool enable_frl_ready_hpd);
 bool drm_dp_pcon_is_frl_ready(struct drm_dp_aux *aux);
 int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
-				bool concurrent_mode);
+				u8 frl_mode);
 int drm_dp_pcon_frl_configure_2(struct drm_dp_aux *aux, int max_frl_mask,
-				bool extended_train_mode);
+				u8 frl_type);
 int drm_dp_pcon_reset_frl_config(struct drm_dp_aux *aux);
 int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux);
 

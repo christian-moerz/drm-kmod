@@ -46,13 +46,17 @@
 static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_fault *vmf)
 {
-	long err = 0;
+	vm_fault_t ret = 0;
+	int err = 0;
+
+	if (likely(!bo->moving))
+		goto out_unlock;
 
 	/*
 	 * Quick non-stalling check for idle.
 	 */
-	if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_KERNEL))
-		return 0;
+	if (dma_fence_is_signaled(bo->moving))
+		goto out_clear;
 
 	/*
 	 * If possible, avoid waiting for GPU with mmap_lock
@@ -60,30 +64,34 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 	 * is the first attempt.
 	 */
 	if (fault_flag_allow_retry_first(vmf->flags)) {
+		ret = VM_FAULT_RETRY;
 		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
-			return VM_FAULT_RETRY;
+			goto out_unlock;
 
 		ttm_bo_get(bo);
 		mmap_read_unlock(vmf->vma->vm_mm);
-		(void)dma_resv_wait_timeout(bo->base.resv,
-					    DMA_RESV_USAGE_KERNEL, true,
-					    MAX_SCHEDULE_TIMEOUT);
+		(void) dma_fence_wait(bo->moving, true);
 		dma_resv_unlock(bo->base.resv);
 		ttm_bo_put(bo);
-		return VM_FAULT_RETRY;
+		goto out_unlock;
 	}
 
 	/*
 	 * Ordinary wait.
 	 */
-	err = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_KERNEL, true,
-				    MAX_SCHEDULE_TIMEOUT);
-	if (unlikely(err < 0)) {
-		return (err != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
+	err = dma_fence_wait(bo->moving, true);
+	if (unlikely(err != 0)) {
+		ret = (err != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
 			VM_FAULT_NOPAGE;
+		goto out_unlock;
 	}
 
-	return 0;
+out_clear:
+	dma_fence_put(bo->moving);
+	bo->moving = NULL;
+
+out_unlock:
+	return ret;
 }
 
 static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
@@ -102,7 +110,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
  * @bo: The buffer object
  * @vmf: The fault structure handed to the callback
  *
- * vm callbacks like fault() and *_mkwrite() allow for the mmap_lock to be dropped
+ * vm callbacks like fault() and *_mkwrite() allow for the mm_sem to be dropped
  * during long waits, and after the wait the callback will be restarted. This
  * is to allow other threads using the same virtual memory space concurrent
  * access to map(), unmap() completely unrelated buffer objects. TTM buffer
@@ -209,7 +217,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		return ret;
 
 	err = ttm_mem_io_reserve(bdev, bo->resource);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	VM_OBJECT_WLOCK(vma->vm_obj);
 #endif
 	if (unlikely(err != 0))
@@ -253,12 +261,13 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 			} else if (unlikely(!page)) {
 				break;
 			}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			page->oflags &= ~VPO_UNMANAGED;
 #endif
 			pfn = page_to_pfn(page);
 		}
 
+#ifdef __linux__
 		/*
 		 * Note that the value of @prot at this point may differ from
 		 * the value of @vma->vm_page_prot in the caching- and
@@ -267,7 +276,6 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		 * at arbitrary times while the data is mmap'ed.
 		 * See vmf_insert_mixed_prot() for a discussion.
 		 */
-#ifdef __linux__
 		ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
 #elif defined(__FreeBSD__)
 		ret = lkpi_vmf_insert_pfn_prot_locked(vma, address, pfn, prot);
@@ -367,7 +375,6 @@ void ttm_bo_vm_open(struct vm_area_struct *vma)
 	struct ttm_buffer_object *bo = vma->vm_private_data;
 
 #ifdef __linux__
-	/* FIXMBE BSD does not seem to exist on FreeBSD? */
 	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 #endif
 

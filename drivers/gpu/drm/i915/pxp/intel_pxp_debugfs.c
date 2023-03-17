@@ -4,15 +4,12 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/string_helpers.h>
-
 #include <drm/drm_print.h>
 
 #include "gt/intel_gt_debugfs.h"
+#include "pxp/intel_pxp.h"
+#include "pxp/intel_pxp_irq.h"
 #include "i915_drv.h"
-#include "intel_pxp.h"
-#include "intel_pxp_debugfs.h"
-#include "intel_pxp_irq.h"
 
 static int pxp_info_show(struct seq_file *m, void *data)
 {
@@ -25,7 +22,7 @@ static int pxp_info_show(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	drm_printf(&p, "active: %s\n", str_yes_no(intel_pxp_is_active(pxp)));
+	drm_printf(&p, "active: %s\n", yesno(intel_pxp_is_active(pxp)));
 	drm_printf(&p, "instance counter: %u\n", pxp->key_instance);
 
 	return 0;
@@ -47,9 +44,9 @@ static int pxp_terminate_set(void *data, u64 val)
 		return -ENODEV;
 
 	/* simulate a termination interrupt */
-	spin_lock_irq(gt->irq_lock);
+	spin_lock_irq(&gt->irq_lock);
 	intel_pxp_irq_handler(pxp, GEN12_DISPLAY_PXP_STATE_TERMINATED_INTERRUPT);
-	spin_unlock_irq(gt->irq_lock);
+	spin_unlock_irq(&gt->irq_lock);
 
 	if (!wait_for_completion_timeout(&pxp->termination,
 					 msecs_to_jiffies(100)))

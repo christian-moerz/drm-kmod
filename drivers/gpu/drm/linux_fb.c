@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 
 #include <dev/vt/vt.h>
-#include <dev/vt/hw/fb/vt_fb.h>
+#include "vt_drmfb.h"
 
+#include <drm/drm_fb_helper.h>
 #include <linux/fb.h>
 #undef fb_info
 #include <drm/drm_os_freebsd.h>
@@ -195,6 +196,7 @@ static int
 __register_framebuffer(struct linux_fb_info *fb_info)
 {
 	int i, err;
+	struct drm_fb_helper *fb_helper;
 
 	vt_freeze_main_vd(fb_info->apertures);
 
@@ -209,9 +211,17 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 				     VM_MEMATTR_UNCACHEABLE);
 #endif
 
+	fb_helper =
+	    ((struct vt_kms_softc *)fb_info->fbio.fb_priv)->fb_helper;
+	fb_info->fbio.fb_video_dev =
+	    device_get_parent(fb_helper->dev->dev->bsddev);
+	fb_info->fbio.fb_name =
+	    device_get_nameunit(fb_helper->dev->dev->bsddev);
+
 	fb_info->fbio.fb_type = FBTYPE_PCIMISC;
 	fb_info->fbio.fb_height = fb_info->var.yres;
 	fb_info->fbio.fb_width = fb_info->var.xres;
+	fb_info->fbio.fb_bpp = fb_info->var.bits_per_pixel;
 	fb_info->fbio.fb_depth = fb_info->var.bits_per_pixel;
 	fb_info->fbio.fb_cmsize = 0;
 	fb_info->fbio.fb_stride = fb_info->fix.line_length;
@@ -222,19 +232,28 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	fb_info->fbio.fb_fbd_dev = device_add_child(fb_info->fb_bsddev, "fbd",
 				device_get_unit(fb_info->fb_bsddev));
 
-	/* tell vt_fb to initialize color map */
+	/* tell vt_drmfb to initialize color map */
 	fb_info->fbio.fb_cmsize = 0;
 	if (fb_info->fbio.fb_bpp == 0) {
 		device_printf(fb_info->fbio.fb_fbd_dev,
-#ifdef __linux__
-		    "fb_bpp not set, setting to 8");
-#elif defined(__FreeBSD__)
-		    "fb_bpp not set, setting to 32");
-#endif
+		    "fb_bpp not set, setting to 8\n");
 		fb_info->fbio.fb_bpp = 32;
 	}
-	if ((err = vt_fb_attach(&fb_info->fbio)) != 0)
-		return (err);
+	if ((err = vt_drmfb_attach(&fb_info->fbio)) != 0) {
+		switch (err) {
+		case EEXIST:
+			device_printf(fb_info->fbio.fb_fbd_dev,
+			    "not attached to vt(4) console; "
+			    "another device has precedence (err=%d)\n",
+			    err);
+			break;
+		default:
+			device_printf(fb_info->fbio.fb_fbd_dev,
+			    "failed to attach to vt(4) console (err=%d)\n",
+			    err);
+		}
+		return (-err);
+	}
 	fb_info_print(&fb_info->fbio);
 	return 0;
 }
@@ -264,7 +283,7 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 		mtx_unlock(&Giant);
 		fb_info->fbio.fb_fbd_dev = NULL;
 	}
-	vt_fb_detach(&fb_info->fbio);
+	vt_drmfb_detach(&fb_info->fbio);
 
 	if (fb_info->fbops->fb_destroy)
 		fb_info->fbops->fb_destroy(fb_info);
@@ -312,4 +331,66 @@ linux_fb_get_options(const char *connector_name, char **option)
 		*option = kern_getenv("kern.vt.fb.default_mode");
 
 	return (*option != NULL ? 0 : -ENOENT);
+}
+
+int
+fb_set_var(struct linux_fb_info *info, struct fb_var_screeninfo *var)
+{
+	return (0);
+}
+
+int
+fb_pan_display(struct linux_fb_info *info, struct fb_var_screeninfo *var)
+{
+	return (0);
+}
+
+int
+fb_blank(struct linux_fb_info *info, int blank)
+{
+	return (0);
+}
+
+void
+cfb_fillrect(struct linux_fb_info *info, const struct fb_fillrect *rect)
+{
+}
+
+void
+cfb_copyarea(struct linux_fb_info *info, const struct fb_copyarea *area)
+{
+}
+
+void
+cfb_imageblit(struct linux_fb_info *info, const struct fb_image *image)
+{
+}
+
+void
+sys_fillrect(struct linux_fb_info *info, const struct fb_fillrect *rect)
+{
+}
+
+void
+sys_copyarea(struct linux_fb_info *info, const struct fb_copyarea *area)
+{
+}
+
+void
+sys_imageblit(struct linux_fb_info *info, const struct fb_image *image)
+{
+}
+
+ssize_t
+fb_sys_read(struct linux_fb_info *info, char __user *buf,
+    size_t count, loff_t *ppos)
+{
+	return (0);
+}
+
+ssize_t
+fb_sys_write(struct linux_fb_info *info, const char __user *buf,
+    size_t count, loff_t *ppos)
+{
+	return (0);
 }

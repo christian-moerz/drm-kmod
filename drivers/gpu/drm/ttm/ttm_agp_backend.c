@@ -41,6 +41,10 @@
 #include <linux/io.h>
 #include <asm/agp.h>
 
+#ifdef __FreeBSD__
+#include <dev/agp/agpvar.h>
+#endif
+
 struct ttm_agp_backend {
 	struct ttm_tt ttm;
 #ifdef __linux__
@@ -57,11 +61,11 @@ int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 	struct page *dummy_read_page = ttm_glob.dummy_read_page;
+	unsigned i;
+#ifdef __linux__
 	struct agp_memory *mem;
 	int ret, cached = ttm->caching == ttm_cached;
-	unsigned i;
 
-#ifdef __linux__
 	if (agp_be->mem)
 		return 0;
 
@@ -95,7 +99,7 @@ int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 		agp_be->pages[i] = page;
 	}
 
-	agp_be->offset = node->start * PAGE_SIZE;
+	agp_be->offset = bo_mem->start * PAGE_SIZE;
 	ret = -agp_bind_pages(agp_be->bridge, agp_be->pages,
 	    ttm->num_pages << PAGE_SHIFT, agp_be->offset);
 #endif
@@ -154,7 +158,6 @@ void ttm_agp_destroy(struct ttm_tt *ttm)
 #endif
 	ttm_tt_fini(ttm);
 	kfree(agp_be);
-
 }
 EXPORT_SYMBOL(ttm_agp_destroy);
 
@@ -177,7 +180,7 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
 #endif
 	agp_be->bridge = bridge;
 
-	if (ttm_tt_init(&agp_be->ttm, bo, page_flags, ttm_write_combined, 0)) {
+	if (ttm_tt_init(&agp_be->ttm, bo, page_flags, ttm_write_combined)) {
 		kfree(agp_be);
 		return NULL;
 	}

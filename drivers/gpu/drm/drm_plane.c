@@ -38,7 +38,7 @@
 /**
  * DOC: overview
  *
- * A plane represents an image source that can be blended with or overlayed on
+ * A plane represents an image source that can be blended with or overlaid on
  * top of a CRTC during the scanout process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
  * of that image, and where it is placed on the visible area of a display
@@ -50,10 +50,8 @@
  * &struct drm_plane (possibly as part of a larger structure) and registers it
  * with a call to drm_universal_plane_init().
  *
- * The type of a plane is exposed in the immutable "type" enumeration property,
- * which has one of the following values: "Overlay", "Primary", "Cursor" (see
- * enum drm_plane_type). A plane can be compatible with multiple CRTCs, see
- * &drm_plane.possible_crtcs.
+ * Each plane has a type, see enum drm_plane_type. A plane can be compatible
+ * with multiple CRTCs, see &drm_plane.possible_crtcs.
  *
  * Each CRTC must have a unique primary plane userspace can attach to enable
  * the CRTC. In other words, userspace must be able to attach a different
@@ -73,11 +71,70 @@
  *
  * DRM planes have a few standardized properties:
  *
+ * type:
+ *     Immutable property describing the type of the plane.
+ *
+ *     For user-space which has enabled the &DRM_CLIENT_CAP_ATOMIC capability,
+ *     the plane type is just a hint and is mostly superseded by atomic
+ *     test-only commits. The type hint can still be used to come up more
+ *     easily with a plane configuration accepted by the driver.
+ *
+ *     The value of this property can be one of the following:
+ *
+ *     "Primary":
+ *         To light up a CRTC, attaching a primary plane is the most likely to
+ *         work if it covers the whole CRTC and doesn't have scaling or
+ *         cropping set up.
+ *
+ *         Drivers may support more features for the primary plane, user-space
+ *         can find out with test-only atomic commits.
+ *
+ *         Some primary planes are implicitly used by the kernel in the legacy
+ *         IOCTLs &DRM_IOCTL_MODE_SETCRTC and &DRM_IOCTL_MODE_PAGE_FLIP.
+ *         Therefore user-space must not mix explicit usage of any primary
+ *         plane (e.g. through an atomic commit) with these legacy IOCTLs.
+ *
+ *     "Cursor":
+ *         To enable this plane, using a framebuffer configured without scaling
+ *         or cropping and with the following properties is the most likely to
+ *         work:
+ *
+ *         - If the driver provides the capabilities &DRM_CAP_CURSOR_WIDTH and
+ *           &DRM_CAP_CURSOR_HEIGHT, create the framebuffer with this size.
+ *           Otherwise, create a framebuffer with the size 64x64.
+ *         - If the driver doesn't support modifiers, create a framebuffer with
+ *           a linear layout. Otherwise, use the IN_FORMATS plane property.
+ *
+ *         Drivers may support more features for the cursor plane, user-space
+ *         can find out with test-only atomic commits.
+ *
+ *         Some cursor planes are implicitly used by the kernel in the legacy
+ *         IOCTLs &DRM_IOCTL_MODE_CURSOR and &DRM_IOCTL_MODE_CURSOR2.
+ *         Therefore user-space must not mix explicit usage of any cursor
+ *         plane (e.g. through an atomic commit) with these legacy IOCTLs.
+ *
+ *         Some drivers may support cursors even if no cursor plane is exposed.
+ *         In this case, the legacy cursor IOCTLs can be used to configure the
+ *         cursor.
+ *
+ *     "Overlay":
+ *         Neither primary nor cursor.
+ *
+ *         Overlay planes are the only planes exposed when the
+ *         &DRM_CLIENT_CAP_UNIVERSAL_PLANES capability is disabled.
+ *
  * IN_FORMATS:
  *     Blob property which contains the set of buffer format and modifier
  *     pairs supported by this plane. The blob is a struct
  *     drm_format_modifier_blob. Without this property the plane doesn't
  *     support buffers with modifiers. Userspace cannot change this property.
+ *
+ *     Note that userspace can check the &DRM_CAP_ADDFB2_MODIFIERS driver
+ *     capability for general modifier support. If this flag is set then every
+ *     plane will have the IN_FORMATS property, even when it only supports
+ *     DRM_FORMAT_MOD_LINEAR. Before linux kernel release v5.1 there have been
+ *     various bugs in this area with inconsistencies between the capability
+ *     flag and per-plane properties.
  */
 
 static unsigned int drm_num_planes(struct drm_device *dev)
@@ -145,21 +202,14 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 
 	memcpy(formats_ptr(blob_data), plane->format_types, formats_size);
 
-#ifndef BSDTNG
 	/* If we can't determine support, just bail */
 	if (!plane->funcs->format_mod_supported)
 		goto done;
-#endif
 
 	mod = modifiers_ptr(blob_data);
 	for (i = 0; i < plane->modifier_count; i++) {
 		for (j = 0; j < plane->format_count; j++) {
-#ifdef BSDTNG
-			if (!plane->funcs->format_mod_supported ||
-			    plane->funcs->format_mod_supported(plane,
-#else
 			if (plane->funcs->format_mod_supported(plane,
-#endif
 							       plane->format_types[j],
 							       plane->modifiers[i])) {
 
@@ -192,26 +242,12 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 				      const char *name, va_list ap)
 {
 	struct drm_mode_config *config = &dev->mode_config;
-#ifdef BSDTNG
-	static const uint64_t default_modifiers[] = {
-		DRM_FORMAT_MOD_LINEAR,
-	};
-#endif
 	unsigned int format_modifier_count = 0;
 	int ret;
 
 	/* plane index is used with 32bit bitmasks */
 	if (WARN_ON(config->num_total_plane >= 32))
 		return -EINVAL;
-
-#ifdef BSDTNG
-	/*
-	 * First driver to need more than 64 formats needs to fix this. Each
-	 * format is encoded as a bit and the current code only supports a u64.
-	 */
-	if (WARN_ON(format_count > 64))
-		return -EINVAL;
-#endif
 
 	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
 		(!funcs->atomic_destroy_state ||
@@ -234,14 +270,12 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		return -ENOMEM;
 	}
 
-#ifndef BSDTNG
 	/*
 	 * First driver to need more than 64 formats needs to fix this. Each
 	 * format is encoded as a bit and the current code only supports a u64.
 	 */
 	if (WARN_ON(format_count > 64))
 		return -EINVAL;
-#endif
 
 	if (format_modifiers) {
 		const uint64_t *temp_modifiers = format_modifiers;
@@ -250,8 +284,14 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 			format_modifier_count++;
 	}
 
-	if (format_modifier_count)
+	/* autoset the cap and check for consistency across all planes */
+	if (format_modifier_count) {
+		drm_WARN_ON(dev, !config->allow_fb_modifiers &&
+			    !list_empty(&config->plane_list));
 		config->allow_fb_modifiers = true;
+	} else {
+		drm_WARN_ON(dev, config->allow_fb_modifiers);
+	}
 
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
@@ -306,11 +346,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		drm_object_attach_property(&plane->base, config->prop_src_h, 0);
 	}
 
-#ifdef BSDTNG
-	if (format_modifier_count)
-#else
 	if (config->allow_fb_modifiers)
-#endif
 		create_in_format_blob(dev, plane);
 
 	return 0;
@@ -337,8 +373,8 @@ static int __drm_universal_plane_init(struct drm_device *dev,
  * drm_universal_plane_init() to let the DRM managed resource infrastructure
  * take care of cleanup and deallocation.
  *
- * Drivers that only support the DRM_FORMAT_MOD_LINEAR modifier support may set
- * @format_modifiers to NULL. The plane will advertise the linear modifier.
+ * Drivers supporting modifiers must set @format_modifiers on all their planes,
+ * even those that only support DRM_FORMAT_MOD_LINEAR.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -414,44 +450,6 @@ void *__drmm_universal_plane_alloc(struct drm_device *dev, size_t size,
 }
 EXPORT_SYMBOL(__drmm_universal_plane_alloc);
 
-void *__drm_universal_plane_alloc(struct drm_device *dev, size_t size,
-				  size_t offset, uint32_t possible_crtcs,
-				  const struct drm_plane_funcs *funcs,
-				  const uint32_t *formats, unsigned int format_count,
-				  const uint64_t *format_modifiers,
-				  enum drm_plane_type type,
-				  const char *name, ...)
-{
-	void *container;
-	struct drm_plane *plane;
-	va_list ap;
-	int ret;
-
-	if (drm_WARN_ON(dev, !funcs))
-		return ERR_PTR(-EINVAL);
-
-	container = kzalloc(size, GFP_KERNEL);
-	if (!container)
-		return ERR_PTR(-ENOMEM);
-
-	plane = container + offset;
-
-	va_start(ap, name);
-	ret = __drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
-					 formats, format_count, format_modifiers,
-					 type, name, ap);
-	va_end(ap);
-	if (ret)
-		goto err_kfree;
-
-	return container;
-
-err_kfree:
-	kfree(container);
-	return ERR_PTR(ret);
-}
-EXPORT_SYMBOL(__drm_universal_plane_alloc);
-
 int drm_plane_register_all(struct drm_device *dev)
 {
 	unsigned int num_planes = 0;
@@ -486,7 +484,6 @@ void drm_plane_unregister_all(struct drm_device *dev)
 	}
 }
 
-#ifndef BSDTNG
 /**
  * drm_plane_init - Initialize a legacy plane
  * @dev: DRM device
@@ -518,7 +515,6 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 					NULL, type, NULL);
 }
 EXPORT_SYMBOL(drm_plane_init);
-#endif
 
 /**
  * drm_plane_cleanup - Clean up the core plane usage
@@ -789,12 +785,8 @@ static int __setplane_check(struct drm_plane *plane,
 	ret = drm_plane_check_pixel_format(plane, fb->format->format,
 					   fb->modifier);
 	if (ret) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name),
-			      fb->modifier);
+		DRM_DEBUG_KMS("Invalid pixel format %p4cc, modifier 0x%llx\n",
+			      &fb->format->format, fb->modifier);
 		return ret;
 	}
 
@@ -1405,7 +1397,6 @@ out:
 	return ret;
 }
 
-#ifdef BSDTNG
 /**
  * DOC: damage tracking
  *
@@ -1509,8 +1500,6 @@ drm_plane_get_damage_clips(const struct drm_plane_state *state)
 	return __drm_plane_get_damage_clips(state);
 }
 EXPORT_SYMBOL(drm_plane_get_damage_clips);
-
-#endif /* BSDTNG */
 
 struct drm_property *
 drm_create_scaling_filter_prop(struct drm_device *dev,

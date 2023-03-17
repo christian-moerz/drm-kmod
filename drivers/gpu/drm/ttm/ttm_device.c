@@ -105,11 +105,8 @@ static int ttm_global_init(void)
 	INIT_LIST_HEAD(&glob->device_list);
 	atomic_set(&glob->bo_count, 0);
 
-#if __linux__
-	/* FIXME BSD look into converting as string instead? */
 	debugfs_create_atomic_t("buffer_objects", 0444, ttm_debugfs_root,
 				&glob->bo_count);
-#endif
 out:
 	if (ret && ttm_debugfs_root)
 		debugfs_remove(ttm_debugfs_root);
@@ -145,10 +142,9 @@ EXPORT_SYMBOL(ttm_global_swapout);
 int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 		       gfp_t gfp_flags)
 {
-	struct ttm_resource_cursor cursor;
 	struct ttm_resource_manager *man;
-	struct ttm_resource *res;
-	unsigned i;
+	struct ttm_buffer_object *bo;
+	unsigned i, j;
 	int ret;
 
 	spin_lock(&bdev->lru_lock);
@@ -157,20 +153,17 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 		if (!man || !man->use_tt)
 			continue;
 
-		ttm_resource_manager_for_each_res(man, &cursor, res) {
-			struct ttm_buffer_object *bo = res->bo;
-			uint32_t num_pages;
+		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j) {
+			list_for_each_entry(bo, &man->lru[j], lru) {
+				uint32_t num_pages = PFN_UP(bo->base.size);
 
-			if (!bo)
-				continue;
-
-			num_pages = PFN_UP(bo->base.size);
-			ret = ttm_bo_swapout(bo, ctx, gfp_flags);
-			/* ttm_bo_swapout has dropped the lru_lock */
-			if (!ret)
-				return num_pages;
-			if (ret != -EBUSY)
-				return ret;
+				ret = ttm_bo_swapout(bo, ctx, gfp_flags);
+				/* ttm_bo_swapout has dropped the lru_lock */
+				if (!ret)
+					return num_pages;
+				if (ret != -EBUSY)
+					return ret;
+			}
 		}
 	}
 	spin_unlock(&bdev->lru_lock);
@@ -204,11 +197,11 @@ static void ttm_device_delayed_workqueue(struct work_struct *work)
  * !0: Failure.
  */
 int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
-		    struct device *dev, 
-#ifdef __linux__	
-			struct address_space *mapping,
+		    struct device *dev,
+#ifdef __linux__
+		    struct address_space *mapping,
 #elif defined(__FreeBSD__)
-			vm_object_t mapping,
+		    void *dummy,
 #endif
 		    struct drm_vma_offset_manager *vma_manager,
 		    bool use_dma_alloc, bool use_dma32)
@@ -233,7 +226,9 @@ int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
 	spin_lock_init(&bdev->lru_lock);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	INIT_LIST_HEAD(&bdev->pinned);
+#ifdef __linux__
 	bdev->dev_mapping = mapping;
+#endif
 	mutex_lock(&ttm_global_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
 	mutex_unlock(&ttm_global_mutex);
@@ -271,45 +266,49 @@ void ttm_device_fini(struct ttm_device *bdev)
 }
 EXPORT_SYMBOL(ttm_device_fini);
 
-static void ttm_device_clear_lru_dma_mappings(struct ttm_device *bdev,
-					      struct list_head *list)
-{
-	struct ttm_resource *res;
-
-	spin_lock(&bdev->lru_lock);
-	while ((res = list_first_entry_or_null(list, typeof(*res), lru))) {
-		struct ttm_buffer_object *bo = res->bo;
-
-		/* Take ref against racing releases once lru_lock is unlocked */
-		if (!ttm_bo_get_unless_zero(bo))
-			continue;
-
-		list_del_init(&res->lru);
-		spin_unlock(&bdev->lru_lock);
-
-		if (bo->ttm)
-			ttm_tt_unpopulate(bo->bdev, bo->ttm);
-
-		ttm_bo_put(bo);
-		spin_lock(&bdev->lru_lock);
-	}
-	spin_unlock(&bdev->lru_lock);
-}
-
 void ttm_device_clear_dma_mappings(struct ttm_device *bdev)
 {
 	struct ttm_resource_manager *man;
+	struct ttm_buffer_object *bo;
 	unsigned int i, j;
 
-	ttm_device_clear_lru_dma_mappings(bdev, &bdev->pinned);
+	spin_lock(&bdev->lru_lock);
+	while (!list_empty(&bdev->pinned)) {
+		bo = list_first_entry(&bdev->pinned, struct ttm_buffer_object, lru);
+		/* Take ref against racing releases once lru_lock is unlocked */
+		if (ttm_bo_get_unless_zero(bo)) {
+			list_del_init(&bo->lru);
+			spin_unlock(&bdev->lru_lock);
+
+			if (bo->ttm)
+				ttm_tt_unpopulate(bo->bdev, bo->ttm);
+
+			ttm_bo_put(bo);
+			spin_lock(&bdev->lru_lock);
+		}
+	}
 
 	for (i = TTM_PL_SYSTEM; i < TTM_NUM_MEM_TYPES; ++i) {
 		man = ttm_manager_type(bdev, i);
 		if (!man || !man->use_tt)
 			continue;
 
-		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j)
-			ttm_device_clear_lru_dma_mappings(bdev, &man->lru[j]);
+		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j) {
+			while (!list_empty(&man->lru[j])) {
+				bo = list_first_entry(&man->lru[j], struct ttm_buffer_object, lru);
+				if (ttm_bo_get_unless_zero(bo)) {
+					list_del_init(&bo->lru);
+					spin_unlock(&bdev->lru_lock);
+
+					if (bo->ttm)
+						ttm_tt_unpopulate(bo->bdev, bo->ttm);
+
+					ttm_bo_put(bo);
+					spin_lock(&bdev->lru_lock);
+				}
+			}
+		}
 	}
+	spin_unlock(&bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_device_clear_dma_mappings);

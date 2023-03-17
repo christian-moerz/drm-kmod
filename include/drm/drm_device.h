@@ -5,9 +5,6 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
-#if defined(__FreeBSD__)
-#include <linux/fs.h>
-#endif
 
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mode_config.h>
@@ -132,8 +129,8 @@ struct drm_device {
 	 */
 	bool unplugged;
 
-#ifdef __linux__
 	/** @anon_inode: inode for private address-space */
+#ifdef __linux__	
 	struct inode *anon_inode;
 #endif
 
@@ -195,20 +192,6 @@ struct drm_device {
 	 * List of in-kernel clients. Protected by &clientlist_mutex.
 	 */
 	struct list_head clientlist;
-
-	/**
-	 * @irq_enabled:
-	 *
-	 * Indicates that interrupt handling is enabled, specifically vblank
-	 * handling. Drivers which don't use drm_irq_install() need to set this
-	 * to true manually.
-	 */
-	bool irq_enabled;
-
-	/**
-	 * @irq: Used by the drm_irq_install() and drm_irq_unistall() helpers.
-	 */
-	int irq;
 
 	/**
 	 * @vblank_disable_immediate:
@@ -281,12 +264,6 @@ struct drm_device {
 	 */
 	spinlock_t event_lock;
 
-	/** @agp: AGP data */
-	struct drm_agp_head *agp;
-
-	/** @pdev: PCI device structure */
-	struct pci_dev *pdev;
-
 	/** @num_crtcs: Number of CRTCs on this device */
 	unsigned int num_crtcs;
 
@@ -344,6 +321,9 @@ struct drm_device {
 	struct pci_controller *hose;
 #endif
 
+	/* AGP data */
+	struct drm_agp_head *agp;
+
 	/* Context handle management - linked list of context handles */
 	struct list_head ctxlist;
 
@@ -390,6 +370,10 @@ struct drm_device {
 
 	/* Scatter gather memory */
 	struct drm_sg_mem *sg;
+
+	/* IRQs */
+	bool irq_enabled;
+	int irq;
 #endif
 };
 

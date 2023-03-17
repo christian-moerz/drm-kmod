@@ -24,9 +24,6 @@
 #define DRM_DP_DUAL_MODE_HELPER_H
 
 #include <linux/types.h>
-#if defined(__FreeBSD__)
-#include <drm/drm_device.h>
-#endif
 
 /*
  * Optional for type 1 DVI adaptors
@@ -65,6 +62,7 @@
 #define DP_DUAL_MODE_LSPCON_CURRENT_MODE		0x41
 #define  DP_DUAL_MODE_LSPCON_MODE_PCON			0x1
 
+struct drm_device;
 struct i2c_adapter;
 
 ssize_t drm_dp_dual_mode_read(struct i2c_adapter *adapter,
@@ -106,36 +104,18 @@ enum drm_dp_dual_mode_type {
 	DRM_DP_DUAL_MODE_LSPCON,
 };
 
-#ifdef BSDTNG
 enum drm_dp_dual_mode_type
 drm_dp_dual_mode_detect(const struct drm_device *dev, struct i2c_adapter *adapter);
 int drm_dp_dual_mode_max_tmds_clock(const struct drm_device *dev, enum drm_dp_dual_mode_type type,
 				    struct i2c_adapter *adapter);
-#else
-enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter);
-int drm_dp_dual_mode_max_tmds_clock(enum drm_dp_dual_mode_type type,
-				    struct i2c_adapter *adapter);
-#endif
-int drm_dp_dual_mode_get_tmds_output(enum drm_dp_dual_mode_type type,
+int drm_dp_dual_mode_get_tmds_output(const struct drm_device *dev, enum drm_dp_dual_mode_type type,
 				     struct i2c_adapter *adapter, bool *enabled);
-#ifdef BSDTNG
 int drm_dp_dual_mode_set_tmds_output(const struct drm_device *dev, enum drm_dp_dual_mode_type type,
 				     struct i2c_adapter *adapter, bool enable);
-#else
-int drm_dp_dual_mode_set_tmds_output(enum drm_dp_dual_mode_type type,
-				     struct i2c_adapter *adapter, bool enable);
-#endif
 const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type);
 
-#ifdef BSDTNG
 int drm_lspcon_get_mode(const struct drm_device *dev, struct i2c_adapter *adapter,
 			enum drm_lspcon_mode *current_mode);
 int drm_lspcon_set_mode(const struct drm_device *dev, struct i2c_adapter *adapter,
 			enum drm_lspcon_mode reqd_mode);
-#else
-int drm_lspcon_get_mode(struct i2c_adapter *adapter,
-			enum drm_lspcon_mode *current_mode);
-int drm_lspcon_set_mode(struct i2c_adapter *adapter,
-			enum drm_lspcon_mode reqd_mode);
-#endif
 #endif

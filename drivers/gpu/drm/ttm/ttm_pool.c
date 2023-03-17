@@ -33,7 +33,6 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
-#include <linux/highmem.h>
 #include <linux/sched/mm.h>
 
 #ifdef CONFIG_X86
@@ -45,11 +44,6 @@
 #include <drm/ttm/ttm_tt.h>
 #ifdef __FreeBSD__
 #include <drm/ttm/ttm_sysctl_freebsd.h>
-#include <linux/gfp.h>
-#include <linux/shrinker.h>
-
-#define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
-
 #endif
 
 #include "ttm_module.h"
@@ -595,12 +589,10 @@ void ttm_pool_fini(struct ttm_pool *pool)
 				ttm_pool_type_fini(&pool->caching[i].orders[j]);
 	}
 
-#ifdef __linux__
 	/* We removed the pool types from the LRU, but we need to also make sure
 	 * that no shrinker is concurrently freeing pages from the pool.
 	 */
 	synchronize_shrinkers();
-#endif
 }
 
 /* As long as pages are available make sure to release at least one */
@@ -746,15 +738,12 @@ EXPORT_SYMBOL(ttm_pool_debugfs);
 /* Test the shrinker functions and dump the result */
 static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 {
-#ifndef BSDTNG
-	/* FIXME BSD incompatible shrink_control use */
 	struct shrink_control sc = { .gfp_mask = GFP_NOFS };
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(&mm_shrinker, &sc),
 		   ttm_pool_shrinker_scan(&mm_shrinker, &sc));
 	fs_reclaim_release(GFP_KERNEL);
-#endif
 
 	return 0;
 }
@@ -800,11 +789,7 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 	mm_shrinker.count_objects = ttm_pool_shrinker_count;
 	mm_shrinker.scan_objects = ttm_pool_shrinker_scan;
 	mm_shrinker.seeks = 1;
-#ifdef __linux__
-	return register_shrinker(&mm_shrinker, "drm-ttm_pool");
-#elif defined(__FreeBSD__)
 	return register_shrinker(&mm_shrinker);
-#endif
 }
 
 /**

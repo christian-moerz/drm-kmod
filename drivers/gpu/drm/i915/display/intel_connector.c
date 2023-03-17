@@ -28,9 +28,6 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
-#if defined(__FreeBSD__)
-#include <drm/drm_connector.h>
-#endif
 
 #include "i915_drv.h"
 #include "intel_backlight.h"
@@ -56,8 +53,6 @@ int intel_connector_init(struct intel_connector *connector)
 
 	__drm_atomic_helper_connector_reset(&connector->base,
 					    &conn_state->base);
-
-	INIT_LIST_HEAD(&connector->panel.fixed_modes);
 
 	return 0;
 }
@@ -105,7 +100,7 @@ void intel_connector_destroy(struct drm_connector *connector)
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
-	intel_panel_fini(intel_connector);
+	intel_panel_fini(&intel_connector->panel);
 
 	drm_connector_cleanup(connector);
 
@@ -190,7 +185,6 @@ int intel_connector_update_modes(struct drm_connector *connector,
 	int ret;
 
 	drm_connector_update_edid_property(connector, edid);
-
 	ret = drm_add_edid_modes(connector, edid);
 
 	return ret;
@@ -233,7 +227,7 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_property *prop;
 
-	prop = dev_priv->display.properties.force_audio;
+	prop = dev_priv->force_audio_property;
 	if (prop == NULL) {
 		prop = drm_property_create_enum(dev, 0,
 					   "audio",
@@ -242,7 +236,7 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 		if (prop == NULL)
 			return;
 
-		dev_priv->display.properties.force_audio = prop;
+		dev_priv->force_audio_property = prop;
 	}
 	drm_object_attach_property(&connector->base, prop, 0);
 }
@@ -260,7 +254,7 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_property *prop;
 
-	prop = dev_priv->display.properties.broadcast_rgb;
+	prop = dev_priv->broadcast_rgb_property;
 	if (prop == NULL) {
 		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
 					   "Broadcast RGB",
@@ -269,7 +263,7 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 		if (prop == NULL)
 			return;
 
-		dev_priv->display.properties.broadcast_rgb = prop;
+		dev_priv->broadcast_rgb_property = prop;
 	}
 
 	drm_object_attach_property(&connector->base, prop, 0);
@@ -287,25 +281,13 @@ intel_attach_aspect_ratio_property(struct drm_connector *connector)
 void
 intel_attach_hdmi_colorspace_property(struct drm_connector *connector)
 {
-#ifdef __linux__
 	if (!drm_mode_create_hdmi_colorspace_property(connector))
 		drm_connector_attach_colorspace_property(connector);
-#elif defined(__FreeBSD__)
-	if (!drm_mode_create_hdmi_colorspace_property(connector))
-		drm_object_attach_property(&connector->base,
-					   connector->colorspace_property, 0);
-#endif
 }
 
 void
 intel_attach_dp_colorspace_property(struct drm_connector *connector)
 {
-#ifdef __linux__
 	if (!drm_mode_create_dp_colorspace_property(connector))
 		drm_connector_attach_colorspace_property(connector);
-#elif defined(__FreeBSD__)
-	if (!drm_mode_create_dp_colorspace_property(connector))
-		drm_object_attach_property(&connector->base,
-					   connector->colorspace_property, 0);
-#endif
 }

@@ -39,7 +39,6 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 	struct drm_crtc *crtc;
 	unsigned int i = 0;
 
-
 	/* Add terminating zero entry to enable index less iteration */
 	client->modesets = kcalloc(num_crtc + 1, sizeof(*client->modesets), GFP_KERNEL);
 	if (!client->modesets)
@@ -164,19 +163,6 @@ drm_connector_pick_cmdline_mode(struct drm_connector *connector)
 	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode;
 	bool prefer_non_interlace;
-
-#ifdef BSDTNG
-	/*
-	 * Find a user-defined mode. If the user gave us a valid
-	 * mode on the kernel command line, it will show up in this
-	 * list.
-	 */
-
-	list_for_each_entry(mode, &connector->modes, head) {
-		if (mode->type & DRM_MODE_TYPE_USERDEF)
-			return mode;
-	}
-#endif
 
 	cmdline_mode = &connector->cmdline_mode;
 	if (cmdline_mode->specified == false)

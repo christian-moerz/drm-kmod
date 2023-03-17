@@ -11,7 +11,6 @@
 #endif
 
 #include <drm/i915_drm.h>
-#include <video/vga.h>
 
 #include "i915_drv.h"
 #include "intel_de.h"
@@ -37,19 +36,11 @@ void intel_vga_disable(struct drm_i915_private *dev_priv)
 	if (intel_de_read(dev_priv, vga_reg) & VGA_DISP_DISABLE)
 		return;
 
-#if defined(__FreeBSD__)
-#define VGA_SEQ_I   	0x3C4	/* Sequencer Index */
-#define VGA_SEQ_D   	0x3C5	/* Sequencer Data Register */
-#define VGA_SR01_SCREEN_OFF	0x20 /* bit 5: Screen is off */
-#define VGA_MIS_W   	0x3C2	/* Misc Output Write Register */
-#define VGA_MIS_R   	0x3CC	/* Misc Output Read Register */
-#endif
-
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-	outb(0x01, VGA_SEQ_I);
-	sr1 = inb(VGA_SEQ_D);
-	outb(sr1 | VGA_SR01_SCREEN_OFF, VGA_SEQ_D);
+	outb(SR01, VGA_SR_INDEX);
+	sr1 = inb(VGA_SR_DATA);
+	outb(sr1 | 1 << 5, VGA_SR_DATA);
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 	udelay(300);
 
@@ -105,7 +96,7 @@ void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 	 * and error messages.
 	 */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-	outb(inb(VGA_MIS_R), VGA_MIS_W);
+	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 }
 
@@ -150,15 +141,6 @@ intel_vga_set_decode(struct pci_dev *pdev, bool enable_decode)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
-#if defined(__FreeBSD__)
-/* FIXME BSD */
-/* FIXME LINUXKPI */
-static inline void vga_client_unregister(struct pci_dev *pdev)
-{
-	vga_client_register(pdev, NULL, NULL, NULL);
-}
-#endif
-
 int intel_vga_register(struct drm_i915_private *i915)
 {
 
@@ -173,11 +155,7 @@ int intel_vga_register(struct drm_i915_private *i915)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-#ifdef __linux__
 	ret = vga_client_register(pdev, intel_vga_set_decode);
-#elif defined(__FreeBSD__)
-	ret = vga_client_register(pdev, intel_vga_set_decode, NULL, NULL);
-#endif
 	if (ret && ret != -ENODEV)
 		return ret;
 

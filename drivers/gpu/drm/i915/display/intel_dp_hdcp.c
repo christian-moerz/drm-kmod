@@ -6,15 +6,9 @@
  * Sean Paul <seanpaul@chromium.org>
  */
 
-#ifdef __linux__
-#include <drm/display/drm_dp_helper.h>
-#include <drm/display/drm_dp_mst_helper.h>
-#include <drm/display/drm_hdcp_helper.h>
-#elif defined(__FreeBSD__)
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_hdcp.h>
-#endif
 #include <drm/drm_print.h>
 
 #include "intel_ddi.h"
@@ -23,7 +17,6 @@
 #include "intel_dp.h"
 #include "intel_dp_hdcp.h"
 #include "intel_hdcp.h"
-#include "intel_hdcp_regs.h"
 
 static unsigned int transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
 {

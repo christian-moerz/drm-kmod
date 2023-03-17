@@ -7,6 +7,7 @@
 #define _GUC_ACTIONS_SLPC_ABI_H_
 
 #include <linux/types.h>
+#include "i915_reg.h"
 
 /**
  * DOC: SLPC SHARED DATA STRUCTURE
@@ -120,12 +121,6 @@ enum slpc_param_id {
 	SLPC_PARAM_POWER_PROFILE = 27,
 	SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY = 28,
 	SLPC_MAX_PARAM = 32,
-};
-
-enum slpc_media_ratio_mode {
-	SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL = 0,
-	SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_ONE = 1,
-	SLPC_MEDIA_RATIO_MODE_FIXED_ONE_TO_TWO = 2,
 };
 
 enum slpc_event_id {

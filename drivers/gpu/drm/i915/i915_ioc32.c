@@ -31,7 +31,6 @@
 #include <drm/drm_ioctl.h>
 
 #include "i915_drv.h"
-#include "i915_getparam.h"
 #include "i915_ioc32.h"
 
 struct drm_i915_getparam32 {
@@ -64,7 +63,6 @@ static drm_ioctl_compat_t *i915_compat_ioctls[] = {
 	[DRM_I915_GETPARAM] = compat_i915_getparam,
 };
 
-#ifdef CONFIG_COMPAT
 /**
  * i915_ioc32_compat_ioctl - handle the mistakes of the past
  * @filp: the file pointer
@@ -93,4 +91,3 @@ long i915_ioc32_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
 	return ret;
 }
-#endif

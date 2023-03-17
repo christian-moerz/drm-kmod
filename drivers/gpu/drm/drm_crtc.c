@@ -337,14 +337,13 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
  * The &drm_crtc_funcs.destroy hook should call drm_crtc_cleanup() and kfree()
  * the crtc structure. The crtc structure should not be allocated with
  * devm_kzalloc().
-  *
+ *
  * The @primary and @cursor planes are only relevant for legacy uAPI, see
  * &drm_crtc.primary and &drm_crtc.cursor.
  *
- * Note: consider using drmm_crtc_alloc_with_planes() or
- * drmm_crtc_init_with_planes() instead of drm_crtc_init_with_planes()
- * to let the DRM managed resource infrastructure take care of cleanup
- * and deallocation.
+ * Note: consider using drmm_crtc_alloc_with_planes() instead of
+ * drm_crtc_init_with_planes() to let the DRM managed resource infrastructure
+ * take care of cleanup and deallocation.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -369,93 +368,13 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_crtc_init_with_planes);
 
-#ifdef BSDTNG
-static void drmm_crtc_init_with_planes_cleanup(struct drm_device *dev,
-#else
 static void drmm_crtc_alloc_with_planes_cleanup(struct drm_device *dev,
-#endif
 						void *ptr)
 {
 	struct drm_crtc *crtc = ptr;
 
 	drm_crtc_cleanup(crtc);
 }
-
-#ifdef BSDTNG
-__printf(6, 0)
-static int __drmm_crtc_init_with_planes(struct drm_device *dev,
-					struct drm_crtc *crtc,
-					struct drm_plane *primary,
-					struct drm_plane *cursor,
-					const struct drm_crtc_funcs *funcs,
-					const char *name,
-					va_list args)
-{
-	int ret;
-
-	drm_WARN_ON(dev, funcs && funcs->destroy);
-
-	ret = __drm_crtc_init_with_planes(dev, crtc, primary, cursor, funcs,
-					  name, args);
-	if (ret)
-		return ret;
-
-	ret = drmm_add_action_or_reset(dev, drmm_crtc_init_with_planes_cleanup,
-				       crtc);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/**
- * drmm_crtc_init_with_planes - Initialise a new CRTC object with
- *    specified primary and cursor planes.
- * @dev: DRM device
- * @crtc: CRTC object to init
- * @primary: Primary plane for CRTC
- * @cursor: Cursor plane for CRTC
- * @funcs: callbacks for the new CRTC
- * @name: printf style format string for the CRTC name, or NULL for default name
- *
- * Inits a new object created as base part of a driver crtc object. Drivers
- * should use this function instead of drm_crtc_init(), which is only provided
- * for backwards compatibility with drivers which do not yet support universal
- * planes). For really simple hardware which has only 1 plane look at
- * drm_simple_display_pipe_init() instead.
- *
- * Cleanup is automatically handled through registering
- * drmm_crtc_cleanup() with drmm_add_action(). The crtc structure should
- * be allocated with drmm_kzalloc().
- *
- * The @drm_crtc_funcs.destroy hook must be NULL.
- *
- * The @primary and @cursor planes are only relevant for legacy uAPI, see
- * &drm_crtc.primary and &drm_crtc.cursor.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drmm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
-			       struct drm_plane *primary,
-			       struct drm_plane *cursor,
-			       const struct drm_crtc_funcs *funcs,
-			       const char *name, ...)
-{
-	va_list ap;
-	int ret;
-
-	va_start(ap, name);
-	ret = __drmm_crtc_init_with_planes(dev, crtc, primary, cursor, funcs,
-					   name, ap);
-	va_end(ap);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL(drmm_crtc_init_with_planes);
-#endif
 
 void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
 				    size_t size, size_t offset,
@@ -479,22 +398,16 @@ void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
 	crtc = container + offset;
 
 	va_start(ap, name);
-#ifndef BSDTNG
 	ret = __drm_crtc_init_with_planes(dev, crtc, primary, cursor, funcs,
-#else
-	ret = __drmm_crtc_init_with_planes(dev, crtc, primary, cursor, funcs,
-#endif
 					  name, ap);
 	va_end(ap);
 	if (ret)
 		return ERR_PTR(ret);
 
-#ifndef BSDTNG
 	ret = drmm_add_action_or_reset(dev, drmm_crtc_alloc_with_planes_cleanup,
 				       crtc);
 	if (ret)
 		return ERR_PTR(ret);
-#endif
 
 	return container;
 }
@@ -822,11 +735,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 							   fb->format->format,
 							   fb->modifier);
 			if (ret) {
-				struct drm_format_name_buf format_name;
-
-				DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-					      drm_get_format_name(fb->format->format,
-								  &format_name),
+				DRM_DEBUG_KMS("Invalid pixel format %p4cc, modifier 0x%llx\n",
+					      &fb->format->format,
 					      fb->modifier);
 				goto out;
 			}

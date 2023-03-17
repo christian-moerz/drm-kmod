@@ -34,9 +34,8 @@
 #define _DRM_CACHE_H_
 
 #include <linux/scatterlist.h>
-#if defined(__FreeBSD__)
-#include <linux/iosys-map.h>
-#endif
+
+struct dma_buf_map;
 
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);
@@ -73,10 +72,9 @@ static inline bool drm_arch_can_wc_memory(void)
 #endif
 }
 
-#ifdef BSDTNG
-void drm_memcpy_from_wc(struct iosys_map *dst,
-			const struct iosys_map *src,
-			unsigned long len);
-#endif
+void drm_memcpy_init_early(void);
 
+void drm_memcpy_from_wc(struct dma_buf_map *dst,
+			const struct dma_buf_map *src,
+			unsigned long len);
 #endif

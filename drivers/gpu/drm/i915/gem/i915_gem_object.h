@@ -93,6 +93,7 @@ void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 
 struct sg_table *
 __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj);
+void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 /**
  * i915_gem_object_lookup_rcu - look up a temporary GEM object from its handle
@@ -210,17 +211,9 @@ static inline int i915_gem_object_lock_interruptible(struct drm_i915_gem_object 
 	return __i915_gem_object_lock(obj, ww, true);
 }
 
-static inline bool i915_gem_object_trylock(struct drm_i915_gem_object *obj,
-					   struct i915_gem_ww_ctx *ww)
+static inline bool i915_gem_object_trylock(struct drm_i915_gem_object *obj)
 {
-	if (!ww)
-		return dma_resv_trylock(obj->base.resv);
-	else
-#ifdef __linux__
-		return ww_mutex_trylock(&obj->base.resv->lock, &ww->ctx);
-#elif defined(__FreeBSD__)
-		return ww_mutex_trylock(&obj->base.resv->lock);
-#endif
+	return dma_resv_trylock(obj->base.resv);
 }
 
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
@@ -300,12 +293,6 @@ static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE);
-}
-
-static inline bool
-i915_gem_object_has_self_managed_shrink_list(const struct drm_i915_gem_object *obj)
-{
-	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_SELF_MANAGED_SHRINK_LIST);
 }
 
 static inline bool
@@ -462,7 +449,8 @@ i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 }
 
 int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
-int i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+void i915_gem_object_writeback(struct drm_i915_gem_object *obj);
 
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
@@ -524,18 +512,11 @@ i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin_pages(obj);
 }
 
-int i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj,
-				     struct dma_fence **fence);
-int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
-				      bool intr);
-bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj);
-
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
 bool i915_gem_object_can_bypass_llc(struct drm_i915_gem_object *obj);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj);
-bool i915_gem_cpu_write_needs_clflush(struct drm_i915_gem_object *obj);
 
 int __must_check
 i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write);
@@ -547,20 +528,30 @@ struct i915_vma * __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     struct i915_gem_ww_ctx *ww,
 				     u32 alignment,
-				     const struct i915_gtt_view *view,
+				     const struct i915_ggtt_view *view,
 				     unsigned int flags);
 
 void i915_gem_object_make_unshrinkable(struct drm_i915_gem_object *obj);
 void i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
-void __i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
-void __i915_gem_object_make_purgeable(struct drm_i915_gem_object *obj);
 void i915_gem_object_make_purgeable(struct drm_i915_gem_object *obj);
+
+static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
+{
+	if (obj->cache_dirty)
+		return false;
+
+	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
+		return true;
+
+	/* Currently in use by HW (display engine)? Keep flushed. */
+	return i915_gem_object_is_framebuffer(obj);
+}
 
 static inline void __start_cpu_write(struct drm_i915_gem_object *obj)
 {
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
-	if (i915_gem_cpu_write_needs_clflush(obj))
+	if (cpu_write_needs_clflush(obj))
 		obj->cache_dirty = true;
 }
 
@@ -612,10 +603,6 @@ bool i915_gem_object_migratable(struct drm_i915_gem_object *obj);
 int i915_gem_object_migrate(struct drm_i915_gem_object *obj,
 			    struct i915_gem_ww_ctx *ww,
 			    enum intel_region_id id);
-int __i915_gem_object_migrate(struct drm_i915_gem_object *obj,
-			      struct i915_gem_ww_ctx *ww,
-			      enum intel_region_id id,
-			      unsigned int flags);
 
 bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
 				 enum intel_region_id id);
@@ -625,31 +612,6 @@ int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
 
 bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 					enum intel_memory_type type);
-
-bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj);
-
-int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
-			 size_t size, struct intel_memory_region *mr,
-#ifdef __linux__			 
-			 struct address_space *mapping,
-#elif defined(__FreeBSD__)
-			 vm_object_t mapping,
-#endif
-			 unsigned int max_segment);
-void shmem_sg_free_table(struct sg_table *st, 
-#ifdef __linux__
-			 struct address_space *mapping,
-#elif defined(__FreeBSD__)
- 			 vm_object_t mapping,
-#endif
-			 bool dirty, bool backup);
-void __shmem_writeback(size_t size,
-#ifdef __linux__
-			 struct address_space *mapping
-#elif defined(__FreeBSD__)
- 			 vm_object_t mapping
-#endif
-);
 
 #ifdef CONFIG_MMU_NOTIFIER
 static inline bool

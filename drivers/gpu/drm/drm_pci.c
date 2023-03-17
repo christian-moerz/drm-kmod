@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 
 #include <drm/drm.h>
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>
 
@@ -45,125 +44,6 @@
 /* List of devices hanging off drivers with stealth attach. */
 static LIST_HEAD(legacy_dev_list);
 static DEFINE_MUTEX(legacy_dev_list_lock);
-
-#ifdef __FreeBSD__
-static void
-drm_pci_busdma_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{
-	drm_dma_handle_t *dmah = arg;
-
-	if (error != 0)
-		return;
-
-	KASSERT(nsegs == 1, ("drm_pci_busdma_callback: bad dma segment count"));
-	dmah->busaddr = segs[0].ds_addr;
-}
-#endif
-
-/**
- * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.
- * @dev: DRM device
- * @size: size of block to allocate
- * @align: alignment of block
- *
- * FIXME: This is a needless abstraction of the Linux dma-api and should be
- * removed.
- *
- * Return: A handle to the allocated memory block on success or NULL on
- * failure.
- */
-drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
-{
-#ifdef __FreeBSD__
-	drm_dma_handle_t *dmah;
-	int ret;
-
-	/* Need power-of-two alignment, so fail the allocation if it isn't. */
-	if ((align & (align - 1)) != 0) {
-		DRM_ERROR("drm_pci_alloc with non-power-of-two alignment %d\n",
-		    (int)align);
-		return NULL;
-	}
-
-	dmah = malloc(sizeof(drm_dma_handle_t), DRM_MEM_DMA, M_ZERO | M_NOWAIT);
-	if (dmah == NULL)
-		return NULL;
-
-	ret = bus_dma_tag_create(
-	    bus_get_dma_tag(dev->dev->bsddev), /* parent */
-	    align, 0, /* align, boundary */
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
-	    NULL, NULL, /* filtfunc, filtfuncargs */
-	    size, 1, size, /* maxsize, nsegs, maxsegsize */
-	    0, NULL, NULL, /* flags, lockfunc, lockfuncargs */
-	    &dmah->tag);
-	if (ret != 0) {
-		free(dmah, DRM_MEM_DMA);
-		return NULL;
-	}
-
-	ret = bus_dmamem_alloc(dmah->tag, (void **)&dmah->vaddr,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_NOCACHE, &dmah->map);
-	if (ret != 0) {
-		bus_dma_tag_destroy(dmah->tag);
-		free(dmah, DRM_MEM_DMA);
-		return NULL;
-	}
-
-	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr, size,
-	    drm_pci_busdma_callback, dmah, BUS_DMA_NOWAIT);
-	if (ret != 0) {
-		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
-		bus_dma_tag_destroy(dmah->tag);
-		free(dmah, DRM_MEM_DMA);
-		return NULL;
-	}
-	return dmah;
-#else
-	drm_dma_handle_t *dmah;
-
-	/* pci_alloc_consistent only guarantees alignment to the smallest
-	 * PAGE_SIZE order which is greater than or equal to the requested size.
-	 * Return NULL here for now to make sure nobody tries for larger alignment
-	 */
-	if (align > size)
-		return NULL;
-
-	dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
-	if (!dmah)
-		return NULL;
-
-	dmah->size = size;
-	dmah->vaddr = dma_alloc_coherent(dev->dev, size,
-					 &dmah->busaddr,
-					 GFP_KERNEL);
-
-	if (dmah->vaddr == NULL) {
-		kfree(dmah);
-		return NULL;
-	}
-
-	return dmah;
-#endif
-}
-EXPORT_SYMBOL(drm_pci_alloc);
-
-/**
- * drm_pci_free - Free a PCI consistent memory block
- * @dev: DRM device
- * @dmah: handle to memory block
- *
- * FIXME: This is a needless abstraction of the Linux dma-api and should be
- * removed.
- */
-void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
-{
-	dma_free_coherent(dev->dev, dmah->size, dmah->vaddr,
-			  dmah->busaddr);
-	kfree(dmah);
-}
-
-EXPORT_SYMBOL(drm_pci_free);
 #endif
 
 static int drm_get_pci_domain(struct drm_device *dev)
@@ -193,7 +73,7 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 					drm_get_pci_domain(dev),
 					pci_get_bus(dev->dev->bsddev),
 					pci_get_slot(dev->dev->bsddev),
-					PCI_FUNC(dev->pdev->devfn));
+					PCI_FUNC(pdev->devfn));
 #else
 	master->unique = kasprintf(GFP_KERNEL, "pci:%04x:%02x:%02x.%d",
 					drm_get_pci_domain(dev),
@@ -208,7 +88,29 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 	return 0;
 }
 
-static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
+#ifdef __FreeBSD__
+int
+drm_getpciinfo(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct drm_pciinfo *info = data;
+
+	info->domain = pci_get_domain(dev->dev->bsddev);
+	info->bus = pci_get_bus(dev->dev->bsddev);
+	info->dev = pci_get_slot(dev->dev->bsddev);
+	info->func = pci_get_function(dev->dev->bsddev);
+	info->vendor_id = pci_get_vendor(dev->dev->bsddev);
+	info->device_id = pci_get_device(dev->dev->bsddev);
+	info->subvendor_id = pci_get_subvendor(dev->dev->bsddev);
+	info->subdevice_id = pci_get_subdevice(dev->dev->bsddev);
+	info->revision_id = pci_get_revid(dev->dev->bsddev);
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_DRM_LEGACY
+
+static int drm_legacy_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -251,30 +153,10 @@ int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EOPNOTSUPP;
 
-	return drm_pci_irq_by_busid(dev, p);
+	return drm_legacy_pci_irq_by_busid(dev, p);
 }
 
-#ifdef __FreeBSD__
-int
-drm_getpciinfo(struct drm_device *dev, void *data, struct drm_file *file_priv)
-{
-	struct drm_pciinfo *info = data;
-
-	info->domain = pci_get_domain(dev->dev->bsddev);
-	info->bus = pci_get_bus(dev->dev->bsddev);
-	info->dev = pci_get_slot(dev->dev->bsddev);
-	info->func = pci_get_function(dev->dev->bsddev);
-	info->vendor_id = pci_get_vendor(dev->dev->bsddev);
-	info->device_id = pci_get_device(dev->dev->bsddev);
-	info->subvendor_id = pci_get_subvendor(dev->dev->bsddev);
-	info->subdevice_id = pci_get_subdevice(dev->dev->bsddev);
-	info->revision_id = pci_get_revid(dev->dev->bsddev);
-
-	return 0;
-}
-#endif
-
-void drm_pci_agp_destroy(struct drm_device *dev)
+void drm_legacy_pci_agp_destroy(struct drm_device *dev)
 {
 	if (dev->agp) {
 #ifdef __linux__
@@ -291,13 +173,11 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_DRM_LEGACY
-
-static void drm_pci_agp_init(struct drm_device *dev)
+static void drm_legacy_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
 		if (pci_find_capability(to_pci_dev(dev->dev), PCI_CAP_ID_AGP))
-			dev->agp = drm_agp_init(dev);
+			dev->agp = drm_legacy_agp_init(dev);
 		if (dev->agp) {
 #ifdef __linux__
 			dev->agp->agp_mtrr = arch_phys_wc_add(
@@ -315,9 +195,9 @@ static void drm_pci_agp_init(struct drm_device *dev)
 	}
 }
 
-static int drm_get_pci_dev(struct pci_dev *pdev,
-			   const struct pci_device_id *ent,
-			   const struct drm_driver *driver)
+static int drm_legacy_get_pci_dev(struct pci_dev *pdev,
+				  const struct pci_device_id *ent,
+				  const struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -332,15 +212,11 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	if (ret)
 		goto err_free;
 
-	dev->pdev = pdev;
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		pci_set_drvdata(pdev, dev);
-
-	drm_pci_agp_init(dev);
+	drm_legacy_pci_agp_init(dev);
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
@@ -355,7 +231,7 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	return 0;
 
 err_agp:
-	drm_pci_agp_destroy(dev);
+	drm_legacy_pci_agp_destroy(dev);
 	pci_disable_device(pdev);
 err_free:
 	drm_dev_put(dev);
@@ -403,7 +279,7 @@ int drm_legacy_pci_init(const struct drm_driver *driver,
 
 			/* stealth mode requires a manual probe */
 			pci_dev_get(pdev);
-			drm_get_pci_dev(pdev, pid, driver);
+			drm_legacy_get_pci_dev(pdev, pid, driver);
 		}
 	}
 	return 0;

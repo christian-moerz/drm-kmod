@@ -320,24 +320,6 @@ struct drm_monitor_range_info {
 	u8 max_vfreq;
 };
 
-#ifdef BSDTNG
-/**
- * struct drm_luminance_range_info - Panel's luminance range for
- * &drm_display_info. Calculated using data in EDID
- *
- * This struct is used to store a luminance range supported by panel
- * as calculated using data from EDID's static hdr metadata.
- *
- * @min_luminance: This is the min supported luminance value
- *
- * @max_luminance: This is the max supported luminance value
- */
-struct drm_luminance_range_info {
-	u32 min_luminance;
-	u32 max_luminance;
-};
-#endif /* BSDTNG */
-
 /*
  * This is a consolidated colorimetry list supported by HDMI and
  * DP protocol standard. The respective connectors will register
@@ -583,20 +565,6 @@ struct drm_display_info {
 	 */
 	bool rgb_quant_range_selectable;
 
-#ifdef BSDTNG
-	/**
-	 * @edid_hdmi_rgb444_dc_modes: Mask of supported hdmi deep color modes
-	 * in RGB 4:4:4. Even more stuff redundant with @bus_formats.
-	 */
-	u8 edid_hdmi_rgb444_dc_modes;
-
-	/**
-	 * @edid_hdmi_ycbcr444_dc_modes: Mask of supported hdmi deep color
-	 * modes in YCbCr 4:4:4. Even more stuff redundant with @bus_formats.
-	 */
-	u8 edid_hdmi_ycbcr444_dc_modes;
-#endif
-
 	/**
 	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
 	 * more stuff redundant with @bus_formats.
@@ -623,12 +591,6 @@ struct drm_display_info {
 	 */
 	struct drm_monitor_range_info monitor_range;
 
-#ifdef BSDTNG
-	/**
-	 * @luminance_range: Luminance range supported by panel
-	 */
-	struct drm_luminance_range_info luminance_range;
-
 	/**
 	 * @mso_stream_count: eDP Multi-SST Operation (MSO) stream count from
 	 * the DisplayID VESA vendor block. 0 for conventional Single-Stream
@@ -640,8 +602,6 @@ struct drm_display_info {
 	 * @mso_pixel_overlap: eDP MSO segment pixel overlap, 0-8 pixels.
 	 */
 	u8 mso_pixel_overlap;
-#endif
-
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -900,6 +860,11 @@ struct drm_connector_funcs {
 	 * locks to avoid races with concurrent modeset changes need to use
 	 * &drm_connector_helper_funcs.detect_ctx instead.
 	 *
+	 * Also note that this callback can be called no matter the
+	 * state the connector is in. Drivers that need the underlying
+	 * device to be powered to perform the detection will first need
+	 * to make sure it's been properly enabled.
+	 *
 	 * RETURNS:
 	 *
 	 * drm_connector_status indicating the connector's status.
@@ -1132,8 +1097,6 @@ struct drm_connector_funcs {
 	void (*atomic_print_state)(struct drm_printer *p,
 				   const struct drm_connector_state *state);
 
-#ifdef BSDTNG
-
 	/**
 	 * @oob_hotplug_event:
 	 *
@@ -1141,14 +1104,6 @@ struct drm_connector_funcs {
 	 * has been received from a source outside the display driver / device.
 	 */
 	void (*oob_hotplug_event)(struct drm_connector *connector);
-
-	/**
-	 * @debugfs_init:
-	 *
-	 * Allows connectors to create connector-specific debugfs files.
-	 */
-	void (*debugfs_init)(struct drm_connector *connector, struct dentry *root);
-#endif
 };
 
 /**
@@ -1293,6 +1248,14 @@ struct drm_connector {
 	struct device *kdev;
 	/** @attr: sysfs attributes */
 	struct device_attribute *attr;
+	/**
+	 * @fwnode: associated fwnode supplied by platform firmware
+	 *
+	 * Drivers can set this to associate a fwnode with a connector, drivers
+	 * are expected to get a reference on the fwnode when setting this.
+	 * drm_connector_cleanup() will call fwnode_handle_put() on this.
+	 */
+	struct fwnode_handle *fwnode;
 
 	/**
 	 * @head:
@@ -1303,6 +1266,14 @@ struct drm_connector {
 	 * &drm_connector_list_iter to walk this list.
 	 */
 	struct list_head head;
+
+	/**
+	 * @global_connector_list_entry:
+	 *
+	 * Connector entry in the global connector-list, used by
+	 * drm_connector_find_by_fwnode().
+	 */
+	struct list_head global_connector_list_entry;
 
 	/** @base: base KMS object */
 	struct drm_mode_object base;
@@ -1715,6 +1686,7 @@ drm_connector_is_unregistered(struct drm_connector *connector)
 		DRM_CONNECTOR_UNREGISTERED;
 }
 
+void drm_connector_oob_hotplug_event(struct fwnode_handle *connector_fwnode);
 const char *drm_get_connector_type_name(unsigned int connector_type);
 const char *drm_get_connector_status_name(enum drm_connector_status status);
 const char *drm_get_subpixel_order_name(enum subpixel_order order);
@@ -1741,12 +1713,10 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 					       u32 scaling_mode_mask);
 int drm_connector_attach_vrr_capable_property(
 		struct drm_connector *connector);
-#ifdef BSDTNG
 int drm_connector_attach_colorspace_property(struct drm_connector *connector);
 int drm_connector_attach_hdr_output_metadata_property(struct drm_connector *connector);
 bool drm_connector_atomic_hdr_metadata_equal(struct drm_connector_state *old_state,
 					     struct drm_connector_state *new_state);
-#endif
 int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 int drm_mode_create_hdmi_colorspace_property(struct drm_connector *connector);
 int drm_mode_create_dp_colorspace_property(struct drm_connector *connector);
@@ -1807,6 +1777,11 @@ void drm_mode_put_tile_group(struct drm_device *dev,
  * drm_connector_list_iter_begin(), drm_connector_list_iter_end() and
  * drm_connector_list_iter_next() respectively the convenience macro
  * drm_for_each_connector_iter().
+ *
+ * Note that the return value of drm_connector_list_iter_next() is only valid
+ * up to the next drm_connector_list_iter_next() or
+ * drm_connector_list_iter_end() call. If you want to use the connector later,
+ * then you need to grab your own reference first using drm_connector_get().
  */
 struct drm_connector_list_iter {
 /* private: */

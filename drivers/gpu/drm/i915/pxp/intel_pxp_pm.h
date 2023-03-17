@@ -6,7 +6,7 @@
 #ifndef __INTEL_PXP_PM_H__
 #define __INTEL_PXP_PM_H__
 
-struct intel_pxp;
+#include "intel_pxp_types.h"
 
 #ifdef CONFIG_DRM_I915_PXP
 void intel_pxp_suspend_prepare(struct intel_pxp *pxp);

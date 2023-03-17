@@ -18,7 +18,7 @@
 #include <uapi/drm/i915_drm.h>
 
 #include "gt/intel_sseu.h"
-#include "i915_reg_defs.h"
+#include "i915_reg.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
@@ -55,7 +55,7 @@ struct i915_oa_config {
 
 	struct attribute_group sysfs_metric;
 	struct attribute *attrs[2];
-	struct kobj_attribute sysfs_metric_id;
+	struct device_attribute sysfs_metric_id;
 
 	struct kref ref;
 	struct rcu_head rcu;
@@ -81,7 +81,6 @@ struct i915_perf_stream_ops {
 	 */
 	void (*disable)(struct i915_perf_stream *stream);
 
-#ifdef __linux__
 	/**
 	 * @poll_wait: Call poll_wait, passing a wait queue that will be woken
 	 * once there is something ready to read() for the stream
@@ -89,15 +88,6 @@ struct i915_perf_stream_ops {
 	void (*poll_wait)(struct i915_perf_stream *stream,
 			  struct file *file,
 			  poll_table *wait);
-#elif defined(__FreeBSD__)
-	/**
-	 * @xpoll_wait: Call poll_wait, passing a wait queue that will be woken
-	 * once there is something ready to read() for the stream
-	 */
-	void (*xpoll_wait)(struct i915_perf_stream *stream,
-			  struct file *file,
-			  poll_table *wait);
-#endif
 
 	/**
 	 * @wait_unlocked: For handling a blocking read, wait until there is

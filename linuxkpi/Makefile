@@ -6,8 +6,7 @@ KMOD=	linuxkpi_gplv2
 
 SRCS=	linux_kmod_gplv2.c	\
 	linux_devres.c		\
-	linux_hdmi.c \
-	linux_xarray.c
+	linux_hdmi.c
 
 .if !empty(KCONFIG:MACPI*)
 SRCS+=	opt_acpi.h
@@ -24,8 +23,7 @@ CFLAGS+= -I${.CURDIR}/dummy/include
 CFLAGS+= -I${.CURDIR}/gplv2/include
 CFLAGS+= -I${.CURDIR}/bsd/include
 CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include
-CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"' -DLINUXKPI_VERSION=50000
-CFLAGS+= -DBSDTNG -DXARRAY_EXPERIMENTAL
+CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"' -DLINUXKPI_VERSION=51600
 CFLAGS+= ${KCONFIG:C/(.*)/-DCONFIG_\1/}
 CFLAGS.gcc+= -Wno-cast-qual
 CFLAGS.linux_hdmi.c=	-Wno-cast-qual

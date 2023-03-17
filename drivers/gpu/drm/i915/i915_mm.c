@@ -27,7 +27,6 @@
 
 
 #include "i915_drv.h"
-#include "i915_mm.h"
 
 #ifdef __FreeBSD__
 #include <vm/vm_pageout.h>
@@ -47,6 +46,54 @@ struct remap_pfn {
 	struct sgt_iter sgt;
 	resource_size_t iobase;
 };
+
+#ifdef __FreeBSD__
+static int
+remap_page_range(unsigned long start_addr, unsigned long size,
+    pte_fn_t fn,  struct remap_pfn *r)
+{
+	vm_object_t vm_obj = r->vma->vm_obj;
+	unsigned long addr;
+	int err = 0;
+
+	VM_OBJECT_WLOCK(vm_obj);
+	for (addr = start_addr; addr < start_addr + size; addr += PAGE_SIZE) {
+retry:
+		err = fn(0, addr, r);
+		if (err == -ENOMEM) {
+			VM_OBJECT_WUNLOCK(vm_obj);
+			vm_wait(NULL);
+			VM_OBJECT_WLOCK(vm_obj);
+			goto retry;
+		}
+		if (err != 0)
+			break;
+	}
+	VM_OBJECT_WUNLOCK(vm_obj);
+
+	return (err);
+}
+#endif
+
+static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
+{
+	struct remap_pfn *r = data;
+
+#ifdef __linux__
+	/* Special PTE are not associated with any struct page */
+	set_pte_at(r->mm, addr, pte, pte_mkspecial(pfn_pte(r->pfn, r->prot)));
+#elif defined(__FreeBSD__)
+	vm_fault_t ret;
+	ret = lkpi_vmf_insert_pfn_prot_locked(r->vma, addr, r->pfn, r->prot);
+	if ((ret & VM_FAULT_OOM) != 0)
+		return -ENOMEM;
+	if ((ret & VM_FAULT_ERROR) != 0)
+		return -EFAULT;
+#endif
+	r->pfn++;
+
+	return 0;
+}
 
 #define use_dma(io) ((io) != -1)
 
@@ -86,58 +133,6 @@ static int remap_sg(pte_t *pte, unsigned long addr, void *data)
 	return 0;
 }
 
-#define EXPECTED_FLAGS (VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
-
-#ifdef __FreeBSD__
-static int
-remap_page_range(unsigned long start_addr, unsigned long size,
-    pte_fn_t fn,  struct remap_pfn *r)
-{
-	vm_object_t vm_obj = r->vma->vm_obj;
-	unsigned long addr;
-	int err = 0;
-
-	VM_OBJECT_WLOCK(vm_obj);
-	for (addr = start_addr; addr < start_addr + size; addr += PAGE_SIZE) {
-retry:
-		err = fn(0, addr, r);
-		if (err == -ENOMEM) {
-			VM_OBJECT_WUNLOCK(vm_obj);
-			vm_wait(NULL);
-			VM_OBJECT_WLOCK(vm_obj);
-			goto retry;
-		}
-		if (err != 0)
-			break;
-	}
-	VM_OBJECT_WUNLOCK(vm_obj);
-
-	return (err);
-}
-#endif
-
-#if IS_ENABLED(CONFIG_X86)
-static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
-{
-	struct remap_pfn *r = data;
-
-	/* Special PTE are not associated with any struct page */
-#ifdef __linux__
-	/* Special PTE are not associated with any struct page */
-	set_pte_at(r->mm, addr, pte, pte_mkspecial(pfn_pte(r->pfn, r->prot)));
-#elif defined(__FreeBSD__)
-	vm_fault_t ret;
-	ret = lkpi_vmf_insert_pfn_prot_locked(r->vma, addr, r->pfn, r->prot);
-	if ((ret & VM_FAULT_OOM) != 0)
-		return -ENOMEM;
-	if ((ret & VM_FAULT_ERROR) != 0)
-		return -EFAULT;
-#endif
-	r->pfn++;
-
-	return 0;
-}
-
 /**
  * remap_io_mapping - remap an IO mapping to userspace
  * @vma: user vma to map to
@@ -155,6 +150,7 @@ int remap_io_mapping(struct vm_area_struct *vma,
 	struct remap_pfn r;
 	int err;
 
+#define EXPECTED_FLAGS (VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
 	GEM_BUG_ON((vma->vm_flags & EXPECTED_FLAGS) != EXPECTED_FLAGS);
 
 	/* We rely on prevalidation of the io-mapping to skip track_pfn(). */
@@ -176,7 +172,6 @@ int remap_io_mapping(struct vm_area_struct *vma,
 
 	return 0;
 }
-#endif
 
 /**
  * remap_io_sg - remap an IO mapping to userspace

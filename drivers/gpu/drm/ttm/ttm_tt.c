@@ -37,10 +37,8 @@
 #include <linux/module.h>
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
-
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <drm/ttm/ttm_sysctl_freebsd.h>
-#include <linux/vmalloc.h>
 #endif
 
 #include "ttm_module.h"
@@ -102,29 +100,29 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
 #ifdef __linux__
-	ttm->pages = kvcalloc(ttm->num_pages, sizeof(void*), GFP_KERNEL);
+	ttm->pages = kvmalloc_array(ttm->num_pages, sizeof(void*),
+			GFP_KERNEL | __GFP_ZERO);
 #elif defined(__FreeBSD__)
 	ttm->pages = kvmalloc_array(ttm->num_pages,
 				    sizeof(*ttm->pages) +
 				    sizeof(*ttm->orders),
 				    GFP_KERNEL | __GFP_ZERO);
 #endif
-
 	if (!ttm->pages)
 		return -ENOMEM;
-
 #ifdef __FreeBSD__
 	ttm->orders = (void *)(ttm->pages + ttm->num_pages);
 #endif
-
 	return 0;
 }
 
 static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
 #ifdef __linux__
-	ttm->pages = kvcalloc(ttm->num_pages, sizeof(*ttm->pages) +
-			      sizeof(*ttm->dma_address), GFP_KERNEL);
+	ttm->pages = kvmalloc_array(ttm->num_pages,
+				    sizeof(*ttm->pages) +
+				    sizeof(*ttm->dma_address),
+				    GFP_KERNEL | __GFP_ZERO);
 #elif defined(__FreeBSD__)
 	ttm->pages = kvmalloc_array(ttm->num_pages,
 				    sizeof(*ttm->pages) +
@@ -132,7 +130,6 @@ static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 				    sizeof(*ttm->orders),
 				    GFP_KERNEL | __GFP_ZERO);
 #endif
-
 	if (!ttm->pages)
 		return -ENOMEM;
 
@@ -145,11 +142,11 @@ static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 
 static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->dma_address = kvcalloc(ttm->num_pages, sizeof(*ttm->dma_address),
-				    GFP_KERNEL);
+	ttm->dma_address = kvmalloc_array(ttm->num_pages,
+					  sizeof(*ttm->dma_address),
+					  GFP_KERNEL | __GFP_ZERO);
 	if (!ttm->dma_address)
 		return -ENOMEM;
-
 	return 0;
 }
 
@@ -161,10 +158,9 @@ void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
 			       struct ttm_buffer_object *bo,
 			       uint32_t page_flags,
-			       enum ttm_caching caching,
-			       unsigned long extra_pages)
+			       enum ttm_caching caching)
 {
-	ttm->num_pages = (PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT) + extra_pages;
+	ttm->num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
 	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
 	ttm->dma_address = NULL;
@@ -174,10 +170,9 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 }
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		uint32_t page_flags, enum ttm_caching caching,
-		unsigned long extra_pages)
+		uint32_t page_flags, enum ttm_caching caching)
 {
-	ttm_tt_init_fields(ttm, bo, page_flags, caching, extra_pages);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
 	if (ttm_tt_alloc_page_directory(ttm)) {
 		pr_err("Failed allocating page table\n");
@@ -209,7 +204,7 @@ int ttm_sg_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 {
 	int ret;
 
-	ttm_tt_init_fields(ttm, bo, page_flags, caching, 0);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
 	if (page_flags & TTM_TT_FLAG_EXTERNAL)
 		ret = ttm_sg_tt_alloc_page_directory(ttm);
@@ -309,7 +304,7 @@ int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
 	gfp_flags &= mapping_gfp_mask(swap_space);
 #elif defined(__FreeBSD__)
 	swap_space = swap_storage->f_shmem;
-	gfp_flags &= 0;
+	gfp_flags = 0;
 #endif
 
 	for (i = 0; i < ttm->num_pages; ++i) {
@@ -453,36 +448,20 @@ void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages)
 }
 
 static void ttm_kmap_iter_tt_map_local(struct ttm_kmap_iter *iter,
-				       struct iosys_map *dmap,
+				       struct dma_buf_map *dmap,
 				       pgoff_t i)
 {
 	struct ttm_kmap_iter_tt *iter_tt =
 		container_of(iter, typeof(*iter_tt), base);
 
-#ifdef __linux__
-	iosys_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
-						       iter_tt->prot));
-#elif defined(__FreeBSD__)
-	iosys_map_set_vaddr(dmap, kmap_atomic_prot(iter_tt->tt->pages[i],
-						       iter_tt->prot));
-#endif
+	dma_buf_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
+							 iter_tt->prot));
 }
 
 static void ttm_kmap_iter_tt_unmap_local(struct ttm_kmap_iter *iter,
-					 struct iosys_map *map)
+					 struct dma_buf_map *map)
 {
-#ifdef __linux__
 	kunmap_local(map->vaddr);
-#elif defined(__FreeBSD__)
-	/* FIXME BSD
-		initially tried kmap_atomic_prot, but I think this isn't right
-		because it locks the page
-		
-		kmap_local_page_prot is supposed to be thread and cpu local
-		
-		this seems reasonably equivalent, including sched_pin() call */
-	kunmap_atomic(map->vaddr);
-#endif
 }
 
 static const struct ttm_kmap_iter_ops ttm_kmap_iter_tt_ops = {

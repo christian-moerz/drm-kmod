@@ -3,8 +3,6 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <linux/string_helpers.h>
-
 #include "intel_guc_rc.h"
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
@@ -49,6 +47,7 @@ static int guc_action_control_gucrc(struct intel_guc *guc, bool enable)
 static int __guc_rc_control(struct intel_guc *guc, bool enable)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_device *drm = &guc_to_gt(guc)->i915->drm;
 	int ret;
 
 	if (!intel_uc_uses_guc_rc(&gt->uc))
@@ -59,13 +58,13 @@ static int __guc_rc_control(struct intel_guc *guc, bool enable)
 
 	ret = guc_action_control_gucrc(guc, enable);
 	if (ret) {
-		i915_probe_error(guc_to_gt(guc)->i915, "Failed to %s GuC RC (%pe)\n",
-				 str_enable_disable(enable), ERR_PTR(ret));
+		drm_err(drm, "Failed to %s GuC RC (%pe)\n",
+			enabledisable(enable), ERR_PTR(ret));
 		return ret;
 	}
 
 	drm_info(&gt->i915->drm, "GuC RC: %s\n",
-		 str_enabled_disabled(enable));
+		 enableddisabled(enable));
 
 	return 0;
 }

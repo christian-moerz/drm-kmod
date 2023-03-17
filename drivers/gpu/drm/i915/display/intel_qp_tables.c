@@ -3,11 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#ifdef __linux__
-#include <drm/display/drm_dsc.h>
-#elif defined(__FreeBSD__)
 #include <drm/drm_dsc.h>
-#endif
 
 #include "i915_utils.h"
 #include "intel_qp_tables.h"
