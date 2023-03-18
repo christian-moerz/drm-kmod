@@ -38,6 +38,12 @@ struct drm_printer;
 #define ENABLE_GUC_LOAD_HUC		BIT(1)
 #define ENABLE_GUC_MASK			GENMASK(1, 0)
 
+#ifdef CONFIG_DRM_I915_REQUEST_TIMEOUT
+#define PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT CONFIG_DRM_I915_REQUEST_TIMEOUT
+#else
+#define PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT 0
+#endif
+
 /*
  * Invoke param, a function-like macro, for each i915 param, with arguments:
  *
@@ -76,7 +82,7 @@ struct drm_printer;
 	param(int, enable_dpcd_backlight, -1, 0600) \
 	param(char *, force_probe, CONFIG_DRM_I915_FORCE_PROBE, 0400) \
 	param(unsigned long, fake_lmem_start, 0, IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM) ? 0400 : 0) \
-	param(unsigned int, request_timeout_ms, CONFIG_DRM_I915_REQUEST_TIMEOUT, CONFIG_DRM_I915_REQUEST_TIMEOUT ? 0600 : 0) \
+	param(unsigned int, request_timeout_ms, PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT, PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT ? 0600 : 0) \
 	/* leave bools at the end to not create holes */ \
 	param(bool, enable_hangcheck, true, 0600) \
 	param(bool, load_detect_test, false, 0600) \
