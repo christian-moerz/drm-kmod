@@ -111,6 +111,10 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
    the method is declared and it just ignores it???? */
 void drm_fb_helper_cfb_fillrect(struct fb_info *info,
 					      const struct fb_fillrect *rect);
+void drm_fb_helper_cfb_copyarea(struct fb_info *info,
+					      const struct fb_copyarea *area);
+void drm_fb_helper_cfb_imageblit(struct fb_info *info,
+					       const struct fb_image *image);
 #endif
 
 static const struct fb_ops intelfb_ops = {
