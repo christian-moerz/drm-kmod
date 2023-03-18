@@ -48,8 +48,6 @@ vd_bitblt_text_t	vt_drmfb_bitblt_text;
 vd_bitblt_bmp_t		vt_drmfb_bitblt_bitmap;
 vd_drawrect_t		vt_drmfb_drawrect;
 vd_setpixel_t		vt_drmfb_setpixel;
-#if 0
 vd_postswitch_t		vt_drmfb_postswitch;
-#endif
 
 #endif /* _DEV_VT_HW_FB_VT_DRMFB_H_ */

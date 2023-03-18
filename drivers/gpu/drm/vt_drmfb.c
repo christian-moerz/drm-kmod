@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/reboot.h>
 #include <sys/fbio.h>
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
@@ -57,8 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include "vt_drmfb.h"
 
-#define	to_vt_kms_softc(fbio) ((struct vt_kms_softc *)(fbio->fb_priv))
-#define	to_drm_fb_helper(fbio) (to_vt_kms_softc(fbio)->fb_helper)
+#define	to_drm_fb_helper(fbio) ((struct drm_fb_helper *)fbio->fb_priv)
 #define	to_linux_fb_info(fbio) (to_drm_fb_helper(fbio)->fbdev)
 
 static struct vt_driver vt_drmfb_driver = {
@@ -70,18 +70,18 @@ static struct vt_driver vt_drmfb_driver = {
 	.vd_bitblt_bmp = vt_drmfb_bitblt_bitmap,
 	.vd_drawrect = vt_drmfb_drawrect,
 	.vd_setpixel = vt_drmfb_setpixel,
-#if 0
 	.vd_postswitch = vt_drmfb_postswitch,
-#endif
 	.vd_priority = VD_PRIORITY_GENERIC+20,
 	.vd_suspend = vt_drmfb_suspend,
 	.vd_resume = vt_drmfb_resume,
 
 	/* Use vt_fb implementation */
-	.vd_invalidate_text = vt_fb_invalidate_text, 
+	.vd_invalidate_text = vt_fb_invalidate_text,
 	.vd_fb_ioctl = vt_fb_ioctl,
 	.vd_fb_mmap = vt_fb_mmap,
 };
+
+static bool already_switching_inside_panic = false;
 
 VT_DRIVER_DECLARE(vt_drmfb, vt_drmfb_driver);
 
@@ -103,8 +103,10 @@ vt_drmfb_drawrect(
 
 	fbio = vd->vd_softc;
 	info = to_linux_fb_info(fbio);
-	if (info->fbops->fb_fillrect == NULL)
+	if (info->fbops->fb_fillrect == NULL) {
+		log(LOG_ERR, "No fb_fillrect callback defined\n");
 		return;
+	}
 
 	KASSERT(
 	    (x2 >= x1),
@@ -163,8 +165,10 @@ vt_drmfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 
 	fbio = vd->vd_softc;
 	info = to_linux_fb_info(fbio);
-	if (info->fbops->fb_imageblit == NULL)
+	if (info->fbops->fb_imageblit == NULL) {
+		log(LOG_ERR, "No fb_imageblit callback defined\n");
 		return;
+	}
 
 	image.dx = x;
 	image.dy = y;
@@ -248,18 +252,39 @@ vt_drmfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 #endif
 }
 
-#if 0
 void
 vt_drmfb_postswitch(struct vt_device *vd)
 {
-	struct fb_info *info;
+	struct fb_info *fbio;
+	struct linux_fb_info *info;
 
-	info = vd->vd_softc;
+	fbio = vd->vd_softc;
+	info = to_linux_fb_info(fbio);
+	if (info->fbops->fb_set_par == NULL) {
+		log(LOG_ERR, "No fb_set_par callback defined\n");
+		return;
+	}
 
-	if (info->enter != NULL)
-		info->enter(info->fb_priv);
-}
+	if (!kdb_active && !KERNEL_PANICKED()) {
+		linux_set_current(curthread);
+		info->fbops->fb_set_par(info);
+	} else {
+#ifdef DDB
+		db_trace_self_depth(10);
+		mdelay(1000);
 #endif
+		if (already_switching_inside_panic || skip_ddb) {
+			spinlock_enter();
+			doadump(false);
+			EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
+		}
+
+		already_switching_inside_panic = true;
+		linux_set_current(curthread);
+		info->fbops->fb_set_par(info);
+		already_switching_inside_panic = false;
+	}
+}
 
 static int
 vt_drmfb_init_colors(struct fb_info *info)
@@ -287,48 +312,7 @@ vt_drmfb_init_colors(struct fb_info *info)
 int
 vt_drmfb_init(struct vt_device *vd)
 {
-	struct fb_info *info;
-	u_int margin;
-	int bg, err;
-	term_color_t c;
-
-	info = vd->vd_softc;
-	vd->vd_height = MIN(VT_FB_MAX_HEIGHT, info->fb_height);
-	margin = (info->fb_height - vd->vd_height) >> 1;
-	vd->vd_transpose = margin * info->fb_stride;
-	vd->vd_width = MIN(VT_FB_MAX_WIDTH, info->fb_width);
-	margin = (info->fb_width - vd->vd_width) >> 1;
-	vd->vd_transpose += margin * (info->fb_bpp / NBBY);
-	vd->vd_video_dev = info->fb_video_dev;
-
-	if (info->fb_size == 0)
-		return (CN_DEAD);
-
-	if (info->fb_pbase == 0 && info->fb_vbase == 0)
-		info->fb_flags |= FB_FLAG_NOMMAP;
-
-	if (info->fb_cmsize <= 0) {
-		err = vt_drmfb_init_colors(info);
-		if (err)
-			return (CN_DEAD);
-		info->fb_cmsize = 16;
-	}
-
-	c = TC_BLACK;
-	if (TUNABLE_INT_FETCH("teken.bg_color", &bg) != 0) {
-		if (bg == TC_WHITE)
-			bg |= TC_LIGHT;
-		c = bg;
-	}
-	/* Clear the screen. */
-	vd->vd_driver->vd_blank(vd, c);
-
-#if 0
-	/* Wakeup screen. KMS need this. */
-	vt_drmfb_postswitch(vd);
-#endif
-
-	return (CN_INTERNAL);
+	return vt_fb_init(vd);
 }
 
 void

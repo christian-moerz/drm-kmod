@@ -1396,7 +1396,6 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	if (oops_in_progress)
 		return -EBUSY;
 
-#ifdef __linux__
 	if (var->pixclock != 0) {
 		drm_err(fb_helper->dev, "PIXEL CLOCK SET\n");
 		return -EINVAL;
@@ -1418,12 +1417,13 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	 * commit function, which ensures that we never steal the display from
 	 * an active drm master.
 	 */
+#ifdef __linux__
 	force = var->activate & FB_ACTIVATE_KD_TEXT;
+#elif defined(__FreeBSD__)
+	force = false;
+#endif
 
 	__drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper, force);
-#elif defined(__FreeBSD__)
-	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
-#endif
 
 	return 0;
 }
@@ -1887,9 +1887,7 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 
 #ifdef __FreeBSD__
 	info->fb_bsddev = fb_helper->dev->dev->bsddev;
-	struct vt_kms_softc *sc = (struct vt_kms_softc *)info->fbio.fb_priv;
-	if (sc)
-		sc->fb_helper = fb_helper;
+	info->fbio.fb_priv = fb_helper;
 #endif
 
 	/* Need to drop locks to avoid recursive deadlock in
