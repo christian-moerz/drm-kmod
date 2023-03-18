@@ -106,6 +106,13 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 	return ret;
 }
 
+#ifdef __FreeBSD__
+/* what the heck is clang doing???? there is an f-ing include,
+   the method is declared and it just ignores it???? */
+void drm_fb_helper_cfb_fillrect(struct fb_info *info,
+					      const struct fb_fillrect *rect);
+#endif
+
 static const struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
