@@ -923,6 +923,14 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 	return ret;
 }
 
+#ifdef __FreeBSD__
+#ifdef CONFIG_DRM_I915_REQUEST_TIMEOUT
+#define PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT CONFIG_DRM_I915_REQUEST_TIMEOUT
+#else
+#define PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT 0
+#endif
+#endif /* __FreeBSD__ */
+
 static int intel_context_set_gem(struct intel_context *ce,
 				 struct i915_gem_context *ctx,
 				 struct intel_sseu sseu)
@@ -943,7 +951,11 @@ static int intel_context_set_gem(struct intel_context *ce,
 	    intel_engine_has_semaphores(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 
+#ifdef __FreeBSD__
+	if (PARAM_CONFIG_DRM_I915_REQUEST_TIMEOUT &&
+#else
 	if (CONFIG_DRM_I915_REQUEST_TIMEOUT &&
+#endif
 	    ctx->i915->params.request_timeout_ms) {
 		unsigned int timeout_ms = ctx->i915->params.request_timeout_ms;
 
