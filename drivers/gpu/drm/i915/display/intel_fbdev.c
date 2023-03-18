@@ -40,6 +40,9 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#ifdef __FreeBSD__
+#include <drm/drm_fb_helper.h>
+#endif
 
 #include "gem/i915_gem_lmem.h"
 
