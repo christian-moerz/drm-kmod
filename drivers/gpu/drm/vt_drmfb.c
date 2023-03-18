@@ -318,7 +318,7 @@ vt_drmfb_init(struct vt_device *vd)
 void
 vt_drmfb_fini(struct vt_device *vd, void *softc)
 {
-	vd->vd_video_dev = NULL;
+	return vt_fb_fini(vd, softc);
 }
 
 int
