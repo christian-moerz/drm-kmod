@@ -263,6 +263,7 @@ vt_drmfb_postswitch(struct vt_device *vd)
 	fbio = vd->vd_softc;
 
 	/* taken on from vt_fb */
+	printf("vt_drmfb: calling fbio enter\n");
 	if (fbio->enter != NULL)
 		fbio->enter(fbio->fb_priv);
 
@@ -274,6 +275,7 @@ vt_drmfb_postswitch(struct vt_device *vd)
 
 	if (!kdb_active && !KERNEL_PANICKED()) {
 		linux_set_current(curthread);
+		printf("vt_drmfb: postswitch calling set_par\n");
 		info->fbops->fb_set_par(info);
 	} else {
 #ifdef DDB
