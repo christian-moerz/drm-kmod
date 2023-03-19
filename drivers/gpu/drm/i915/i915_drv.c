@@ -726,23 +726,18 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	intel_gt_driver_register(&dev_priv->gt);
 
-	printf("i915_drv: calling intel_display_driver_register\n");
 	intel_display_driver_register(dev_priv);
 
-	printf("i915_drv: calling intel_power_domains_enable\n");
 	intel_power_domains_enable(dev_priv);
-	printf("i915_drv: calling intel_runtime_pm_enable\n");
 	intel_runtime_pm_enable(&dev_priv->runtime_pm);
 
 #ifdef __linux__
 	intel_register_dsm_handler();
 #endif
 
-	printf("i915_drv: registering vga switcheroo\n");
 	if (i915_switcheroo_register(dev_priv))
 		drm_err(&dev_priv->drm, "Failed to register vga switcheroo!\n");
 	
-	printf("i915_drv: i915_driver_register completed\n");
 }
 
 /**
@@ -909,11 +904,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915_driver_register(i915);
 
-	printf("i915_drv: enabling rpm wakeref\n" );
-
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
-
-	printf("i915_drv: welcome messages\n");
 
 	i915_welcome_messages(i915);
 

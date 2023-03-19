@@ -1201,25 +1201,33 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -EPROBE_DEFER;
 
 	err = i915_driver_probe(pdev, ent);
-	if (err)
+	if (err) {
+		printf("i915_pci_probe: driver_probe failed\n");
 		return err;
+	}
 
 	if (i915_inject_probe_failure(pci_get_drvdata(pdev))) {
+		printf("i915_pci_probe: inject probe failure failed\n");
 		i915_pci_remove(pdev);
 		return -ENODEV;
 	}
 
 	err = i915_live_selftests(pdev);
 	if (err) {
+		printf("i915_pci_probe: live selftests failed\n");
 		i915_pci_remove(pdev);
 		return err > 0 ? -ENOTTY : err;
 	}
+
+	printf("i915_pci_probe: running self tests\n");
 
 	err = i915_perf_selftests(pdev);
 	if (err) {
 		i915_pci_remove(pdev);
 		return err > 0 ? -ENOTTY : err;
 	}
+
+	printf("i915_pci_probe: completed\n");
 
 	return 0;
 }
