@@ -259,6 +259,11 @@ vt_drmfb_postswitch(struct vt_device *vd)
 	struct linux_fb_info *info;
 
 	fbio = vd->vd_softc;
+
+	/* taken on from vt_fb */
+	if (fbio->enter != NULL)
+		fbio->enter(fbio->fb_priv);
+
 	info = to_linux_fb_info(fbio);
 	if (info->fbops->fb_set_par == NULL) {
 		log(LOG_ERR, "No fb_set_par callback defined\n");
