@@ -128,6 +128,8 @@ vt_drmfb_drawrect(
 	rect.rop = ROP_COPY;
 
 	info->fbops->fb_fillrect(info, &rect);
+
+	printf("vt_drmfb: drawrect completed\n");
 }
 
 void
@@ -146,6 +148,7 @@ vt_drmfb_blank(struct vt_device *vd, term_color_t color)
 	y2 = info->var.yres - 1;
 
 	vt_drmfb_drawrect(vd, x1, y1, x2, y2, 1, color);
+	printf("vt_drmfb: blank completed\n");
 }
 
 void
@@ -180,6 +183,7 @@ vt_drmfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	image.data = pattern;
 
 	info->fbops->fb_imageblit(info, &image);
+	printf("vt_drmfb: bitmap completed\n");
 }
 
 void
@@ -250,6 +254,7 @@ vt_drmfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
 	}
 #endif
+	printf("vt_drmfb: text completed\n");
 }
 
 void

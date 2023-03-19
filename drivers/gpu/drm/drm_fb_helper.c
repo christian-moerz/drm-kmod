@@ -523,6 +523,8 @@ int drm_fb_helper_init(struct drm_device *dev,
 {
 	int ret;
 
+	printf("drm_fb_helper_init: started\n");
+
 	if (!drm_fbdev_emulation) {
 		dev->fb_helper = fb_helper;
 		return 0;
@@ -534,11 +536,15 @@ int drm_fb_helper_init(struct drm_device *dev,
 	 */
 	if (!fb_helper->client.funcs) {
 		ret = drm_client_init(dev, &fb_helper->client, "drm_fb_helper", NULL);
-		if (ret)
+		if (ret) {
+			printf("drm_fb_helper_init: failed\n");
 			return ret;
+		}
 	}
 
 	dev->fb_helper = fb_helper;
+
+	printf("drm_fb_helper_init: completed\n");
 
 	return 0;
 }
