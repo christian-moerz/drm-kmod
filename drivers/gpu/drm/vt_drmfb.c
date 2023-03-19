@@ -101,6 +101,8 @@ vt_drmfb_drawrect(
 	struct linux_fb_info *info;
 	struct fb_fillrect rect;
 
+	printf("vt_drmfb: setpixel started\n");
+
 	fbio = vd->vd_softc;
 	info = to_linux_fb_info(fbio);
 	if (info->fbops->fb_fillrect == NULL) {
@@ -139,6 +141,8 @@ vt_drmfb_blank(struct vt_device *vd, term_color_t color)
 	struct linux_fb_info *info;
 	int x1, y1, x2, y2;
 
+	printf("vt_drmfb: blank started\n");
+
 	fbio = vd->vd_softc;
 	info = to_linux_fb_info(fbio);
 
@@ -160,6 +164,8 @@ vt_drmfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	struct fb_info *fbio;
 	struct linux_fb_info *info;
 	struct fb_image image;
+
+	printf("vt_drmfb: bitmap started\n");
 
 	KASSERT(
 	    (mask != NULL),
@@ -196,6 +202,8 @@ vt_drmfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 	term_color_t fg, bg;
 	const uint8_t *pattern;
 	size_t z;
+
+	printf("vt_drmfb: text start\n");
 
 	vf = vw->vw_font;
 
