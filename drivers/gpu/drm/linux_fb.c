@@ -111,8 +111,6 @@ fb_info_print(struct linux_fb_info *info)
 	       info->fbio.fb_name, info->fix.id, info->fbio.fb_flags,
 	       info->fix.line_length);
 	printf("end FB_INFO\n");
-
-	panic("reboot");
 }
 
 CTASSERT((sizeof(struct linux_fb_info) % sizeof(long)) == 0);
