@@ -258,6 +258,8 @@ vt_drmfb_postswitch(struct vt_device *vd)
 	struct fb_info *fbio;
 	struct linux_fb_info *info;
 
+	printf("vt_drmfb: starting postswitch\n");
+
 	fbio = vd->vd_softc;
 
 	/* taken on from vt_fb */
@@ -289,6 +291,8 @@ vt_drmfb_postswitch(struct vt_device *vd)
 		info->fbops->fb_set_par(info);
 		already_switching_inside_panic = false;
 	}
+
+	printf("vt_drmfb: finishing postswitch\n");
 }
 
 static int
@@ -317,6 +321,7 @@ vt_drmfb_init_colors(struct fb_info *info)
 int
 vt_drmfb_init(struct vt_device *vd)
 {
+	printf("vt_drmfb: calling vt_fb_init\n");
 	return vt_fb_init(vd);
 }
 
