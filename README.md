@@ -1,33 +1,17 @@
 # drm-kmod
 The DRM drivers ported from Linux to FreeBSD using LinuxKPI
 
-## Contributing
+This is an old drm-kmod driver, patched to work for frame.work Intel 12th gen
+notebooks. This work is based on dumbbell@'s work.
 
-### Linux source code
-Folders `amd`, `drm`, `i915`, `radeon` contain FreeBSD Makefiles for the driver modules.  
+I was having screen freezes and random reboots with kernel messages
 
-Folder `drivers` contain source code from Linux, patched (minimally) to run on FreeBSD with LinuxKPI.
-Try to keep changes to the code to a minimum but if you have to patch it, leave the Linux source code intact like so:
+ drmn0: [drm] ERROR Fault errors on pipe A
+ drmn0: [drm] ERROR Timed out waiting for DSB workload completion.
 
-```
-#ifdef __linux__
-...intact linux code...
-#elif defined(__FreeBSD__)
-bsd code
-#endif
-```
+This appears to stick around on 15, unfortunately.
+See https://github.com/freebsd/drm-kmod/issues/284
 
-When updating and patching this code with code from Linux there are often merge conflicts where the code has been changed. If there are no markers it is difficult to know what code to keep and what to throw away.
+So far, this version has been working great on 13.3-RELEASE and I'm now working
+on 14.2 quite nicely.
 
-Pull requests that do not follow this will not be accepted. 
-
-Unless obvious what your code does, please leave a comment to explain to fellow developers why you patched it. The source code is the documentation!
-
-If the patch can be avoided by adding functionality to LinuxKPI, please consider the latter. Sooner or later, there will be more places where the functionality is used and having it in LinuxKPI mean we don't have to patch twice.
-
-### FreeBSD source code
-Folders `linuxkpi`
-
-Code style and rules same as FreeBSD kernel.
-No new code should be added there, all new linuxkpi functions should be
-added in FreeBSD base.
