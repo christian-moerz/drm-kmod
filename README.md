@@ -6,8 +6,10 @@ notebooks. This work is based on dumbbell@'s work.
 
 I was having screen freezes and random reboots with kernel messages
 
+```
  drmn0: [drm] ERROR Fault errors on pipe A
  drmn0: [drm] ERROR Timed out waiting for DSB workload completion.
+```
 
 This appears to stick around on 15, unfortunately.
 See https://github.com/freebsd/drm-kmod/issues/284
